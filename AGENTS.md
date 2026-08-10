@@ -21,6 +21,26 @@ Documentos de referência:
 
 **Não reinvente a roda.** Antes de escrever qualquer coisa nova, procure função/módulo existente no repo. Regra de balanceamento, fórmula de tick, tipo de save — se já existe, reusa. Duplicar lógica entre cliente e servidor é bug garantido: mora em `packages/core`.
 
+## Pre-commit check
+
+Antes de **todo** commit, revisar o diff staged caçando segredo vazado. Nunca commitar:
+
+- API keys, tokens, secrets (Apple, App Store Connect, RevenueCat, Postgres, PaaS, analytics)
+- `.env` e variantes, `*.p8`, `*.p12`, `*.mobileprovision`, `*.keystore`, chaves privadas
+- Connection strings com credencial, JWT de exemplo com payload real
+- Dados pessoais de jogador, IDs de conta, logs com PII
+
+Rodar antes de commitar:
+
+```bash
+rtk git diff --cached
+rtk git diff --cached -U0 | grep -nEi 'api[_-]?key|secret|passwd|password|token|credential|BEGIN [A-Z ]*PRIVATE KEY|sk-[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16}|postgres(ql)?://[^ ]*:[^ @]*@'
+```
+
+Se der hit: parar, avisar o usuário, não commitar. Segredo em placeholder (`process.env.X`, `<YOUR_KEY>`) é ok — valor real, nunca.
+
+Se um segredo já foi commitado, **não basta remover no commit seguinte** — o valor fica no histórico. Avisar o usuário para rotacionar a chave.
+
 ## Fluxo de trabalho
 
 Cada prompt/feature nova:
