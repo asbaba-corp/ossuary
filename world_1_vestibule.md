@@ -1,6 +1,20 @@
 # Mundo 1 — The Blank Banner
 
-Vestíbulo, Antinferno. Nome interno: `world_01_vestibule`.
+Vestíbulo, Antinferno. Nome interno: `world_01_vestibule`. **Fases 1–10** de 100 (Temporada 1).
+
+Estrutura de fases conforme `docs/design/core-design.md` §3.3:
+
+| Fase | Papel | Conteúdo |
+|---|---|---|
+| 1–2 | Apresentação | Ignavos |
+| 3–4 | Escalada | Ignavos + Moscardos |
+| 5 | Miniboss | *a definir* |
+| 6–7 | Pressão | Moscardos + Gorjas |
+| 8 | Elite | Marcados (spawn garantido) — farm de Óbolos |
+| 9 | A parede | Encalhados — exige Penetração |
+| 10 | Guardião | Caronte, duas fases |
+
+Primário exigido pelo círculo: **STR** (Dano e Penetração).
 
 Planície de lama batida sob céu de ferro, sem sol e sem horizonte. No centro, sempre visível e nunca alcançado, um estandarte em branco gira devagar. A multidão corre atrás. O chão é sangue e lágrimas coalhados, e o zumbido nunca para.
 
@@ -16,7 +30,7 @@ Vultos nus, sem traço de rosto, correndo em bando. Não te enxergam; te atropel
 
 - **Papel:** trash mob, fraco, em quantidade crescente
 - **Testa:** dano em área e volume de produção
-- **Drop:** Poeira de Passo — moeda mole base
+- **Drop:** Ouro (baixo, constante). Poeira de Passo em chance muito baixa — ver `docs/design/core-design.md` §5.1
 - **Osso:** nenhum. São sombras. Estabelecer isso cedo faz o jogador querer o que tem osso.
 
 ### 2. Moscardos — o Aguilhão
