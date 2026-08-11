@@ -269,16 +269,20 @@ Sistema separado dos atributos, e o mais recompensador do jogo para quem se dedi
 
 O domínio de itens agora separa `Item` em equipamento e consumível. O loadout
 continua cobrindo seis slots (arma, escudo, elmo, peito, luvas e botas) e
-bônus planos de CONS/STR/DEX/INT. Itens carregam raridade e efeitos; efeitos de
-bônus de atributo podem ser ativados e removidos explicitamente, enquanto
-efeitos futuros ficam registrados sem interpretação. Inventário, ownership,
-loot, duração temporal, merge e reroll ficam para milestones posteriores.
+bônus planos de CONS/STR/DEX/INT. `id` identifica o item-base; `instanceId`
+identifica a peça concreta, permitindo cópias do mesmo item com valores
+diferentes. Consumíveis continuam empilhando por `item.id`, enquanto
+equipamentos ocupam slots e são removidos por `instanceId`. Itens carregam
+raridade e efeitos; efeitos de bônus de atributo podem ser ativados e
+removidos explicitamente, enquanto efeitos futuros ficam registrados sem
+interpretação. Inventário, ownership, loot, duração temporal e merge ficam
+para milestones posteriores.
 
 ```
 ┌─ BASE ─────────── definida pelo slot e pelo tier do círculo
 │   Arma: dano base · Armadura: defesa
 ├─ ATRIBUTOS ────── bônus planos: +5 CONS, +3 STR…
-└─ AFIXOS ───────── percentuais, quantidade definida pela raridade
+└─ STATS EXPLÍCITOS ─ percentuais e bases fornecidos pela peça
 ```
 
 **Camada 1 — base.** O que o slot entrega por definição.
@@ -292,20 +296,35 @@ loot, duração temporal, merge e reroll ficam para milestones posteriores.
 | **Botas** | Defesa, velocidade de marcha |
 | **Escudo** | Defesa e proteção — fórmula ainda não definida |
 
-**Camada 2 — atributos planos.** Toda peça rola bônus direto em CONS/STR/DEX/INT, com viés pelo slot: peitoral e escudo tendem a CONS, luvas a DEX, elmo a INT, arma a STR ou DEX.
+**Camada 2 — atributos planos.** Toda peça pode rolar bônus direto em
+CONS/STR/DEX/INT, com viés pelo slot: peitoral e escudo tendem a CONS, luvas a
+DEX, elmo a INT, arma a STR ou DEX. A rolagem é pura e determinística: recebe
+seed e listas de valores possíveis por atributo, escolhe um valor inteiro não
+negativo de cada lista e nunca muta a peça-base. A mesma entrada reproduz a
+mesma peça.
 
 Isso é seguro justamente porque o equipamento é **bounded**: seis slots, substituíveis. É o oposto do osso, que acumula sem teto e por isso só pode mexer em derivado (§6.4). Um `+5 CONS` de peitoral é uma parcela finita e sempre comparável com a peça que vai substituí-la — que é exatamente a decisão que faz o loot valer a pena.
 
-**Camada 3 — afixos por raridade.** Percentuais, e é aqui que mora a fantasia de loot:
+**Camada 3 — stats adicionais explícitos.** A estrutura da peça já prevê dano
+base, defesa base, defesa percentual, dano físico percentual, dano de spell
+percentual, chance crítica percentual, lifesteal percentual, mana steal
+percentual, penetração de armadura percentual e attack speed percentual. Eles
+são fornecidos explicitamente e não são rolados neste milestone; resistências
+por tipo de dano ainda não fazem parte do modelo.
+
+**Raridade e pools.** Nesta etapa, `common`, `rare`, `epic` e `legendary` não
+definem quantidade de afixos nem rolam stats adicionais. A raridade apenas
+classifica a peça para que o conteúdo forneça pools de bônus planos adequados
+ao seu tier; a quantidade e os valores desses pools continuam decisão futura.
+
+O pool futuro de percentuais inclui:
 
 | Raridade | Afixos | Sensação |
 |---|---|---|
-| **Common** | 0–1 | Preenchimento. Melhora a base, não muda a build. Insumo de merge e de venda. |
-| **Rare** | 2 | O drop que faz parar e comparar. |
-| **Epic** | 3 | Reorganiza um slot. Raro o bastante para ser lembrado. |
-| **Legendary** | 4 + um efeito único | Reorganiza a build inteira em volta dele. |
-
-Pool de afixos:
+| **Common** | Pool básico | Preenchimento. |
+| **Rare** | Pool intermediário | O drop que faz parar e comparar. |
+| **Epic** | Pool alto | Reorganiza um slot. |
+| **Legendary** | Pool máximo | Reorganiza a build inteira em volta dele. |
 
 | Afixo | Mexe em |
 |---|---|
@@ -511,10 +530,12 @@ O jogador **configura as regras**; o jogo executa sozinho. Inventário manual nu
 
 O primeiro milestone do domínio de inventário já está implementado no core:
 uma coleção imutável de `ItemStack`, com capacidade configurável (padrão de
-128 slots), empilhamento apenas de consumíveis pelo mesmo `item.id` e rejeição
-segura quando não há espaço. Loot, venda automática e descarte continuam fora
-desse milestone; adicionar esses comportamentos depois não deve alterar as
-regras básicas de armazenamento.
+128 slots), empilhamento apenas de consumíveis pelo mesmo `item.id`, uma peça
+de equipamento por `instanceId` e rejeição segura de instâncias duplicadas.
+Equipamentos são consultados/removidos pela instância; consumíveis continuam
+sendo consultados/removidos pelo `item.id`. Loot, venda automática e descarte
+continuam fora desse milestone; adicionar esses comportamentos depois não deve
+alterar as regras básicas de armazenamento.
 
 Regras configuráveis, combináveis:
 
@@ -687,7 +708,7 @@ Sprites 2D, parallax de camadas, partículas — suficiente para um sidescroller
 | ~~Q3~~ | Equipamento como camada separada dos atributos? | **Sim, e são sistemas independentes.** Atributos vêm de pontos de nível; equipamento é gate de vazão por tier. Dano = arma + STR (§4.3–4.6). |
 | ~~Q4~~ | O que acontece depois da última fase? | **Temporadas.** Fase 100 é o endgame da T1; conteúdo novo vem como círculo/mitologia nova, não como repetição escalada (§7.1). |
 | ~~Q10~~ | Ossos afetam atributos ou derivados? | **Derivados**, em percentual. Atributos vêm de nível e são a decisão escassa; osso não pode diluí-la (§6.4). |
-| ~~Q9~~ | Equipamento tem raridade além do tier? | **Sim:** common / rare / epic / legendary, definindo a quantidade de afixos. Tier vem do círculo, raridade vem da sorte (§4.5). |
+| ~~Q9~~ | Equipamento tem raridade além do tier? | **Sim:** common / rare / epic / legendary. Neste milestone a raridade classifica os pools de bônus planos; quantidade de afixos e rolagem de stats adicionais ficam para conteúdo futuro (§4.5). |
 | ~~Q18~~ | Ouro e poeira se sobrepõem? | **Não — são opostos.** Ouro é fluxo (abundante, some); poeira é escassez (guardião e elite, % baixa, acumula) (§5.1). |
 | ~~Q20~~ | Venda de loot automática ou manual? | **Automática por regras configuráveis** pelo jogador; padrão vende common ao lotar (§5.4). |
 | ~~Q2~~ | Herói único ou esquadra? | **Party de até 4**, começando com 1. Slots e personagens comprados com ouro (§4.2). |

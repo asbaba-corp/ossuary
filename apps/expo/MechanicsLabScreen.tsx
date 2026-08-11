@@ -78,7 +78,7 @@ export function MechanicsLabScreen() {
       <View style={styles.notice}>
         <Text style={styles.noticeTitle}>Área experimental</Text>
         <Text style={styles.noticeText}>
-          Esta tela existe para validar XP, level-up e atributos. Ela não é a
+          Esta tela existe para validar XP, level-up, atributos e instâncias de equipamento. Ela não é a
           tela final do jogo e os controles abaixo não representam o combate.
         </Text>
       </View>
@@ -213,22 +213,25 @@ export function MechanicsLabScreen() {
 
       <LabSection title="04 · Equipamento (teste)">
         <Text style={styles.helper}>
-          Loadout separado da progressão. As peças abaixo são fixtures diretos;
-          não existe inventário, loot ou geração de itens neste teste.
+          Duas peças concretas usam o mesmo item-base, mas têm `instanceId` e
+          bônus rolados diferentes. A seed reproduz a mesma peça sem loot real.
         </Text>
         {testEquipment.map((equipment) => {
-          const equipped = selectedLoadout.equipped[equipment.slot]?.id === equipment.id;
+          const equipped = selectedLoadout.equipped[equipment.slot]?.instanceId === equipment.instanceId;
           return (
-            <View key={equipment.id} style={styles.equipmentRow}>
+            <View key={equipment.instanceId} style={styles.equipmentRow}>
               <View style={styles.equipmentIdentity}>
                 <Text style={styles.equipmentName}>{equipment.name}</Text>
                 <Text style={styles.muted}>
-                  {equipment.slot} · {equipment.rarity} · {formatBonuses(equipment.attributeBonuses)}
+                  {equipment.slot} · {equipment.rarity} · {equipment.instanceId}
+                </Text>
+                <Text style={styles.muted}>
+                  {formatBonuses(equipment.attributeBonuses)} · dano base {equipment.stats.baseDamage}
                 </Text>
               </View>
               <LabButton
                 label={equipped ? 'Desequipar' : 'Equipar'}
-                onPress={() => equipped ? unequipSlot(equipment.slot) : equipTestEquipment(equipment.id)}
+                onPress={() => equipped ? unequipSlot(equipment.slot) : equipTestEquipment(equipment.instanceId)}
               />
             </View>
           );
@@ -286,21 +289,21 @@ export function MechanicsLabScreen() {
           <Text style={styles.pointsTitle}>slots disponíveis</Text>
         </View>
         {inventoryCandidates.map((item) => (
-          <View key={item.id} style={styles.inventoryRow}>
+          <View key={item.kind === 'equipment' ? item.instanceId : item.id} style={styles.inventoryRow}>
             <View style={styles.equipmentIdentity}>
               <Text style={styles.equipmentName}>{item.name}</Text>
-              <Text style={styles.muted}>{item.kind} · {item.rarity}</Text>
+              <Text style={styles.muted}>{item.kind} · {item.rarity} · {item.kind === 'equipment' ? item.instanceId : 'empilhável'}</Text>
             </View>
-            <LabButton label="Adicionar" onPress={() => addTestItem(item.id)} />
+            <LabButton label="Adicionar" onPress={() => addTestItem(item.kind === 'equipment' ? item.instanceId : item.id)} />
           </View>
         ))}
         {inventory.items.map((stack, index) => (
-          <View key={`${stack.item.id}-${index}`} style={styles.inventoryRow}>
+          <View key={`${stack.item.kind === 'equipment' ? stack.item.instanceId : stack.item.id}-${index}`} style={styles.inventoryRow}>
             <View style={styles.equipmentIdentity}>
               <Text style={styles.equipmentName}>{stack.item.name}</Text>
               <Text style={styles.muted}>quantidade: {stack.quantity}</Text>
             </View>
-            <LabButton label="Remover 1" onPress={() => removeTestItem(stack.item.id)} />
+            <LabButton label="Remover 1" onPress={() => removeTestItem(stack.item.kind === 'equipment' ? stack.item.instanceId : stack.item.id)} />
           </View>
         ))}
       </LabSection>
