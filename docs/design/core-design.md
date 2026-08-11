@@ -7,7 +7,7 @@
 
 Documentos irmãos:
 - `plano-tecnico-idle-ios.md` — stack, sync, integridade, PVP, monetização
-- `world_1_vestibule.md` — design completo do Mundo 1
+- `world_1_vestibule.md` — design completo do Mundo 0, o Vestíbulo
 
 ---
 
@@ -103,7 +103,7 @@ A unidade de farm continua sendo a **fase**, não o ciclo: o jogador escolhe qua
    volta ao topo
 ```
 
-**A parede é o produto.** Cada mundo introduz um inimigo que não cede a "mais dano" — cede a um atributo específico. Isso converte crescimento numérico em decisão de build. O Encalhado (Mundo 1) é o protótipo: defesa altíssima, dano nulo, e a única saída é penetração de armadura.
+**A parede é o produto.** Cada mundo introduz um inimigo que não cede a "mais dano" — cede a um atributo específico. Isso converte crescimento numérico em decisão de build. O Encalhado (Mundo 0) é o protótipo: defesa altíssima, dano nulo, e a única saída é penetração de armadura.
 
 ### 3.5 Sessão
 
@@ -556,7 +556,7 @@ Isso resolve a progressão de longo prazo sem prestige: há sempre um contador s
 
 ### 6.3 Por que Ignavos não dropam osso
 
-Decisão deliberada, estabelecida no Mundo 1: os Ignavos são sombras, não deixam osso. O primeiro inimigo do jogo ensina que **osso é raro**. Estabelecer a escassez antes de mostrar a abundância é o que faz o jogador querer o que tem osso.
+Decisão deliberada, estabelecida no Mundo 0: os Ignavos são sombras, não deixam osso. O primeiro inimigo do jogo ensina que **osso é raro**. Estabelecer a escassez antes de mostrar a abundância é o que faz o jogador querer o que tem osso.
 
 ### 6.4 Ossos mexem em derivados, nunca em atributos
 
@@ -586,22 +586,22 @@ O Ossuary é **acumulativo e não gastável**. Não é loadout, não tem escolha
 
 | # | Mundo | Círculo | Fases | Primários exigidos | Guardião |
 |---|---|---|---|---|---|
-| 1 | The Blank Banner | Vestíbulo (Antinferno) | 1–10 | STR, e o conceito de Penetração | **Caronte** — preço: Óbolos |
-| 2 | — | I, Limbo | 11–20 | STR | — |
-| 3 | — | II, Luxúria | 21–30 | DEX | Minos |
-| 4 | — | III, Gula | 31–40 | CONS | Cérbero |
-| 5 | — | IV, Avareza | 41–50 | STR + CONS | Plutão |
-| 6 | — | V, Ira | 51–60 | DEX + CONS | Flégias |
-| 7 | — | VI, Heresia | 61–70 | INT | Muros de Dis |
-| 8 | — | VII, Violência | 71–80 | STR + INT | Minotauro / Gerião |
-| 9 | — | VIII, Fraude | 81–90 | DEX + INT | Malebranche |
-| 10 | — | IX, Traição | 91–100 | os quatro | **Lúcifer** — fase 100 |
+| **0** | The Blank Banner | Vestíbulo (Antinferno) | 1–10 | STR, e o conceito de Penetração | **Caronte** — preço: Óbolos |
+| 1 | — | I, Limbo | 11–20 | STR | — |
+| 2 | — | II, Luxúria | 21–30 | DEX | Minos |
+| 3 | — | III, Gula | 31–40 | CONS | Cérbero |
+| 4 | — | IV, Avareza | 41–50 | STR + CONS | Plutão |
+| 5 | — | V, Ira | 51–60 | DEX + CONS | Flégias |
+| 6 | — | VI, Heresia | 61–70 | INT | Muros de Dis |
+| 7 | — | VII, Violência | 71–80 | STR + INT | Minotauro / Gerião |
+| 8 | — | VIII, Fraude | 81–90 | DEX + INT | Malebranche |
+| 9 | — | IX, Traição | 91–100 | os quatro | **Lúcifer** — fase 100 |
 
 **A coluna de primários é a espinha da curva.** Não é decoração: cada círculo é prova de que o jogador construiu um perfil específico, e a ordem sobe de um primário isolado (Limbo–Gula) para pares (Avareza–Fraude) e enfim para o build completo (Traição). Quem empilhou só STR passa liso pelo Limbo e trava na Luxúria — comportamento desejado, e o motivo de o equipamento existir.
 
-**O Vestíbulo entra na contagem como Mundo 1.** Com dez fases próprias ele deixa de ser tutorial e vira um mundo completo: 10 + 9×10 = **100**. O número redondo tem valor real de produto — "cheguei na fase 100" é uma frase que o jogador diz sozinho, e Lúcifer na 100 é o clímax que a estrutura pedia.
+**O Vestíbulo é o Mundo 0.** Ele é Antinferno em Dante — literalmente antes do primeiro círculo — então numerá-lo como zero mantém o Mundo *n* alinhado ao Círculo *n*, o que evita um off-by-one em todo conteúdo futuro. Ainda assim tem dez fases próprias e é um mundo completo, não tutorial: 10 + 9×10 = **100**. O número redondo tem valor real de produto — "cheguei na fase 100" é uma frase que o jogador diz sozinho, e Lúcifer na 100 é o clímax que a estrutura pedia.
 
-Só o Mundo 1 está desenhado. A tabela fixa a espinha e reserva os guardiões — **não** é para ser preenchida agora. Conteúdo é dado, não código: cada mundo é um arquivo em `packages/content`.
+Só o Mundo 0 está desenhado. A tabela fixa a espinha e reserva os guardiões — **não** é para ser preenchida agora. Conteúdo é dado, não código: cada mundo é um arquivo em `packages/content`.
 
 **Padrão por mundo, derivado do Vestíbulo:** 3–4 mobs comuns (um deles a parede, na fase 9), 1 miniboss (fase 5), 1 elite raro que dropa o preço do guardião (garantido na fase 8), 1 guardião de duas fases (fase 10), 1 material de gate, 1 tier de equipamento, 1 osso.
 

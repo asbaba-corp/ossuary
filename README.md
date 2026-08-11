@@ -73,7 +73,7 @@ são ignorados porque não recebem secrets do GitHub.
 |---|---|
 | `docs/design/core-design.md` | Pilares, core loop, combate, economia, Ossuary, mapa de mundos |
 | `plano-tecnico-idle-ios.md` | Stack, arquitetura, sync, PVP, monetização |
-| `world_1_vestibule.md` | Mundo 1 — bestiário e fases |
+| `world_1_vestibule.md` | Mundo 0, o Vestíbulo — bestiário e fases |
 | `AGENTS.md` | Fluxo de trabalho e convenções do repositório |
 
 ## Contribuir

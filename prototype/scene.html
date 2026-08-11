@@ -78,19 +78,62 @@
   }
 
   /* ---- party fixa, entre o palco e as abas ---- */
-  .party-bar { border-bottom: none; padding: 14px 16px; }
+  .party-bar { padding: 14px 16px; }
 
-  /* ---- abas e painéis ---- */
-  .tabs { display: flex; gap: 1px; background: #241b14; border: 1px solid #241b14; border-top: none; }
-  .tabs button {
-    flex: 1; border: none; background: var(--stone-d); color: #7a6850;
-    font-family: var(--mono); font-size: 11px; letter-spacing: 0.12em;
-    text-transform: uppercase; padding: 10px 8px; cursor: pointer;
+  /* ---- ícones do HUD ---- */
+  .hud-icons { display: flex; gap: 6px; margin-left: 6px; }
+  .hicon {
+    position: relative; display: flex; align-items: center; gap: 6px;
+    background: #241b14; border: 1px solid #3f2f20; color: var(--bone-m);
+    font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em;
+    text-transform: uppercase; padding: 5px 10px 5px 8px; cursor: pointer;
   }
-  .tabs button:hover { color: var(--bone-b); background: #1e1610; }
-  .tabs button[aria-selected="true"] { color: var(--flame); background: #1b140e; box-shadow: inset 0 -2px 0 var(--flame); }
-  .tabs button:focus-visible { outline: 2px solid var(--flame); outline-offset: -3px; }
+  .hicon svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+  .hicon:hover { color: var(--flame); border-color: #6b4a26; background: #2a1f14; }
+  .hicon:focus-visible { outline: 2px solid var(--flame); outline-offset: 2px; }
+  .hicon[aria-expanded="true"] { color: var(--flame); border-color: #6b4a26; background: #2a1f14; }
+  @media (max-width: 620px) { .hicon-t { display: none; } .hicon { padding: 6px 8px; } }
+  /* aviso de pontos a distribuir */
+  .dot {
+    position: absolute; top: -3px; right: -3px; width: 7px; height: 7px;
+    border-radius: 50%; background: var(--flame); border: 1px solid var(--stone-d);
+  }
 
+  /* ---- pop-ups ---- */
+  .scrim {
+    position: fixed; inset: 0; z-index: 40;
+    background: rgba(6, 4, 3, 0.72);
+    display: flex; align-items: flex-start; justify-content: center;
+    padding: 40px 16px; overflow-y: auto;
+  }
+  .scrim[hidden] { display: none; }
+  .modal {
+    width: 100%; max-width: 880px;
+    background: var(--stone-d); border: 1px solid #3a2c1f;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6);
+    animation: pop .12s ease-out;
+  }
+  .modal.narrow { max-width: 620px; }
+  @keyframes pop { from { opacity: 0; transform: translateY(-6px); } }
+  @media (prefers-reduced-motion: reduce) { .modal { animation: none; } }
+  .modal-top {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 16px; border-bottom: 1px solid #241b14; background: #1b140e;
+  }
+  .modal-top h2 {
+    margin: 0; font-size: 12px; letter-spacing: 0.16em;
+    text-transform: uppercase; color: var(--bone-b); font-weight: 600;
+  }
+  .x {
+    background: none; border: 1px solid #3a2c1f; color: var(--bone-m);
+    font-family: var(--mono); font-size: 12px; line-height: 1;
+    width: 26px; height: 26px; cursor: pointer; padding: 0;
+  }
+  .x:hover { color: var(--flame); border-color: #6b4a26; }
+  .x:focus-visible { outline: 2px solid var(--flame); outline-offset: 2px; }
+  .modal-body { padding: 16px; }
+
+  /* ---- painéis ---- */
   .panel { background: var(--stone-d); border: 1px solid #241b14; border-top: none; padding: 16px; }
   .panel h3 {
     margin: 0 0 10px; font-size: 10px; letter-spacing: 0.14em;
@@ -225,13 +268,35 @@
 <div class="shell">
   <header>
     <h1>Ossuary</h1>
-    <span class="sub">protótipo de cena · Mundo 1, Vestíbulo · arte placeholder</span>
+    <span class="sub">protótipo de cena · Mundo 0, Vestíbulo · arte placeholder</span>
   </header>
 
   <div class="hud">
     <div class="hud-item"><span class="lbl">Onda</span><span class="val" id="wave">1</span></div>
     <div class="hud-item"><span class="lbl">Ouro</span><span class="val" id="gold">0</span></div>
     <div class="hud-item"><span class="lbl">Abates</span><span class="val" id="kills">0</span></div>
+
+    <div class="hud-icons">
+      <button class="hicon" id="openInv" aria-haspopup="dialog" title="Inventário (I)">
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path d="M9 6V4.8A2.8 2.8 0 0 1 11.8 2h.4A2.8 2.8 0 0 1 15 4.8V6"/>
+          <rect x="4" y="6" width="16" height="15" rx="2.5"/>
+          <path d="M4 12h16"/><path d="M10 12v3h4v-3"/>
+        </svg>
+        <span class="hicon-t">Mochila</span>
+        <i class="dot" id="invDot" hidden></i>
+      </button>
+
+      <button class="hicon" id="openStats" aria-haspopup="dialog" title="Atributos (C)">
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <circle cx="12" cy="6.4" r="3.1"/>
+          <path d="M5 21v-1.6C5 15.9 8.1 14 12 14s7 1.9 7 5.4V21"/>
+        </svg>
+        <span class="hicon-t">Atributos</span>
+        <i class="dot" id="statDot" hidden></i>
+      </button>
+    </div>
+
     <span class="phase" id="phase">Andando</span>
   </div>
 
@@ -267,13 +332,14 @@
     <p class="hint">A party chega a quatro. Slots e personagens são comprados com ouro — preços ilustrativos, compra ainda não implementada.</p>
   </section>
 
-  <nav class="tabs" role="tablist">
-    <button role="tab" id="tab-inv" aria-selected="true" data-tab="inv">Inventário</button>
-    <button role="tab" id="tab-stats" aria-selected="false" data-tab="stats">Atributos</button>
-  </nav>
-
-  <!-- ===== Inventário ===== -->
-  <section class="panel" id="pane-inv">
+  <!-- ===== Inventário — pop-up ===== -->
+  <div class="scrim" id="modal-inv" hidden>
+   <section class="modal" role="dialog" aria-modal="true" aria-labelledby="ttl-inv">
+    <header class="modal-top">
+      <h2 id="ttl-inv">Inventário</h2>
+      <button class="x" data-close aria-label="Fechar">✕</button>
+    </header>
+    <div class="modal-body">
     <div class="inv-bar">
       <button id="btnPot" class="icon-btn">◍ Poções</button>
       <span class="grow"></span>
@@ -301,22 +367,31 @@
     </div>
 
     <div class="grid" id="invGrid"></div>
-    <p class="hint">Só se usa poção com ouro suficiente — o custo nunca deixa o ouro negativo. Inventário cheio não interrompe a caça: o item de menor valor é vendido sozinho.</p>
-  </section>
+    </div>
+   </section>
+  </div>
 
-  <!-- ===== Atributos ===== -->
-  <section class="panel" id="pane-stats" hidden>
-    <div class="stat-cols">
-      <div>
-        <h3>Primários</h3>
-        <div class="attrs" id="attrList"></div>
-      </div>
-      <div>
-        <h3>Derivados</h3>
-        <dl class="derived" id="derList"></dl>
+  <!-- ===== Atributos — pop-up ===== -->
+  <div class="scrim" id="modal-stats" hidden>
+   <section class="modal narrow" role="dialog" aria-modal="true" aria-labelledby="ttl-stats">
+    <header class="modal-top">
+      <h2 id="ttl-stats">Atributos</h2>
+      <button class="x" data-close aria-label="Fechar">✕</button>
+    </header>
+    <div class="modal-body">
+      <div class="stat-cols">
+        <div>
+          <h3>Primários</h3>
+          <div class="attrs" id="attrList"></div>
+        </div>
+        <div>
+          <h3>Derivados</h3>
+          <dl class="derived" id="derList"></dl>
+        </div>
       </div>
     </div>
-  </section>
+   </section>
+  </div>
 
   <div class="ledger">
     <div class="cell"><span class="lbl">Loot</span><span class="n pos" id="loot">+0</span></div>
@@ -333,12 +408,6 @@
     <button id="reset">Reiniciar</button>
   </div>
 
-  <p class="note">
-    A referência em <b>references/</b> é a página de venda do <b>Mix Bone Dungeon Tileset — Skeleton Sprite Pack VOL. II</b>
-    (NeoPixelBoyCo). É arte paga com preview em marca d'água, então nada dela foi usado aqui: todo o cenário é
-    <b>desenhado por código</b> na mesma linguagem visual. A camada de render é independente da simulação —
-    trocar por um tileset comprado é troca de asset, não reescrita.
-  </p>
 </div>
 
 <script>
@@ -1242,21 +1311,49 @@
     { k: "dex", n: "DEX", d: "Destreza" }, { k: "int", n: "INT", d: "Inteligência" }
   ];
 
+  /* ---------- pop-ups ---------- */
   const TABS = ["inv", "stats"];
-  let tab = "inv", uiDirty = true;
+  let openModal = null, uiDirty = true, lastFocus = null;
   const markUI = () => { uiDirty = true; };
 
-  function setTab(t) {
-    tab = t;
-    for (const id of TABS) {
-      el("pane-" + id).hidden = id !== t;
-      el("tab-" + id).setAttribute("aria-selected", String(id === t));
-    }
+  const TRIGGER = { inv: "openInv", stats: "openStats" };
+
+  function setTab(id) {
+    if (openModal === id) return;
+    if (openModal) closeModal(true);
+    openModal = id;
+    el("modal-" + id).hidden = false;
+    el(TRIGGER[id]).setAttribute("aria-expanded", "true");
+    lastFocus = document.activeElement;
+    el("modal-" + id).querySelector("[data-close]").focus();
     markUI();
   }
-  for (const b of document.querySelectorAll(".tabs button")) {
-    b.onclick = () => setTab(b.dataset.tab);
+
+  function closeModal(keepFocus) {
+    if (!openModal) return;
+    el("modal-" + openModal).hidden = true;
+    el(TRIGGER[openModal]).setAttribute("aria-expanded", "false");
+    openModal = null;
+    if (!keepFocus && lastFocus && lastFocus.focus) lastFocus.focus();
   }
+
+  el("openInv").onclick = () => (openModal === "inv" ? closeModal() : setTab("inv"));
+  el("openStats").onclick = () => (openModal === "stats" ? closeModal() : setTab("stats"));
+
+  for (const id of TABS) {
+    const scrim = el("modal-" + id);
+    scrim.querySelector("[data-close]").onclick = () => closeModal();
+    // clique fora fecha; clique dentro do painel, não
+    scrim.addEventListener("mousedown", e => { if (e.target === scrim) closeModal(); });
+  }
+
+  addEventListener("keydown", e => {
+    if (e.key === "Escape" && openModal) { e.preventDefault(); closeModal(); return; }
+    if (e.target.matches("input, textarea")) return;
+    const k = e.key.toLowerCase();
+    if (k === "i") { e.preventDefault(); openModal === "inv" ? closeModal() : setTab("inv"); }
+    if (k === "c") { e.preventDefault(); openModal === "stats" ? closeModal() : setTab("stats"); }
+  });
 
   // grade do inventário, construída uma vez e reaproveitada
   const $grid = el("invGrid"), slotEls = [];
@@ -1384,15 +1481,21 @@
     el("mpbar2").style.width = pct(h.mp, h.mpMax);
     el("mpTxt").textContent = Math.ceil(h.mp) + " / " + h.mpMax;
     el("ptsNote").textContent = c.points > 0
-      ? c.points + (c.points === 1 ? " ponto a distribuir" : " pontos a distribuir") + " — aba Atributos"
+      ? c.points + (c.points === 1 ? " ponto a distribuir" : " pontos a distribuir")
       : "";
 
-    if (tab === "inv") {
+    // marcador no ícone: o pop-up fechado precisa avisar que há o que fazer
+    el("statDot").hidden = c.points <= 0;
+    el("invDot").hidden = s.inv.every(x => !x);
+
+    if (!openModal) return;                 // pop-up fechado, nada a redesenhar
+
+    if (openModal === "inv") {
       drawInv(); refreshPots();
     } else {
       for (const r of attrRows) { r.v.textContent = c[r.a.k]; r.b.disabled = c.points <= 0; }
       DER.forEach(([, f], i) => { derRows[i].textContent = f(s.d); });
-      el("pane-stats").querySelector("h3").textContent =
+      el("modal-stats").querySelector("h3").textContent =
         c.points > 0 ? "Primários · " + c.points + " a distribuir" : "Primários";
     }
   }
@@ -1420,7 +1523,7 @@
         if (S.wave > maxWave) maxWave = S.wave;
       }
     }
-    // ?tab=inv|stats|char abre direto numa aba — útil para captura
+    // ?tab=inv|stats abre o pop-up direto — útil para captura
     const wanted = q.get("tab");
     if (wanted && TABS.includes(wanted)) setTab(wanted);
     if (q.get("pot")) { $potPanel.hidden = false; $btnPot.setAttribute("aria-pressed", "true"); }
