@@ -1,3 +1,4 @@
+<meta charset="utf-8">
 <title>Ossuary — protótipo de cena</title>
 <style>
   :root {
@@ -78,19 +79,62 @@
   }
 
   /* ---- party fixa, entre o palco e as abas ---- */
-  .party-bar { border-bottom: none; padding: 14px 16px; }
+  .party-bar { padding: 14px 16px; }
 
-  /* ---- abas e painéis ---- */
-  .tabs { display: flex; gap: 1px; background: #241b14; border: 1px solid #241b14; border-top: none; }
-  .tabs button {
-    flex: 1; border: none; background: var(--stone-d); color: #7a6850;
-    font-family: var(--mono); font-size: 11px; letter-spacing: 0.12em;
-    text-transform: uppercase; padding: 10px 8px; cursor: pointer;
+  /* ---- ícones do HUD ---- */
+  .hud-icons { display: flex; gap: 6px; margin-left: 6px; }
+  .hicon {
+    position: relative; display: flex; align-items: center; gap: 6px;
+    background: #241b14; border: 1px solid #3f2f20; color: var(--bone-m);
+    font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em;
+    text-transform: uppercase; padding: 5px 10px 5px 8px; cursor: pointer;
   }
-  .tabs button:hover { color: var(--bone-b); background: #1e1610; }
-  .tabs button[aria-selected="true"] { color: var(--flame); background: #1b140e; box-shadow: inset 0 -2px 0 var(--flame); }
-  .tabs button:focus-visible { outline: 2px solid var(--flame); outline-offset: -3px; }
+  .hicon svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+  .hicon:hover { color: var(--flame); border-color: #6b4a26; background: #2a1f14; }
+  .hicon:focus-visible { outline: 2px solid var(--flame); outline-offset: 2px; }
+  .hicon[aria-expanded="true"] { color: var(--flame); border-color: #6b4a26; background: #2a1f14; }
+  @media (max-width: 620px) { .hicon-t { display: none; } .hicon { padding: 6px 8px; } }
+  /* aviso de pontos a distribuir */
+  .dot {
+    position: absolute; top: -3px; right: -3px; width: 7px; height: 7px;
+    border-radius: 50%; background: var(--flame); border: 1px solid var(--stone-d);
+  }
 
+  /* ---- pop-ups ---- */
+  .scrim {
+    position: fixed; inset: 0; z-index: 40;
+    background: rgba(6, 4, 3, 0.72);
+    display: flex; align-items: flex-start; justify-content: center;
+    padding: 40px 16px; overflow-y: auto;
+  }
+  .scrim[hidden] { display: none; }
+  .modal {
+    width: 100%; max-width: 880px;
+    background: var(--stone-d); border: 1px solid #3a2c1f;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6);
+    animation: pop .12s ease-out;
+  }
+  .modal.narrow { max-width: 620px; }
+  @keyframes pop { from { opacity: 0; transform: translateY(-6px); } }
+  @media (prefers-reduced-motion: reduce) { .modal { animation: none; } }
+  .modal-top {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 16px; border-bottom: 1px solid #241b14; background: #1b140e;
+  }
+  .modal-top h2 {
+    margin: 0; font-size: 12px; letter-spacing: 0.16em;
+    text-transform: uppercase; color: var(--bone-b); font-weight: 600;
+  }
+  .x {
+    background: none; border: 1px solid #3a2c1f; color: var(--bone-m);
+    font-family: var(--mono); font-size: 12px; line-height: 1;
+    width: 26px; height: 26px; cursor: pointer; padding: 0;
+  }
+  .x:hover { color: var(--flame); border-color: #6b4a26; }
+  .x:focus-visible { outline: 2px solid var(--flame); outline-offset: 2px; }
+  .modal-body { padding: 16px; }
+
+  /* ---- painéis ---- */
   .panel { background: var(--stone-d); border: 1px solid #241b14; border-top: none; padding: 16px; }
   .panel h3 {
     margin: 0 0 10px; font-size: 10px; letter-spacing: 0.14em;
@@ -225,13 +269,34 @@
 <div class="shell">
   <header>
     <h1>Ossuary</h1>
-    <span class="sub">protótipo de cena · Mundo 1, Vestíbulo · arte placeholder</span>
+    <span class="sub">protótipo de cena · Mundo 0, Vestíbulo · arte placeholder</span>
   </header>
 
   <div class="hud">
     <div class="hud-item"><span class="lbl">Onda</span><span class="val" id="wave">1</span></div>
     <div class="hud-item"><span class="lbl">Ouro</span><span class="val" id="gold">0</span></div>
     <div class="hud-item"><span class="lbl">Abates</span><span class="val" id="kills">0</span></div>
+
+    <div class="hud-icons">
+      <button class="hicon" id="openInv" aria-haspopup="dialog" title="Inventário (I)">
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path d="M9 6V4.8A2.8 2.8 0 0 1 11.8 2h.4A2.8 2.8 0 0 1 15 4.8V6"/>
+          <rect x="4" y="6" width="16" height="15" rx="2.5"/>
+          <path d="M4 12h16"/><path d="M10 12v3h4v-3"/>
+        </svg>
+        <span class="hicon-t">Mochila</span>
+        </button>
+
+      <button class="hicon" id="openStats" aria-haspopup="dialog" title="Atributos (C)">
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <circle cx="12" cy="6.4" r="3.1"/>
+          <path d="M5 21v-1.6C5 15.9 8.1 14 12 14s7 1.9 7 5.4V21"/>
+        </svg>
+        <span class="hicon-t">Atributos</span>
+        <i class="dot" id="statDot" hidden></i>
+      </button>
+    </div>
+
     <span class="phase" id="phase">Andando</span>
   </div>
 
@@ -267,13 +332,14 @@
     <p class="hint">A party chega a quatro. Slots e personagens são comprados com ouro — preços ilustrativos, compra ainda não implementada.</p>
   </section>
 
-  <nav class="tabs" role="tablist">
-    <button role="tab" id="tab-inv" aria-selected="true" data-tab="inv">Inventário</button>
-    <button role="tab" id="tab-stats" aria-selected="false" data-tab="stats">Atributos</button>
-  </nav>
-
-  <!-- ===== Inventário ===== -->
-  <section class="panel" id="pane-inv">
+  <!-- ===== Inventário — pop-up ===== -->
+  <div class="scrim" id="modal-inv" hidden>
+   <section class="modal" role="dialog" aria-modal="true" aria-labelledby="ttl-inv">
+    <header class="modal-top">
+      <h2 id="ttl-inv">Inventário</h2>
+      <button class="x" data-close aria-label="Fechar">✕</button>
+    </header>
+    <div class="modal-body">
     <div class="inv-bar">
       <button id="btnPot" class="icon-btn">◍ Poções</button>
       <span class="grow"></span>
@@ -301,22 +367,31 @@
     </div>
 
     <div class="grid" id="invGrid"></div>
-    <p class="hint">Só se usa poção com ouro suficiente — o custo nunca deixa o ouro negativo. Inventário cheio não interrompe a caça: o item de menor valor é vendido sozinho.</p>
-  </section>
+    </div>
+   </section>
+  </div>
 
-  <!-- ===== Atributos ===== -->
-  <section class="panel" id="pane-stats" hidden>
-    <div class="stat-cols">
-      <div>
-        <h3>Primários</h3>
-        <div class="attrs" id="attrList"></div>
-      </div>
-      <div>
-        <h3>Derivados</h3>
-        <dl class="derived" id="derList"></dl>
+  <!-- ===== Atributos — pop-up ===== -->
+  <div class="scrim" id="modal-stats" hidden>
+   <section class="modal narrow" role="dialog" aria-modal="true" aria-labelledby="ttl-stats">
+    <header class="modal-top">
+      <h2 id="ttl-stats">Atributos</h2>
+      <button class="x" data-close aria-label="Fechar">✕</button>
+    </header>
+    <div class="modal-body">
+      <div class="stat-cols">
+        <div>
+          <h3>Primários</h3>
+          <div class="attrs" id="attrList"></div>
+        </div>
+        <div>
+          <h3>Derivados</h3>
+          <dl class="derived" id="derList"></dl>
+        </div>
       </div>
     </div>
-  </section>
+   </section>
+  </div>
 
   <div class="ledger">
     <div class="cell"><span class="lbl">Loot</span><span class="n pos" id="loot">+0</span></div>
@@ -333,12 +408,6 @@
     <button id="reset">Reiniciar</button>
   </div>
 
-  <p class="note">
-    A referência em <b>references/</b> é a página de venda do <b>Mix Bone Dungeon Tileset — Skeleton Sprite Pack VOL. II</b>
-    (NeoPixelBoyCo). É arte paga com preview em marca d'água, então nada dela foi usado aqui: todo o cenário é
-    <b>desenhado por código</b> na mesma linguagem visual. A camada de render é independente da simulação —
-    trocar por um tileset comprado é troca de asset, não reescrita.
-  </p>
 </div>
 
 <script>
@@ -379,7 +448,65 @@
   }
   let rng = mulberry32(0xB05E);
 
-  /* ---------- sprites ---------- */
+  /* ==================== SPRITE SHEETS ====================
+     Bloco editado pela skill `sprite-import`. Cada personagem aponta para uma
+     pasta de spritesheets horizontais, quadros quadrados e uniformes.
+
+     Os PNGs NÃO ficam no repositório: a licença CraftPix permite usar a arte
+     no jogo mas proíbe redistribuir os arquivos, e o repo é público. Sem a
+     pasta `sprites/`, o carregamento falha em silêncio e a arte procedural
+     assume — o protótipo nunca quebra por falta de asset.
+
+     `footY` é a linha dos pés dentro do quadro, para assentar no chão.       */
+  const SPRITES = {
+    hero: {
+      base: "../sprites/knight-character-sprites-pixel-art/Spritesheet 128/Knight_1",
+      frame: 128, scale: 1.3, footY: 128, faces: "right",
+      anims: {
+        idle:   { file: "Idle.png",     frames: 4, fps: 6 },
+        walk:   { file: "Walk.png",     frames: 8, fps: 10 },
+        attack: { file: "Attack 1.png", frames: 5, fps: 13, loop: false }
+      }
+    }
+  };
+
+  for (const set of Object.values(SPRITES)) {
+    set.ready = false;
+    let pend = 0, failed = false;
+    for (const a of Object.values(set.anims)) {
+      pend++;
+      const img = new Image();
+      a.img = img;
+      img.onload = () => { if (--pend === 0 && !failed) set.ready = true; };
+      img.onerror = () => { failed = true; set.ready = false; };
+      img.src = set.base + "/" + encodeURIComponent(a.file);
+    }
+  }
+
+  function frameOf(a, t) {
+    const i = Math.floor(t * a.fps);
+    return a.loop === false ? Math.min(i, a.frames - 1) : i % a.frames;
+  }
+
+  function drawSheet(set, animName, t, cx, footScreenY, flip) {
+    const a = set.anims[animName];
+    if (!a || !a.img.complete || !a.img.naturalWidth) return false;
+    const F = set.frame, s = set.scale, dw = F * s;
+    const dx = Math.round(cx - dw / 2);
+    const dy = Math.round(footScreenY - set.footY * s);
+    const sx = frameOf(a, t) * F;
+    if (flip) {
+      ctx.save();
+      ctx.translate(dx + dw, dy); ctx.scale(-1, 1);
+      ctx.drawImage(a.img, sx, 0, F, F, 0, 0, dw, dw);
+      ctx.restore();
+    } else {
+      ctx.drawImage(a.img, sx, 0, F, F, dx, dy, dw, dw);
+    }
+    return true;
+  }
+
+  /* ---------- sprites procedurais (fallback) ---------- */
   const HERO_PAL = {
     k:"#080605", c:"#241c22", C:"#372b34", f:"#100c10",
     e:P.flame, s:"#8a8f96", S:"#c3c8ce", b:"#3f3123"
@@ -744,31 +871,9 @@
   };
   const potionById = (k, id) => POTIONS[k].find(p => p.id === id) || POTIONS[k][0];
 
-  /* ---- itens ---- */
-  const ISLOTS = [
-    { id: "arma", name: "Arma", g: "†" }, { id: "elmo", name: "Elmo", g: "∩" },
-    { id: "peito", name: "Peito", g: "▤" }, { id: "luvas", name: "Luvas", g: "⌒" },
-    { id: "botas", name: "Botas", g: "⊔" }, { id: "reli", name: "Relicário", g: "◇" }
-  ];
-  const RARITY = [
-    { id: "common",    name: "Comum",    col: "#8a8078", w: 68, mult: 1 },
-    { id: "rare",      name: "Raro",     col: "#5f92b5", w: 23, mult: 2.1 },
-    { id: "epic",      name: "Épico",    col: "#9070b8", w: 7.5, mult: 4.2 },
-    { id: "legendary", name: "Lendário", col: "#cb8f3c", w: 1.5, mult: 9 }
-  ];
-  const RW = RARITY.reduce((a, r) => a + r.w, 0);
-
-  function rollItem(depth) {
-    let x = rng() * RW, rar = RARITY[0];
-    for (const r of RARITY) { if (x < r.w) { rar = r; break; } x -= r.w; }
-    const sl = ISLOTS[(rng() * ISLOTS.length) | 0];
-    const ilvl = Math.max(1, depth);
-    return {
-      slot: sl.id, glyph: sl.g, slotName: sl.name,
-      rar: rar.id, rarName: rar.name, col: rar.col, ilvl,
-      value: Math.round((8 + ilvl * 4) * rar.mult)
-    };
-  }
+  /* ---- itens ----
+     Removidos: sem sistema de equipar, o drop só enchia o inventário de peças
+     que não fazem nada. Voltam com equipamento (core-design §4.5). */
 
   const INV_SIZE = 128, INV_PAGE = 48;
 
@@ -778,10 +883,10 @@
     rng = mulberry32(20260811);
     S = {
       t: 0, phase: PHASE.WALK, phaseT: 0,
-      hero: { x: 120, hp: 1, hpMax: 1, mp: 1, mpMax: 1, atkCd: 0, spellCd: 0, hurt: 0, frame: 0, y0: 234 },
+      hero: { x: 120, hp: 1, hpMax: 1, mp: 1, mpMax: 1, atkCd: 0, spellCd: 0, hurt: 0, frame: 0, y0: 234, anim: "idle", animT: 0 },
       mobs: [], pops: [], motes: [],
       cam: 0, wave: 1, nextWaveX: 520,
-      gold: 150, loot: 0, supply: 0, dust: 0, kills: 0, retreats: 0, sold: 0, hold: 0,
+      gold: 150, loot: 0, supply: 0, dust: 0, kills: 0, retreats: 0, hold: 0,
       retreatTo: 0,
 
       // personagem
@@ -842,21 +947,6 @@
   }
 
   /* ---- inventário ---- */
-  function invAdd(item) {
-    const i = S.inv.indexOf(null);
-    if (i >= 0) { S.inv[i] = item; return true; }
-    // cheio: vende o de menor valor. A caça nunca para (§5.4)
-    let worst = 0;
-    for (let k = 1; k < S.inv.length; k++) if (S.inv[k].value < S.inv[worst].value) worst = k;
-    if (S.inv[worst].value < item.value) {
-      S.gold += S.inv[worst].value; S.loot += S.inv[worst].value; S.sold++;
-      S.inv[worst] = item;
-    } else {
-      S.gold += item.value; S.loot += item.value; S.sold++;
-    }
-    return false;
-  }
-
   reset();
 
   function spawnWave() {
@@ -949,17 +1039,13 @@
           gainXP(9 + ((rng() * 6) | 0));
           pop(tgt.x + 16, tgt.y0 - 26, "+" + g + "o", "#c9a44a");
           if (rng() < 0.05) { s.dust++; pop(tgt.x + 16, tgt.y0 - 40, "+1 poeira", "#9fb6c9"); }
-          if (rng() < 0.3) {
-            const it = rollItem(s.wave);
-            invAdd(it);
-            pop(tgt.x + 16, tgt.y0 - 52, it.slotName, it.col);
-          }
         };
 
         // golpe físico — Cadência define o ritmo, Alcance quantos pega
         h.atkCd -= DT;
         if (h.atkCd <= 0) {
           h.atkCd = 1 / d.cad;
+          h.anim = "attack"; h.animT = 0;
           const crit = rng() < d.crit;
           const targets = alive.slice(0, d.alc);
           for (const tgt of targets) {
@@ -1013,6 +1099,16 @@
       else s.wave++;
       s.nextWaveX = h.x + 620;
       s.phase = PHASE.WALK; s.phaseT = 0;
+    }
+
+    /* animação: o golpe tem prioridade e roda até o fim; fora dele,
+       andar ou parar decide entre walk e idle */
+    h.animT += DT;
+    const atkA = SPRITES.hero.anims.attack;
+    const atkDone = h.anim === "attack" && h.animT >= atkA.frames / atkA.fps;
+    if (h.anim !== "attack" || atkDone) {
+      const want = (s.phase === PHASE.WALK || s.phase === PHASE.RETREAT) ? "walk" : "idle";
+      if (h.anim !== want) { h.anim = want; h.animT = 0; }
     }
 
     // limpeza / timers
@@ -1176,16 +1272,24 @@
       ctx.fillRect(sx + 10, GROUND - 3, 44, 4);
       const moving = s.phase === PHASE.WALK || s.phase === PHASE.RETREAT;
       const back = s.phase === PHASE.RETREAT;
-      const legs = HERO_LEGS[moving ? (Math.floor(h.frame) % 2) : 0];
-      drawSprite(ctx, HERO_BODY, HERO_PAL, sx, sy, HS, back);
-      drawSprite(ctx, legs, HERO_PAL, sx, sy + HERO_BODY.length * HS, HS, back);
+
+      // spritesheet quando disponível; arte procedural quando não
+      const sheet = SPRITES.hero.ready &&
+        drawSheet(SPRITES.hero, h.anim, h.animT, sx + 32, GROUND, back);
+
+      if (!sheet) {
+        const legs = HERO_LEGS[moving ? (Math.floor(h.frame) % 2) : 0];
+        drawSprite(ctx, HERO_BODY, HERO_PAL, sx, sy, HS, back);
+        drawSprite(ctx, legs, HERO_PAL, sx, sy + HERO_BODY.length * HS, HS, back);
+      }
+
       if (h.hurt > 0) {
-        ctx.globalAlpha = 0.4 * (h.hurt / 0.14);
-        drawSprite(ctx, HERO_BODY, { k:"#2a1414", c:"#6b2c28", C:"#853a30", f:"#3a1a18", e:"#d8703a", s:"#8e4038", S:"#a04c40", b:"#5c2a26" }, sx, sy, HS, back);
+        ctx.globalAlpha = 0.3 * (h.hurt / 0.14);
+        ctx.fillStyle = "#8e3028";
+        ctx.fillRect(sx - 2, GROUND - 92, 70, 92);
         ctx.globalAlpha = 1;
       }
-      // brilho do capuz
-      light(sx + 24, sy + 16, 46, 0.12);
+      light(sx + 30, GROUND - 58, 50, 0.1);
     }
 
     // números flutuantes
@@ -1242,21 +1346,49 @@
     { k: "dex", n: "DEX", d: "Destreza" }, { k: "int", n: "INT", d: "Inteligência" }
   ];
 
+  /* ---------- pop-ups ---------- */
   const TABS = ["inv", "stats"];
-  let tab = "inv", uiDirty = true;
+  let openModal = null, uiDirty = true, lastFocus = null;
   const markUI = () => { uiDirty = true; };
 
-  function setTab(t) {
-    tab = t;
-    for (const id of TABS) {
-      el("pane-" + id).hidden = id !== t;
-      el("tab-" + id).setAttribute("aria-selected", String(id === t));
-    }
+  const TRIGGER = { inv: "openInv", stats: "openStats" };
+
+  function setTab(id) {
+    if (openModal === id) return;
+    if (openModal) closeModal(true);
+    openModal = id;
+    el("modal-" + id).hidden = false;
+    el(TRIGGER[id]).setAttribute("aria-expanded", "true");
+    lastFocus = document.activeElement;
+    el("modal-" + id).querySelector("[data-close]").focus();
     markUI();
   }
-  for (const b of document.querySelectorAll(".tabs button")) {
-    b.onclick = () => setTab(b.dataset.tab);
+
+  function closeModal(keepFocus) {
+    if (!openModal) return;
+    el("modal-" + openModal).hidden = true;
+    el(TRIGGER[openModal]).setAttribute("aria-expanded", "false");
+    openModal = null;
+    if (!keepFocus && lastFocus && lastFocus.focus) lastFocus.focus();
   }
+
+  el("openInv").onclick = () => (openModal === "inv" ? closeModal() : setTab("inv"));
+  el("openStats").onclick = () => (openModal === "stats" ? closeModal() : setTab("stats"));
+
+  for (const id of TABS) {
+    const scrim = el("modal-" + id);
+    scrim.querySelector("[data-close]").onclick = () => closeModal();
+    // clique fora fecha; clique dentro do painel, não
+    scrim.addEventListener("mousedown", e => { if (e.target === scrim) closeModal(); });
+  }
+
+  addEventListener("keydown", e => {
+    if (e.key === "Escape" && openModal) { e.preventDefault(); closeModal(); return; }
+    if (e.target.matches("input, textarea")) return;
+    const k = e.key.toLowerCase();
+    if (k === "i") { e.preventDefault(); openModal === "inv" ? closeModal() : setTab("inv"); }
+    if (k === "c") { e.preventDefault(); openModal === "stats" ? closeModal() : setTab("stats"); }
+  });
 
   // grade do inventário, construída uma vez e reaproveitada
   const $grid = el("invGrid"), slotEls = [];
@@ -1269,22 +1401,7 @@
   function drawInv() {
     const start = S.invPage * INV_PAGE;
     for (let i = 0; i < INV_PAGE; i++) {
-      const idx = start + i, d = slotEls[i];
-      if (idx >= INV_SIZE) { d.hidden = true; continue; }
-      d.hidden = false;
-      const it = S.inv[idx];
-      if (!it) {
-        if (d.dataset.f !== "0") { d.className = "cellslot"; d.textContent = ""; d.title = ""; d.style.borderColor = ""; d.dataset.f = "0"; }
-      } else {
-        const sig = it.glyph + it.rar + it.ilvl;
-        if (d.dataset.f !== sig) {
-          d.className = "cellslot has";
-          d.textContent = it.glyph;
-          d.style.color = it.col; d.style.borderColor = it.col + "66";
-          d.title = it.slotName + " · " + it.rarName + " · nv " + it.ilvl + " · " + it.value + " ouro";
-          d.dataset.f = sig;
-        }
-      }
+      slotEls[i].hidden = start + i >= INV_SIZE;
     }
     const used = S.inv.reduce((a, x) => a + (x ? 1 : 0), 0);
     el("invUsed").textContent = used + " / " + INV_SIZE;
@@ -1384,15 +1501,20 @@
     el("mpbar2").style.width = pct(h.mp, h.mpMax);
     el("mpTxt").textContent = Math.ceil(h.mp) + " / " + h.mpMax;
     el("ptsNote").textContent = c.points > 0
-      ? c.points + (c.points === 1 ? " ponto a distribuir" : " pontos a distribuir") + " — aba Atributos"
+      ? c.points + (c.points === 1 ? " ponto a distribuir" : " pontos a distribuir")
       : "";
 
-    if (tab === "inv") {
+    // marcador no ícone: o pop-up fechado precisa avisar que há o que fazer
+    el("statDot").hidden = c.points <= 0;
+
+    if (!openModal) return;                 // pop-up fechado, nada a redesenhar
+
+    if (openModal === "inv") {
       drawInv(); refreshPots();
     } else {
       for (const r of attrRows) { r.v.textContent = c[r.a.k]; r.b.disabled = c.points <= 0; }
       DER.forEach(([, f], i) => { derRows[i].textContent = f(s.d); });
-      el("pane-stats").querySelector("h3").textContent =
+      el("modal-stats").querySelector("h3").textContent =
         c.points > 0 ? "Primários · " + c.points + " a distribuir" : "Primários";
     }
   }
@@ -1420,7 +1542,7 @@
         if (S.wave > maxWave) maxWave = S.wave;
       }
     }
-    // ?tab=inv|stats|char abre direto numa aba — útil para captura
+    // ?tab=inv|stats abre o pop-up direto — útil para captura
     const wanted = q.get("tab");
     if (wanted && TABS.includes(wanted)) setTab(wanted);
     if (q.get("pot")) { $potPanel.hidden = false; $btnPot.setAttribute("aria-pressed", "true"); }
@@ -1436,7 +1558,7 @@
         framesWithNegativeGold: negGold,
         hp: Math.round(S.hero.hp), hpMax: S.hero.hpMax,
         mp: Math.round(S.hero.mp), mpMax: S.hero.mpMax,
-        invUsed: used, autoSold: S.sold, spentOnPotions: S.supply,
+        invUsed: used, spentOnPotions: S.supply,
         loot: S.loot, balance: S.loot - S.supply, retreats: S.retreats
       });
       document.body.appendChild(d);
