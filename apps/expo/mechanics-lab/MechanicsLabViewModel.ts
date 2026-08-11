@@ -5,7 +5,6 @@ import type {
   EffectiveCharacterStats,
   EquipmentReplacementPreview,
   Equipment,
-  EquipmentDropEntry,
   EquipmentSlot,
   Inventory,
   InventorySummary,
@@ -22,44 +21,26 @@ import {
   allocatePartyAttributePoint,
   createCharacter,
   createCharacterLoadout,
-  createAttributeBonusEffect,
-  createConsumable,
-  createEquipment,
   createInventory,
   createItemEffectState,
   createItemStack,
   createParty,
-  equipEquipmentFromInventory,
+  findItemStack,
   gainPartyExperience,
   getEffectiveCharacterAttributes,
-  getEffectiveCharacterStats,
   getPartySummary,
   getInventorySummary,
   removeItem,
   removeItemEffect,
-  previewEquipmentReplacement,
-  createEquipmentFromDropTable,
-  unequipEquipmentToInventory,
   useItem,
   xpToNextLevel,
 } from '@ossuary/core';
+import { TEST_CONSUMABLE, TEST_CONSUMABLE_STACK, TEST_EQUIPMENT } from './lab-fixtures';
+import { equipFromInventory, getCharacterEquipmentStats, getReplacementPreview, rollTestDrop, unequipToInventory } from './lab-equipment-commands';
 
 const MONSTER_XP = 15;
 const MIN_TEST_XP = 0;
 const MAX_TEST_XP = 500;
-
-const TEST_EQUIPMENT: readonly Equipment[] = [
-  createEquipment('test-iron-sword', 'Espada de ferro', 'weapon', { str: 2 }, { rarity: 'common', instanceId: 'test-sword-a', stats: { baseDamage: 8 } }),
-  createEquipment('test-bone-shield', 'Escudo de osso', 'shield', { cons: 2 }, { rarity: 'rare' }),
-  createEquipment('test-leather-boots', 'Botas de couro', 'boots', { dex: 1 }, { rarity: 'epic' }),
-];
-
-const TEST_CONSUMABLE = createConsumable(
-  'test-strength-tonic',
-  'Tônico de força',
-  [createAttributeBonusEffect('test-strength-effect', { str: 1 })],
-  { rarity: 'rare' },
-);
 
 export interface MechanicsLabViewModel {
   readonly party: Party;
@@ -114,7 +95,7 @@ export function useMechanicsLabViewModel(): MechanicsLabViewModel {
     createCharacterLoadout('character-1'),
   ]);
   const [testConsumable, setTestConsumable] = useState<ItemStack>(() =>
-    createItemStack(TEST_CONSUMABLE, 2),
+    TEST_CONSUMABLE_STACK,
   );
   const [inventory, setInventory] = useState<Inventory>(() => createInventory(4));
   const [activeItemEffects, setActiveItemEffects] = useState<ItemEffectState>(() =>
@@ -133,11 +114,11 @@ export function useMechanicsLabViewModel(): MechanicsLabViewModel {
     selectedLoadout,
     activeItemEffects,
   );
-  const effectiveStats = getEffectiveCharacterStats(selectedCharacter, selectedLoadout, activeItemEffects);
+  const effectiveStats = getCharacterEquipmentStats(selectedCharacter, selectedLoadout, activeItemEffects);
   const replacementPreview = inventory.items
     .map(({ item }) => item)
     .find((item): item is Equipment => item.kind === 'equipment' && item.slot === 'weapon')
-    ? previewEquipmentReplacement(
+      ? getReplacementPreview(
         selectedCharacter,
         selectedLoadout,
         inventory.items.map(({ item }) => item).find((item): item is Equipment => item.kind === 'equipment' && item.slot === 'weapon')!,
@@ -194,7 +175,12 @@ export function useMechanicsLabViewModel(): MechanicsLabViewModel {
 
   function equipTestEquipment(instanceId: string) {
     try {
-      const result = equipEquipmentFromInventory(inventory, selectedLoadout, instanceId);
+      const equipment = TEST_EQUIPMENT.find((candidate) => candidate.instanceId === instanceId);
+      if (!equipment) throw new RangeError(`equipment fixture not found: ${instanceId}`);
+      const inventoryWithCandidate = findItemStack(inventory, instanceId)
+        ? inventory
+        : addItem(inventory, createItemStack(equipment, 1));
+      const result = equipFromInventory(inventoryWithCandidate, selectedLoadout, instanceId);
       setInventory(result.inventory);
       setLoadouts((current) => current.map((loadout) => loadout.characterId === selectedCharacter.id ? result.loadout : loadout));
       setLastEvent(`${result.loadout.equipped[result.loadout.equipped[candidateSlot(result.loadout, instanceId)]?.slot ?? 'weapon']?.name ?? 'Equipamento'} equipado em ${selectedCharacter.name}.`);
@@ -205,7 +191,7 @@ export function useMechanicsLabViewModel(): MechanicsLabViewModel {
 
   function unequipSlot(slot: EquipmentSlot) {
     try {
-      const result = unequipEquipmentToInventory(inventory, selectedLoadout, slot);
+      const result = unequipToInventory(inventory, selectedLoadout, slot);
       setInventory(result.inventory);
       setLoadouts((current) => current.map((loadout) => loadout.characterId === selectedCharacter.id ? result.loadout : loadout));
       setLastEvent(`Slot ${slot} liberado em ${selectedCharacter.name}.`);
@@ -229,7 +215,11 @@ export function useMechanicsLabViewModel(): MechanicsLabViewModel {
   }
 
   function addTestItem(itemId: string) {
-    const item = [...TEST_EQUIPMENT, TEST_CONSUMABLE].find((candidate) => candidate.id === itemId);
+    const item = [...TEST_EQUIPMENT, TEST_CONSUMABLE].find((candidate) =>
+      candidate.kind === 'equipment'
+        ? candidate.instanceId === itemId
+        : candidate.id === itemId,
+    );
     if (!item) return;
     try {
       const nextInventory = addItem(inventory, createItemStack(item, 1));
@@ -254,10 +244,7 @@ export function useMechanicsLabViewModel(): MechanicsLabViewModel {
     dropRoll.current += 1;
     const commonWeight = dropChancePercent;
     const rareWeight = 100 - dropChancePercent;
-    const entries: EquipmentDropEntry[] = [];
-    if (commonWeight > 0) entries.push({ equipment: TEST_EQUIPMENT[0], rarity: 'common', weight: commonWeight, attributeRollPools: { str: [1, 2, 3] } });
-    if (rareWeight > 0) entries.push({ equipment: TEST_EQUIPMENT[1], rarity: 'rare', weight: rareWeight, attributeRollPools: { cons: [2, 3, 4] } });
-    const drop = createEquipmentFromDropTable(`lab-drop-${dropRoll.current}`, `lab-seed-${dropRoll.current}`, entries);
+    const drop = rollTestDrop(`lab-drop-${dropRoll.current}`, `lab-seed-${dropRoll.current}`, commonWeight, rareWeight);
     try {
       setInventory(addItem(inventory, createItemStack(drop, 1)));
       setLastEvent(`${drop.name} (${drop.rarity}) gerado deterministicamente e adicionado.`);
@@ -273,7 +260,7 @@ export function useMechanicsLabViewModel(): MechanicsLabViewModel {
   function reset() {
     setParty(createParty());
     setLoadouts([createCharacterLoadout('character-1')]);
-    setTestConsumable(createItemStack(TEST_CONSUMABLE, 2));
+    setTestConsumable(TEST_CONSUMABLE_STACK);
     setInventory(createInventory(4));
     setActiveItemEffects(createItemEffectState());
     setSelectedCharacterId('character-1');
