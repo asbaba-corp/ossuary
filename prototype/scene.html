@@ -1,0 +1,931 @@
+<title>Ossuary — protótipo de cena</title>
+<style>
+  :root {
+    --void:    #0a0705;
+    --stone-d: #17110d;
+    --stone-m: #2e241b;
+    --stone-l: #4a3a2a;
+    --bone-m:  #a89273;
+    --bone-b:  #d9c9a8;
+    --flame:   #ff9a3c;
+    --blood:   #7a2222;
+    --good:    #7fa86b;
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--void);
+    color: var(--bone-m);
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.6;
+    padding: 24px 20px 48px;
+    display: flex;
+    justify-content: center;
+  }
+
+  .shell { width: 100%; max-width: 1000px; display: flex; flex-direction: column; gap: 14px; }
+
+  header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 14px; }
+
+  h1 {
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--bone-b);
+    margin: 0;
+  }
+
+  .sub { color: #6b5a44; font-size: 12px; }
+
+  /* ---- HUD ---- */
+  .hud {
+    display: flex; flex-wrap: wrap; gap: 10px 22px; align-items: center;
+    background: var(--stone-d);
+    border: 1px solid #241b14;
+    border-bottom: none;
+    padding: 9px 14px;
+    font-size: 12px;
+  }
+  .hud-item { display: flex; align-items: center; gap: 8px; }
+  .lbl { color: #6b5a44; letter-spacing: 0.1em; font-size: 10px; text-transform: uppercase; }
+  .val { color: var(--bone-b); font-variant-numeric: tabular-nums; }
+
+  .phase {
+    margin-left: auto;
+    color: var(--flame);
+    letter-spacing: 0.16em;
+    font-size: 11px;
+    text-transform: uppercase;
+  }
+
+  .bar { width: 108px; height: 9px; background: #241b14; border: 1px solid #382a1e; position: relative; }
+  .bar > i { display: block; height: 100%; background: var(--blood); transition: width .12s linear; }
+  .bar.mana > i { background: #2f4a6b; }
+
+  /* ---- stage ---- */
+  canvas {
+    display: block;
+    width: 100%;
+    height: auto;
+    image-rendering: pixelated;
+    background: var(--void);
+    border: 1px solid #241b14;
+  }
+
+  /* ---- ledger ---- */
+  .ledger {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 1px;
+    background: #241b14;
+    border: 1px solid #241b14;
+    border-top: none;
+  }
+  .cell { background: var(--stone-d); padding: 10px 14px; display: flex; flex-direction: column; gap: 3px; }
+  .cell .n { font-size: 17px; color: var(--bone-b); font-variant-numeric: tabular-nums; }
+  .cell .n.pos { color: var(--good); }
+  .cell .n.neg { color: #b4534b; }
+
+  /* ---- controls ---- */
+  .controls { display: flex; flex-wrap: wrap; gap: 8px; }
+  button {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--bone-m);
+    background: var(--stone-d);
+    border: 1px solid #3a2c1f;
+    padding: 7px 13px;
+    cursor: pointer;
+  }
+  button:hover { color: var(--bone-b); border-color: var(--stone-l); background: #1e1610; }
+  button:focus-visible { outline: 2px solid var(--flame); outline-offset: 2px; }
+  button[aria-pressed="true"] { color: var(--flame); border-color: #6b4a26; }
+
+  .note {
+    color: #5d4d3a;
+    font-size: 11.5px;
+    line-height: 1.7;
+    max-width: 66ch;
+    border-left: 2px solid #2e241b;
+    padding-left: 12px;
+  }
+  .note b { color: var(--bone-m); font-weight: 600; }
+</style>
+
+<div class="shell">
+  <header>
+    <h1>Ossuary</h1>
+    <span class="sub">protótipo de cena · Mundo 1, Vestíbulo · arte placeholder</span>
+  </header>
+
+  <div class="hud">
+    <div class="hud-item"><span class="lbl">Onda</span><span class="val" id="wave">1</span></div>
+    <div class="hud-item"><span class="lbl">HP</span><div class="bar"><i id="hpbar" style="width:100%"></i></div><span class="val" id="hp">120</span></div>
+    <div class="hud-item"><span class="lbl">Ouro</span><span class="val" id="gold">0</span></div>
+    <div class="hud-item"><span class="lbl">Abates</span><span class="val" id="kills">0</span></div>
+    <span class="phase" id="phase">Andando</span>
+  </div>
+
+  <canvas id="stage" width="960" height="384" aria-label="Cena do protótipo: herói caminhando por uma catacumba de ossos e enfrentando ondas de inimigos"></canvas>
+
+  <div class="ledger">
+    <div class="cell"><span class="lbl">Loot</span><span class="n pos" id="loot">+0</span></div>
+    <div class="cell"><span class="lbl">Poções</span><span class="n neg" id="supply">−0</span></div>
+    <div class="cell"><span class="lbl">Saldo da run</span><span class="n" id="balance">0</span></div>
+    <div class="cell"><span class="lbl">Poeira</span><span class="n" id="dust">0</span></div>
+    <div class="cell"><span class="lbl">Piso de ouro</span><span class="n" id="floor">20</span></div>
+    <div class="cell"><span class="lbl">Recuos</span><span class="n" id="retreats">0</span></div>
+  </div>
+
+  <div class="controls">
+    <button id="pause" aria-pressed="false">Pausar</button>
+    <button id="speed" aria-pressed="false">Velocidade 1×</button>
+    <button id="reset">Reiniciar</button>
+  </div>
+
+  <p class="note">
+    A referência em <b>references/</b> é a página de venda do <b>Mix Bone Dungeon Tileset — Skeleton Sprite Pack VOL. II</b>
+    (NeoPixelBoyCo). É arte paga com preview em marca d'água, então nada dela foi usado aqui: todo o cenário é
+    <b>desenhado por código</b> na mesma linguagem visual. A camada de render é independente da simulação —
+    trocar por um tileset comprado é troca de asset, não reescrita.
+  </p>
+</div>
+
+<script>
+(() => {
+  "use strict";
+
+  const cv = document.getElementById("stage");
+  const ctx = cv.getContext("2d", { alpha: false });
+  ctx.imageSmoothingEnabled = false;
+
+  const W = cv.width, H = cv.height;
+  const CEIL_Y = 34, CEIL_H = 38;           // faixa de pedra do teto
+  const WALL_Y = CEIL_Y + CEIL_H;           // topo da parede de ossos
+  const GROUND = 300;                       // linha do chão
+  const FLOOR_H = 44;                       // faixa de cascalho
+  const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  /* ---------- paleta, amostrada da referência ---------- */
+  const P = {
+    void:"#0a0b0d",
+    wall:"#3a3230", wallD:"#93807f", wallL:"#bda7a2",   // ossuário rosado
+    boneL:"#cdbcb5", boneM:"#b3a09b", boneD:"#8b7a79",
+    socket:"#3c3130", ember:"#7c3622", emberH:"#b8552e",
+    ceilD:"#231f1d", ceilM:"#3f372d", ceilL:"#524737",
+    colD:"#524737", colM:"#766042", colL:"#a38353", colE:"#2b241c",
+    floorD:"#1a1716", floorM:"#231f1d", floorL:"#3a3431", grit:"#8c8884",
+    flame:"#ff9a3c", flameC:"#ffe0a8", blood:"#7a2222"
+  };
+
+  /* ---------- prng determinístico ---------- */
+  function mulberry32(a) {
+    return function () {
+      a |= 0; a = a + 0x6D2B79F5 | 0;
+      let t = Math.imul(a ^ a >>> 15, 1 | a);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+  let rng = mulberry32(0xB05E);
+
+  /* ---------- sprites ---------- */
+  const HERO_PAL = {
+    k:"#080605", c:"#241c22", C:"#372b34", f:"#100c10",
+    e:P.flame, s:"#8a8f96", S:"#c3c8ce", b:"#3f3123"
+  };
+
+  // 16 × 23, encapuzado, lâmina na direita
+  const HERO_BODY = [
+    "................",
+    ".....kkkkk......",
+    "....kcCCCck.....",
+    "...kcCCCCCck....",
+    "...kcfffffck....",
+    "...kcfeefck.....",
+    "....kcfffck.....",
+    ".....kcCck......",
+    "....kcCCCck.....",
+    "...kcCCCCCck....",
+    "..kcCCCCCCCck...",
+    "..kcCCCCCCCck.S.",
+    "..kcCCCCCCCckS..",
+    "..kcCCCCCCCkS...",
+    "...kcCCCCCks....",
+    "...kcCCCCCk.....",
+    "....kcCCCk......",
+    "....kcCkCk......",
+    "....kcCkCk......"
+  ];
+  const HERO_LEGS = [
+    ["....kbbkbb......", "....kbbkbb......", "...kbbb.bbb....."],  // passo A
+    ["...kbb..kbb.....", "...kbb...kbb....", "..kbbb...bbb...."]   // passo B
+  ];
+
+  // meio-tom acinzentado: separa da parede clara e do herói escuro
+  const MOB_PAL = { k:"#161215", n:"#7d736c", N:"#968a80", p:"#4e4741", P:"#665d55" };
+  // 14 × 19, vulto nu sem rosto
+  const MOB = [
+    "..............",
+    ".....knnk.....",
+    "....knnnnk....",
+    "....knnnnk....",
+    "....knnnnk....",
+    ".....knnk.....",
+    "......nn......",
+    "....kpPPpk....",
+    "...kpPPPPpk...",
+    "..kpPPPPPPpk..",
+    "...kpPPPPpk...",
+    "....kpPPpk....",
+    "....kp..pk....",
+    "....kp..pk....",
+    "....kp..pk....",
+    "....kp..pk....",
+    "...kpp..ppk..."
+  ];
+
+  function drawSprite(g, rows, pal, x, y, s, flip) {
+    const w = rows[0].length;
+    for (let r = 0; r < rows.length; r++) {
+      const row = rows[r];
+      for (let c = 0; c < row.length; c++) {
+        const ch = row[c];
+        if (ch === ".") continue;
+        const col = pal[ch];
+        if (!col) continue;
+        g.fillStyle = col;
+        g.fillRect(x + (flip ? w - 1 - c : c) * s, y + r * s, s, s);
+      }
+    }
+  }
+
+  /* ---------- texturas geradas ---------- */
+  function offscreen(w, h) {
+    const c = document.createElement("canvas");
+    c.width = w; c.height = h;
+    const g = c.getContext("2d");
+    g.imageSmoothingEnabled = false;
+    return { c, g };
+  }
+
+  /* ---- ossos desenhados com gradiente, sem contorno ----
+     A referência define cada crânio só por sombreado, dentro de uma faixa de
+     valor muito estreita. Desenho em baixa resolução com formas suaves e
+     amplio depois sem interpolação: o pixel vem da ampliação, não do traço. */
+
+  function ell(g, cx, cy, rx, ry, fill) {
+    g.beginPath(); g.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+    g.fillStyle = fill; g.fill();
+  }
+
+  function softBlot(g, cx, cy, rx, ry, color, a) {
+    const gr = g.createRadialGradient(cx, cy, 0, cx, cy, Math.max(rx, ry));
+    gr.addColorStop(0, color.replace(")", "," + a + ")").replace("rgb", "rgba"));
+    gr.addColorStop(0.62, color.replace(")", "," + a * 0.72 + ")").replace("rgb", "rgba"));
+    gr.addColorStop(1, color.replace(")", ",0)").replace("rgb", "rgba"));
+    g.save(); g.translate(cx, cy); g.scale(1, ry / rx); g.translate(-cx, -cy);
+    g.beginPath(); g.arc(cx, cy, Math.max(rx, ry), 0, Math.PI * 2);
+    g.fillStyle = gr; g.fill(); g.restore();
+  }
+
+  // sombras profundas: o crânio emerge do escuro em vez de flutuar num fundo claro
+  const RGB = {
+    crev:   "rgb(38,32,31)",
+    shadow: "rgb(30,25,24)",
+    socket: "rgb(16,13,13)",
+    ember:  "rgb(96,34,18)"
+  };
+
+  /* órbita: quadrilátero de canto arredondado, borda superior reta sob a
+     arcada. Círculo aqui é o que faz o crânio virar carinha. */
+  function socket(g, x, y, w, h, flip, color, alpha) {
+    const s = flip ? -1 : 1;
+    g.save(); g.translate(x, y); g.scale(s, 1);
+    /* canto EXTERNO ligeiramente mais alto que o interno. Invertido, isso
+       vira sobrancelha franzida e o crânio ganha cara de personagem. */
+    g.beginPath();
+    g.moveTo(-w, -h * 0.86);
+    g.lineTo(w * 0.72, -h * 0.6);
+    g.quadraticCurveTo(w * 0.92, h * 0.28, w * 0.1, h * 0.86);
+    g.quadraticCurveTo(-w * 0.78, h * 0.92, -w, -h * 0.86);
+    g.closePath();
+    const gr = g.createLinearGradient(0, -h, 0, h);      // fundo em cima, luz devolvida embaixo
+    gr.addColorStop(0, color.replace(")", "," + alpha + ")").replace("rgb", "rgba"));
+    gr.addColorStop(0.7, color.replace(")", "," + alpha * 0.9 + ")").replace("rgb", "rgba"));
+    gr.addColorStop(1, color.replace(")", "," + alpha * 0.5 + ")").replace("rgb", "rgba"));
+    g.fillStyle = gr; g.fill();
+    g.restore();
+  }
+
+  /* kind 0 = de frente · 1 = calota (nuca) · 2 = três quartos
+     Variar a pose é metade do que tira o ar de adesivo repetido. */
+  function boneSkull(g, cx, cy, r, tone, ember, kind, tilt) {
+    kind = kind || 0; tilt = tilt || 0;
+    g.save(); g.translate(cx, cy); g.rotate(tilt);
+
+    softBlot(g, 0, r * 0.3, r * 1.22, r * 1.26, RGB.crev, 0.62);        // vão atrás
+
+    // caixa craniana: mais alta que larga, têmpora achatada
+    if (kind !== 1) ell(g, 0, r * 0.7, r * 0.52, r * 0.4, tone.dim);    // maxilar recuado
+    // caixa estreita e alta, não esférica
+    const dome = g.createRadialGradient(-r * 0.34, -r * 0.6, r * 0.05, 0, r * 0.1, r * 1.24);
+    dome.addColorStop(0, tone.lit);
+    dome.addColorStop(0.4, tone.mid);
+    dome.addColorStop(1, tone.dim);
+    ell(g, 0, -r * 0.1, r * 0.82, r * 1.08, dome);
+    softBlot(g, -r * 0.76, -r * 0.16, r * 0.26, r * 0.46, RGB.shadow, 0.3);  // têmpora
+    softBlot(g, r * 0.76, -r * 0.16, r * 0.26, r * 0.46, RGB.shadow, 0.34);
+
+    /* afunilamento abaixo das órbitas: come a silhueta dos dois lados.
+       Sem isso a forma continua larga até embaixo e lê como cabeça, não crânio. */
+    if (kind !== 1) {
+      softBlot(g, -r * 0.72, r * 0.5, r * 0.4, r * 0.42, RGB.crev, 0.8);
+      softBlot(g, r * 0.72, r * 0.5, r * 0.4, r * 0.42, RGB.crev, 0.8);
+      softBlot(g, 0, r * 1.02, r * 0.55, r * 0.3, RGB.crev, 0.55);
+    }
+
+    if (kind === 1) {                                    // nuca: sutura, sem rosto
+      softBlot(g, 0, r * 0.1, r * 0.06, r * 0.72, RGB.shadow, 0.26);
+      softBlot(g, 0, -r * 0.5, r * 0.5, r * 0.06, RGB.shadow, 0.22);
+      g.restore(); return;
+    }
+
+    const def = Math.min(1, Math.max(0, (r - 2.4) / 5.5));
+    // órbitas menores, mais altas e mais juntas — proporção de crânio, não de rosto
+    const sw = r * 0.24, sh = r * 0.21, sy = -r * 0.04;
+    const sxo = kind === 2 ? r * 0.26 : r * 0.33;
+    const sxi = kind === 2 ? r * 0.54 : r * 0.33;
+
+    // prateleira supraciliar: uma sombra contínua, não duas sobrancelhas
+    softBlot(g, 0, sy - sh * 1.5, r * 0.66, sh * 0.42, RGB.shadow, 0.26 + def * 0.16);
+
+    const sa = 0.6 + def * 0.28;
+    const col = ember ? RGB.ember : RGB.socket;
+    socket(g, -sxo, sy, sw, sh, false, col, ember ? 0.85 : sa);
+    socket(g, sxi, sy, sw * (kind === 2 ? 0.78 : 1), sh, true, col, ember ? 0.85 : sa);
+
+    // abertura nasal: estreita e curta
+    g.beginPath();
+    g.moveTo(0, r * 0.24); g.lineTo(-r * 0.09, r * 0.5); g.lineTo(r * 0.09, r * 0.5);
+    g.closePath();
+    g.fillStyle = RGB.socket.replace(")", "," + (0.45 + def * 0.25) + ")").replace("rgb", "rgba");
+    g.fill();
+
+    // maçãs do rosto e arcada dentária
+    softBlot(g, -r * 0.54, r * 0.3, r * 0.18, r * 0.15, RGB.shadow, 0.24);
+    softBlot(g, r * 0.54, r * 0.3, r * 0.18, r * 0.15, RGB.shadow, 0.24);
+    if (def > 0.5) {
+      g.fillStyle = RGB.shadow.replace(")", ",0.34)").replace("rgb", "rgba");
+      for (let i = -2; i <= 2; i++) g.fillRect(i * r * 0.12 - r * 0.025, r * 0.62, r * 0.05, r * 0.13);
+    }
+
+    if (ember) {
+      softBlot(g, -sxo, sy, sw * 0.5, sh * 0.5, "rgb(150,66,34)", 0.5);
+      softBlot(g, sxi, sy, sw * 0.5, sh * 0.5, "rgb(150,66,34)", 0.5);
+    }
+    g.restore();
+  }
+
+  // fragmento de osso longo, também sem contorno
+  function femur(g, cx, cy, len, tone) {
+    const t = len * 0.17;
+    softBlot(g, cx, cy + t * 0.7, len * 0.55, t * 1.5, RGB.crev, 0.45);
+    ell(g, cx, cy, len * 0.44, t, tone.mid);
+    ell(g, cx, cy - t * 0.3, len * 0.4, t * 0.45, tone.lit);
+    for (const s of [-1, 1]) {
+      ell(g, cx + s * len * 0.44, cy - t * 0.5, t * 0.85, t * 0.85, tone.mid);
+      ell(g, cx + s * len * 0.44, cy + t * 0.55, t * 0.8, t * 0.8, tone.dim);
+      ell(g, cx + s * len * 0.42, cy - t * 0.6, t * 0.5, t * 0.5, tone.lit);
+    }
+  }
+
+  /* osso encardido: nada de branco. A luz alta é apenas o topo da calota,
+     e a base já cai para quase preto — é isso que dá peso e não gracinha. */
+  const TONES = [
+    { lit: "#8e8079", mid: "#5f544f", dim: "#2f2827" },
+    { lit: "#9c8d84", mid: "#695d57", dim: "#352d2b" },
+    { lit: "#82746e", mid: "#564b47", dim: "#2a2423" },
+    { lit: "#96877f", mid: "#635751", dim: "#312a28" }
+  ];
+
+  function mix(a, b, t) {
+    const pa = parseInt(a.slice(1), 16), pb = parseInt(b.slice(1), 16);
+    const ch = i => {
+      const x = (pa >> (i * 8)) & 255, y = (pb >> (i * 8)) & 255;
+      return Math.round(x + (y - x) * t);
+    };
+    return "rgb(" + ch(2) + "," + ch(1) + "," + ch(0) + ")";
+  }
+
+  function upscale(src, f) {
+    const { c, g } = offscreen(src.width * f, src.height * f);
+    g.imageSmoothingEnabled = false;
+    g.drawImage(src, 0, 0, c.width, c.height);
+    return c;
+  }
+
+  /* parede: crânios de tamanhos muito variados, empilhados e sobrepostos,
+     desenhados em meia resolução e ampliados ×2 */
+  const WALL_H = GROUND - WALL_Y;
+  const wallTex = (() => {
+    const LW = 160, LH = WALL_H / 2;               // 160 × 114 → 320 × 228
+    const { c, g } = offscreen(LW, LH);
+    g.fillStyle = P.wall; g.fillRect(0, 0, LW, LH);
+
+    const r = mulberry32(4242);
+
+    // fundo: manchas escuras dando profundidade ao empilhamento
+    for (let i = 0; i < 90; i++) {
+      softBlot(g, r() * LW, r() * LH, 6 + r() * 11, 6 + r() * 11, RGB.shadow, 0.5);
+    }
+
+    /* grade com jitter em vez de posições aleatórias: aleatório puro deixa
+       aglomerados e vazios, e o ossuário da referência não tem vão nenhum */
+    const LAYERS = [
+      { step: 6.5,  rMin: 2.4, rMax: 3.6, back: 0.62, ember: 0 },
+      { step: 10,   rMin: 3.6, rMax: 5.4, back: 0.34, ember: 0 },
+      { step: 15,   rMin: 5.4, rMax: 7.8, back: 0.11, ember: 0    },
+      { step: 28,   rMin: 8.5, rMax: 13,  back: 0,    ember: 0.03 }
+    ];
+
+    const recede = (t, k) => k <= 0 ? t : {
+      lit: mix(t.lit, P.wall, k), mid: mix(t.mid, P.wall, k), dim: mix(t.dim, P.wall, k)
+    };
+
+    for (const L of LAYERS) {
+      for (let gy = -L.step; gy < LH + L.step; gy += L.step) {
+        for (let gx = -L.step; gx < LW + L.step; gx += L.step) {
+          if (L.step > 20 && r() < 0.45) continue;          // frente é esparsa
+          const cx = gx + (r() - 0.4) * L.step * 0.9;
+          const cy = gy + (r() - 0.4) * L.step * 0.9;
+          const rad = L.rMin + r() * (L.rMax - L.rMin);
+          const tone = recede(TONES[(r() * TONES.length) | 0], L.back);
+          if (r() < 0.09) { femur(g, cx, cy, rad * 2.4, tone); continue; }
+          const em = r() < L.ember;
+          const kv = r();
+          // maioria de nuca e três quartos: parede de rostos inteiros vira papel de parede
+          const kind = kv < 0.42 ? 1 : kv < 0.76 ? 2 : 0;
+          const tilt = (r() - 0.5) * 0.8;
+          boneSkull(g, cx, cy, rad, tone, em, kind, tilt);
+          const wrap = (dx, dy) => boneSkull(g, cx + dx, cy + dy, rad, tone, em, kind, tilt);
+          if (cx < rad * 1.4) wrap(LW, 0);
+          if (cx > LW - rad * 1.4) wrap(-LW, 0);
+          if (cy < rad * 1.4) wrap(0, LH);
+          if (cy > LH - rad * 1.4) wrap(0, -LH);
+        }
+      }
+    }
+
+    // granulado fino, quebra o chapado sem criar contorno
+    const im = g.getImageData(0, 0, LW, LH), d = im.data;
+    for (let i = 0; i < d.length; i += 4) {
+      const n = (r() - 0.5) * 5;
+      d[i] += n; d[i + 1] += n; d[i + 2] += n;
+    }
+    g.putImageData(im, 0, 0);
+
+    return upscale(c, 2);
+  })();
+
+  // faixa de pedra bruta do teto
+  const ceilTex = (() => {
+    const { c, g } = offscreen(320, CEIL_H);
+    g.fillStyle = P.ceilD; g.fillRect(0, 0, c.width, c.height);
+    const r = mulberry32(808);
+    for (let y = 2; y < c.height - 2; y += 9) {
+      for (let x = -10; x < c.width + 10; x += 13) {
+        const w = 9 + ((r() * 5) | 0), h = 6 + ((r() * 2) | 0);
+        const ox = Math.round(x + (r() - 0.5) * 6);
+        g.fillStyle = P.ceilD; g.fillRect(ox, y, w + 1, h + 1);
+        g.fillStyle = r() > 0.5 ? P.ceilM : P.ceilL;
+        g.fillRect(ox, y, w, h);
+        g.fillStyle = P.ceilD;
+        g.fillRect(ox, y + h - 1, w, 1);
+      }
+    }
+    return c;
+  })();
+
+  // chão de cascalho, com poucos ossos meio enterrados
+  const floorTex = (() => {
+    const LW = 160, LH = FLOOR_H / 2;
+    const { c, g } = offscreen(LW, LH);
+    g.fillStyle = P.floorM; g.fillRect(0, 0, LW, LH);
+    const r = mulberry32(555);
+
+    const dark = { lit: "#5c534e", mid: "#443c39", dim: "#2a2422" };
+    for (let i = 0; i < 7; i++) {
+      const x = r() * LW, y = 5 + r() * (LH - 9);
+      if (r() > 0.5) femur(g, x, y, 7 + r() * 5, dark);
+      else boneSkull(g, x, y, 2.2 + r() * 1.6, dark, false);
+    }
+
+    for (let i = 0; i < 620; i++) {
+      const x = (r() * LW) | 0, y = (r() * LH) | 0, v = r();
+      g.fillStyle = v > 0.95 ? P.grit : v > 0.72 ? P.floorL : P.floorD;
+      g.fillRect(x, y, 1, 1);
+    }
+    g.fillStyle = "rgba(10,11,13,0.55)"; g.fillRect(0, 0, LW, 2);
+    return upscale(c, 2);
+  })();
+
+  const wallPat = ctx.createPattern(wallTex, "repeat");
+  const ceilPat = ctx.createPattern(ceilTex, "repeat");
+  const floorPat = ctx.createPattern(floorTex, "repeat");
+
+  /* ---------- estado ---------- */
+  const PHASE = {
+    WALK: "Andando", ENTER: "Onda entrando", FIGHT: "Combate",
+    CLEAR: "Onda limpa", RETREAT: "Recuando"
+  };
+  let S;
+
+  function reset() {
+    rng = mulberry32(20260811);
+    S = {
+      t: 0, phase: PHASE.WALK, phaseT: 0,
+      hero: { x: 120, hp: 120, hpMax: 120, atkCd: 0, hurt: 0, frame: 0, y0: 234 },
+      mobs: [], pops: [], motes: [],
+      cam: 0, wave: 1, nextWaveX: 520,
+      gold: 40, loot: 0, supply: 0, dust: 0, kills: 0, retreats: 0,
+      potionAt: 0.45, potionCost: 25, potionHeal: 45,
+      goldFloor: 20, retreatTo: 0
+    };
+    for (let i = 0; i < 34; i++) {
+      S.motes.push({ x: rng() * W, y: WALL_Y + rng() * (GROUND - WALL_Y), s: 0.15 + rng() * 0.5, r: 1 + (rng() > 0.8 ? 1 : 0) });
+    }
+  }
+  reset();
+
+  function spawnWave() {
+    const n = 5;
+    for (let i = 0; i < n; i++) {
+      S.mobs.push({
+        x: S.cam + W + 30 + i * 46,
+        slot: S.hero.x + 96 + i * 40,
+        hp: 26, hpMax: 26, atkCd: 0.6 + rng() * 0.7, hurt: 0, dead: 0, frame: 0, y0: 249
+      });
+    }
+  }
+
+  function pop(x, y, text, color) { S.pops.push({ x, y, text, color, life: 0.85 }); }
+
+  /* ---------- simulação ---------- */
+  const DT = 1 / 60;
+
+  function step() {
+    const s = S, h = s.hero;
+    s.t += DT; s.phaseT += DT;
+
+    // poção automática — queima ouro, mas nunca fura o piso (core-design §5.3)
+    if (h.hp < h.hpMax * s.potionAt && h.hp > 0) {
+      if (s.gold - s.potionCost >= s.goldFloor) {
+        s.gold -= s.potionCost; s.supply += s.potionCost;
+        h.hp = Math.min(h.hpMax, h.hp + s.potionHeal);
+        pop(h.x + 24, h.y0 - 22, "poção −" + s.potionCost, "#b4534b");
+      } else if (!s.warnedFloor) {
+        s.warnedFloor = true;
+        pop(h.x + 24, h.y0 - 30, "piso de ouro", "#c9a44a");
+      }
+    }
+
+    // sem poção e sem HP → recua para fase mais rasa, não morre (§3.3)
+    if (h.hp <= 0 && s.phase !== PHASE.RETREAT) {
+      s.phase = PHASE.RETREAT; s.phaseT = 0;
+      s.mobs.length = 0;
+      s.retreats++;
+      s.retreatTo = Math.max(120, h.x - 300);
+      s.wave = Math.max(1, s.wave - 1);
+      pop(h.x + 24, h.y0 - 34, "recuando", "#c9a44a");
+    }
+
+    if (s.phase === PHASE.RETREAT) {
+      h.x = Math.max(s.retreatTo, h.x - 150 * DT);
+      h.frame += DT * 7;
+      h.hp = Math.min(h.hpMax * 0.6, h.hp + 26 * DT);
+      if (h.x <= s.retreatTo && h.hp >= h.hpMax * 0.6 - 0.5) {
+        s.warnedFloor = false;
+        s.nextWaveX = h.x + 620;
+        s.phase = PHASE.WALK; s.phaseT = 0;
+      }
+    }
+
+    if (s.phase === PHASE.WALK) {
+      h.x += 62 * DT;
+      h.frame += DT * 7;
+      if (h.x >= s.nextWaveX) { spawnWave(); s.phase = PHASE.ENTER; s.phaseT = 0; }
+    }
+
+    if (s.phase === PHASE.ENTER) {
+      let ready = true;
+      for (const m of s.mobs) {
+        if (m.x > m.slot) { m.x = Math.max(m.slot, m.x - 132 * DT); m.frame += DT * 9; ready = false; }
+      }
+      if (ready) { s.phase = PHASE.FIGHT; s.phaseT = 0; }
+    }
+
+    if (s.phase === PHASE.FIGHT) {
+      // herói ataca o mais próximo
+      h.atkCd -= DT;
+      const alive = s.mobs.filter(m => !m.dead);
+      if (alive.length === 0) { s.phase = PHASE.CLEAR; s.phaseT = 0; }
+      else if (h.atkCd <= 0) {
+        h.atkCd = 0.55;
+        const tgt = alive[0];
+        const crit = rng() < 0.18;
+        const dmg = Math.round((7 + rng() * 5) * (crit ? 2.1 : 1));
+        tgt.hp -= dmg; tgt.hurt = 0.16;
+        pop(tgt.x + 20, tgt.y0 - 12, (crit ? "✦" : "") + dmg, crit ? P.flameC : P.boneB);
+        if (tgt.hp <= 0) {
+          tgt.dead = 0.45; s.kills++;
+          const g = 6 + ((rng() * 6) | 0);
+          s.gold += g; s.loot += g;
+          pop(tgt.x + 16, tgt.y0 - 26, "+" + g + "o", "#c9a44a");
+          if (rng() < 0.05) { s.dust++; pop(tgt.x + 16, tgt.y0 - 40, "+1 poeira", "#9fb6c9"); }
+        }
+      }
+      // mobs atacam
+      for (const m of alive) {
+        m.atkCd -= DT;
+        if (m.atkCd <= 0) {
+          m.atkCd = 1.15;
+          const dmg = 2 + ((rng() * 3) | 0);
+          h.hp = Math.max(0, h.hp - dmg); h.hurt = 0.14;
+          pop(h.x + 22, h.y0 - 8, "−" + dmg, "#b4534b");
+        }
+      }
+    }
+
+    if (s.phase === PHASE.CLEAR && s.phaseT > 0.9) {
+      s.mobs.length = 0;
+      s.wave++; s.nextWaveX = h.x + 620;
+      s.phase = PHASE.WALK; s.phaseT = 0;
+    }
+
+    // limpeza / timers
+    for (const m of s.mobs) { if (m.dead) m.dead -= DT; if (m.hurt > 0) m.hurt -= DT; }
+    s.mobs = s.mobs.filter(m => m.dead === 0 || m.dead > 0);
+    if (h.hurt > 0) h.hurt -= DT;
+    for (const p of s.pops) { p.life -= DT; p.y -= 26 * DT; }
+    s.pops = s.pops.filter(p => p.life > 0);
+
+    s.cam = Math.max(0, h.x - 250);
+  }
+
+  /* ---------- render ---------- */
+  const POP_FONT = '600 13px ui-monospace, "SF Mono", Menlo, Consolas, monospace';
+
+  function light(x, y, r, a) {
+    const gr = ctx.createRadialGradient(x, y, 0, x, y, r);
+    gr.addColorStop(0, "rgba(255,170,80," + a + ")");
+    gr.addColorStop(0.45, "rgba(255,130,50," + (a * 0.28) + ")");
+    gr.addColorStop(1, "rgba(255,120,40,0)");
+    ctx.fillStyle = gr;
+    ctx.fillRect(x - r, y - r, r * 2, r * 2);
+  }
+
+  // pilastra estreita e alta, dourada, com capitel e base salientes
+  function column(wx, cam) {
+    const x = Math.round(wx - cam * 0.55);
+    if (x < -90 || x > W + 90) return;
+    const CW = 18, top = CEIL_Y + 6, bot = GROUND;
+
+    ctx.fillStyle = P.colE; ctx.fillRect(x - 1, top, CW + 2, bot - top);
+    ctx.fillStyle = P.colD; ctx.fillRect(x, top, CW, bot - top);
+    ctx.fillStyle = P.colM; ctx.fillRect(x + 2, top, 8, bot - top);
+    ctx.fillStyle = P.colL; ctx.fillRect(x + 3, top, 3, bot - top);   // fio de luz
+    ctx.fillStyle = P.colE; ctx.fillRect(x + CW - 2, top, 2, bot - top);
+
+    const slab = (y, h, w) => {
+      ctx.fillStyle = P.colE; ctx.fillRect(x - w - 1, y - 1, CW + w * 2 + 2, h + 2);
+      ctx.fillStyle = P.colD; ctx.fillRect(x - w, y, CW + w * 2, h);
+      ctx.fillStyle = P.colM; ctx.fillRect(x - w, y + 1, CW + w * 2, Math.max(1, h - 3));
+      ctx.fillStyle = P.colL; ctx.fillRect(x - w, y, CW + w * 2, 1);
+    };
+    slab(top - 7, 9, 5);             // capitel
+    slab(top + 3, 5, 3);
+    slab(bot - 22, 6, 3);            // base
+    slab(bot - 14, 14, 6);
+
+    // castiçal — chama pequena, luz curta e quente
+    const tx = x + CW / 2, ty = 150;
+    const fl = reduceMotion ? 1
+      : 0.86 + Math.sin(S.t * 9.3 + wx) * 0.09 + Math.sin(S.t * 23 + wx * 0.7) * 0.05;
+    ctx.fillStyle = P.colE; ctx.fillRect(tx - 4, ty + 4, 8, 3);
+    ctx.fillStyle = P.colD; ctx.fillRect(tx - 1, ty - 2, 2, 8);
+    ctx.fillStyle = P.flame;  ctx.fillRect(tx - 2, ty - 7 * fl, 4, 7 * fl);
+    ctx.fillStyle = P.flameC; ctx.fillRect(tx - 1, ty - 5 * fl, 2, 4 * fl);
+    light(tx, ty - 3, 96 * fl, 0.26);
+  }
+
+  function render() {
+    const s = S, h = s.hero, cam = s.cam;
+
+    ctx.fillStyle = P.void; ctx.fillRect(0, 0, W, H);
+
+    const band = (pat, tex, y, h, par) => {
+      ctx.save();
+      ctx.beginPath(); ctx.rect(0, y, W, h); ctx.clip();
+      ctx.translate(-Math.round(cam * par) % tex.width, y);
+      ctx.fillStyle = pat;
+      ctx.fillRect(0, 0, W + tex.width, h);
+      ctx.restore();
+    };
+
+    band(ceilPat, ceilTex, CEIL_Y, CEIL_H, 0.4);        // teto de pedra
+    ctx.fillStyle = "rgba(8,7,9,0.55)"; ctx.fillRect(0, CEIL_Y, W, CEIL_H);
+    band(wallPat, wallTex, WALL_Y, WALL_H, 0.25);       // ossuário
+    band(floorPat, floorTex, GROUND, FLOOR_H, 1);       // cascalho
+    ctx.fillStyle = "rgba(8,7,9,0.42)"; ctx.fillRect(0, GROUND, W, FLOOR_H);
+
+    /* A parede vive no escuro. As caveiras só se revelam nas poças de luz
+       dos castiçais — é o que dá dread e o que faz a tocha valer alguma coisa. */
+    ctx.fillStyle = "rgba(8,7,9,0.74)";
+    ctx.fillRect(0, WALL_Y, W, WALL_H);
+
+    ctx.save();
+    ctx.beginPath(); ctx.rect(0, WALL_Y, W, WALL_H); ctx.clip();
+    ctx.globalCompositeOperation = "destination-out";
+    const SPAN0 = 430;
+    const f0 = Math.floor(cam * 0.55 / SPAN0) * SPAN0;
+    for (let i = -1; i < 5; i++) {
+      const lx = Math.round(f0 + i * SPAN0 - cam * 0.55) + 9;
+      const fl = reduceMotion ? 1 : 0.9 + Math.sin(S.t * 9.3 + f0 + i * SPAN0) * 0.07;
+      const gr = ctx.createRadialGradient(lx, 150, 6, lx, 168, 235 * fl);
+      gr.addColorStop(0, "rgba(0,0,0,0.96)");
+      gr.addColorStop(0.45, "rgba(0,0,0,0.42)");
+      gr.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = gr;
+      ctx.fillRect(lx - 220, WALL_Y, 440, WALL_H);
+    }
+    ctx.restore();
+
+    // véu quente por cima, para a luz não sair cinza
+    const warm = ctx.createLinearGradient(0, WALL_Y, 0, GROUND);
+    warm.addColorStop(0, "rgba(60,34,16,0.16)");
+    warm.addColorStop(0.55, "rgba(70,40,18,0.10)");
+    warm.addColorStop(1, "rgba(10,8,10,0.36)");
+    ctx.fillStyle = warm; ctx.fillRect(0, WALL_Y, W, WALL_H);
+
+    // faixas pretas de enquadramento
+    ctx.fillStyle = P.void;
+    ctx.fillRect(0, 0, W, CEIL_Y);
+    ctx.fillRect(0, GROUND + FLOOR_H, W, H - GROUND - FLOOR_H);
+    ctx.fillStyle = "rgba(10,11,13,0.85)";
+    ctx.fillRect(0, CEIL_Y + CEIL_H - 2, W, 3);
+
+    // colunas + castiçais
+    const SPAN = 430;
+    const first = Math.floor(cam * 0.55 / SPAN) * SPAN;
+    for (let i = -1; i < 5; i++) column(first + i * SPAN, cam);
+
+    ctx.fillStyle = "rgba(10,11,13,0.9)"; ctx.fillRect(0, GROUND, W, 2);
+
+    // poeira em suspensão
+    if (!reduceMotion) {
+      for (const m of s.motes) {
+        m.x -= m.s; if (m.x < -2) { m.x = W + 2; m.y = WALL_Y + rng() * (GROUND - WALL_Y); }
+        ctx.fillStyle = "rgba(255,235,205,0.16)";
+        ctx.fillRect(m.x | 0, (m.y + Math.sin(s.t * 0.8 + m.x) * 4) | 0, m.r, m.r);
+      }
+    }
+
+    // ---- entidades ----
+    const HS = 4, MS = 4;
+    h.y0 = GROUND - (HERO_BODY.length + 3) * HS;
+
+    // mobs
+    for (const m of s.mobs) {
+      m.y0 = GROUND - MOB.length * MS;
+      const sx = Math.round(m.x - cam), sy = m.y0;
+      ctx.globalAlpha = m.dead > 0 ? Math.max(0, m.dead / 0.45) : 1;
+      // sombra
+      ctx.fillStyle = "rgba(0,0,0,0.4)";
+      ctx.fillRect(sx + 8, GROUND - 3, 40, 4);
+      drawSprite(ctx, MOB, MOB_PAL, sx, sy, MS, true);
+      if (m.hurt > 0) {
+        ctx.globalAlpha = 0.55 * (m.hurt / 0.16);
+        drawSprite(ctx, MOB, { k:"#2a1414", n:"#8e4038", N:"#a04c40", p:"#5c2a26", P:"#71332c" }, sx, sy, MS, true);
+        ctx.globalAlpha = m.dead > 0 ? Math.max(0, m.dead / 0.45) : 1;
+      }
+      // barra de vida
+      if (!m.dead && m.hp < m.hpMax) {
+        ctx.fillStyle = "#1b1410"; ctx.fillRect(sx + 8, sy - 9, 40, 4);
+        ctx.fillStyle = P.blood;   ctx.fillRect(sx + 8, sy - 9, 40 * (m.hp / m.hpMax), 4);
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    // herói
+    {
+      const sx = Math.round(h.x - cam), sy = h.y0;
+      ctx.fillStyle = "rgba(0,0,0,0.45)";
+      ctx.fillRect(sx + 10, GROUND - 3, 44, 4);
+      const moving = s.phase === PHASE.WALK || s.phase === PHASE.RETREAT;
+      const back = s.phase === PHASE.RETREAT;
+      const legs = HERO_LEGS[moving ? (Math.floor(h.frame) % 2) : 0];
+      drawSprite(ctx, HERO_BODY, HERO_PAL, sx, sy, HS, back);
+      drawSprite(ctx, legs, HERO_PAL, sx, sy + HERO_BODY.length * HS, HS, back);
+      if (h.hurt > 0) {
+        ctx.globalAlpha = 0.4 * (h.hurt / 0.14);
+        drawSprite(ctx, HERO_BODY, { k:"#2a1414", c:"#6b2c28", C:"#853a30", f:"#3a1a18", e:"#d8703a", s:"#8e4038", S:"#a04c40", b:"#5c2a26" }, sx, sy, HS, back);
+        ctx.globalAlpha = 1;
+      }
+      // brilho do capuz
+      light(sx + 24, sy + 16, 46, 0.12);
+    }
+
+    // números flutuantes
+    ctx.font = POP_FONT;
+    ctx.textAlign = "center";
+    for (const p of s.pops) {
+      ctx.globalAlpha = Math.min(1, p.life / 0.4);
+      ctx.fillStyle = "rgba(0,0,0,0.85)";
+      ctx.fillText(p.text, Math.round(p.x - cam) + 1, Math.round(p.y) + 1);
+      ctx.fillStyle = p.color;
+      ctx.fillText(p.text, Math.round(p.x - cam), Math.round(p.y));
+    }
+    ctx.globalAlpha = 1;
+    ctx.textAlign = "left";
+
+    // vinheta
+    const vg = ctx.createRadialGradient(W / 2, H / 2, H * 0.42, W / 2, H / 2, H * 1.1);
+    vg.addColorStop(0, "rgba(0,0,0,0)");
+    vg.addColorStop(1, "rgba(6,6,9,0.42)");
+    ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
+  }
+
+  /* ---------- HUD ---------- */
+  const el = id => document.getElementById(id);
+  const $wave = el("wave"), $hp = el("hp"), $hpbar = el("hpbar"), $gold = el("gold"),
+        $kills = el("kills"), $phase = el("phase"), $loot = el("loot"),
+        $supply = el("supply"), $balance = el("balance"), $dust = el("dust"),
+        $floor = el("floor"), $retreats = el("retreats");
+
+  function hud() {
+    const s = S;
+    $wave.textContent = s.wave;
+    $hp.textContent = Math.ceil(s.hero.hp);
+    $hpbar.style.width = (100 * s.hero.hp / s.hero.hpMax) + "%";
+    $gold.textContent = s.gold;
+    $kills.textContent = s.kills;
+    $phase.textContent = s.phase;
+    $loot.textContent = "+" + s.loot;
+    $supply.textContent = "−" + s.supply;
+    const bal = s.loot - s.supply;
+    $balance.textContent = (bal >= 0 ? "+" : "") + bal;
+    $balance.className = "n " + (bal >= 0 ? "pos" : "neg");
+    $dust.textContent = s.dust;
+    $floor.textContent = s.goldFloor;
+    $retreats.textContent = s.retreats;
+  }
+
+  /* ---------- pré-aquecimento: ?t=SEGUNDOS adianta a simulação ----------
+     Serve para capturar um estado específico (combate, recuo) sem esperar. */
+  {
+    const t = parseFloat(new URLSearchParams(location.search).get("t"));
+    if (Number.isFinite(t) && t > 0) {
+      const n = Math.min(60 * 60 * 10, Math.round(t / DT));
+      for (let i = 0; i < n; i++) step();
+    }
+  }
+
+  /* ---------- loop ---------- */
+  let paused = false, mult = 1, acc = 0, last = performance.now();
+
+  function frame(now) {
+    const dt = Math.min(0.25, (now - last) / 1000);
+    last = now;
+    if (!paused) {
+      acc += dt * mult;
+      let guard = 0;
+      while (acc >= DT && guard++ < 240) { step(); acc -= DT; }
+    }
+    render(); hud();
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+
+  /* ---------- controles ---------- */
+  const $pause = el("pause"), $speed = el("speed");
+  $pause.onclick = () => {
+    paused = !paused;
+    $pause.textContent = paused ? "Continuar" : "Pausar";
+    $pause.setAttribute("aria-pressed", String(paused));
+  };
+  $speed.onclick = () => {
+    mult = mult === 1 ? 3 : 1;
+    $speed.textContent = "Velocidade " + mult + "×";
+    $speed.setAttribute("aria-pressed", String(mult !== 1));
+  };
+  el("reset").onclick = () => { reset(); };
+})();
+</script>

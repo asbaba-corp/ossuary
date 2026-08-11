@@ -6,3 +6,8 @@ build/
 *.log
 .env
 .env.local
+
+# Personal instruction files (per-user, never committed)
+wellinstructions.md
+*instructions.md
+!AGENTS.md
