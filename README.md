@@ -44,16 +44,21 @@ o alvo descrito em `plano-tecnico-idle-ios.md`.
 - **iOS/Android/Web:** React Native + Expo — um único codebase (RN Web para a web)
 - **Render:** react-native-skia
 - **Servidor:** Node + TypeScript, Postgres
-- **Monorepo (pnpm):** `packages/core` (TS puro, lógica do jogo) + `apps/expo` (cliente Expo ios/android/web). Rodar o app web: `pnpm --filter @ossuary/app web`.
+- **Monorepo (pnpm):** `packages/core` (TS puro, lógica do jogo) + `apps/expo` (cliente Expo ios/android/web).
 
 ### Verificações e preview
 
 ```bash
 pnpm install
+pnpm web
 pnpm typecheck
 pnpm build:core
 pnpm build:web
 ```
+
+`pnpm web` inicia o laboratório Expo em modo web local. Para limpar o cache do
+Metro, use `pnpm web -- --clear`. O comando equivalente sem o atalho é
+`pnpm --filter @ossuary/app web`.
 
 O `build:web` exporta o laboratório de mecânicas em `apps/expo/dist`. No
 preview, a tela é identificada por `TESTE` e pelas seções numeradas; o botão

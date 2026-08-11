@@ -29,12 +29,16 @@ export function addItem(inventory: Inventory, itemStack: ItemStack): Inventory {
   assertInventory(inventory);
   assertInventoryItemStack(itemStack);
 
-  const existingIndex = inventory.items.findIndex(({ item }) => item.id === itemStack.item.id);
-  if (existingIndex >= 0) {
+  const conflictingIndex = inventory.items.findIndex(({ item }) => item.id === itemStack.item.id);
+  const conflictingItem = conflictingIndex >= 0 ? inventory.items[conflictingIndex].item : null;
+  if (conflictingItem && conflictingItem.kind !== itemStack.item.kind) {
+    throw new RangeError(`inventory item kind conflicts with existing item: ${itemStack.item.id}`);
+  }
+  const existingIndex = inventory.items.findIndex(
+    ({ item }) => item.id === itemStack.item.id && item.kind === "consumable",
+  );
+  if (itemStack.item.kind === "consumable" && existingIndex >= 0) {
     const existing = inventory.items[existingIndex];
-    if (existing.item.kind === "equipment" || itemStack.item.kind === "equipment") {
-      throw new RangeError(`inventory already contains equipment: ${itemStack.item.id}`);
-    }
     const merged = createItemStack(existing.item, existing.quantity + itemStack.quantity);
     const items = inventory.items.slice();
     items[existingIndex] = merged;
@@ -86,7 +90,11 @@ export function findItemStack(inventory: Inventory, itemId: string): ItemStack |
 }
 
 export function getItemQuantity(inventory: Inventory, itemId: string): number {
-  return findItemStack(inventory, itemId)?.quantity ?? 0;
+  assertInventory(inventory);
+  assertNonEmptyString(itemId, "item id");
+  return inventory.items
+    .filter(({ item }) => item.id === itemId)
+    .reduce((total, stack) => total + stack.quantity, 0);
 }
 
 export function getInventorySummary(inventory: Inventory): InventorySummary {
@@ -109,13 +117,17 @@ function assertInventory(inventory: Inventory): void {
     throw new RangeError("inventory contains more slots than its capacity");
   }
 
-  const itemIds = new Set<string>();
+  const itemKindsById = new Map<string, Item["kind"]>();
   for (const itemStack of inventory.items) {
     assertInventoryItemStack(itemStack);
-    if (itemIds.has(itemStack.item.id)) {
+    const existingKind = itemKindsById.get(itemStack.item.id);
+    if (
+      existingKind === "consumable" ||
+      (existingKind !== undefined && existingKind !== itemStack.item.kind)
+    ) {
       throw new RangeError(`inventory contains duplicate item stack: ${itemStack.item.id}`);
     }
-    itemIds.add(itemStack.item.id);
+    itemKindsById.set(itemStack.item.id, itemStack.item.kind);
   }
 }
 

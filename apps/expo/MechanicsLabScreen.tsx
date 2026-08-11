@@ -294,8 +294,8 @@ export function MechanicsLabScreen() {
             <LabButton label="Adicionar" onPress={() => addTestItem(item.id)} />
           </View>
         ))}
-        {inventory.items.map((stack) => (
-          <View key={stack.item.id} style={styles.inventoryRow}>
+        {inventory.items.map((stack, index) => (
+          <View key={`${stack.item.id}-${index}`} style={styles.inventoryRow}>
             <View style={styles.equipmentIdentity}>
               <Text style={styles.equipmentName}>{stack.item.name}</Text>
               <Text style={styles.muted}>quantidade: {stack.quantity}</Text>

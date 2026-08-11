@@ -210,7 +210,8 @@ export function useMechanicsLabViewModel(): MechanicsLabViewModel {
     const item = [...TEST_EQUIPMENT, TEST_CONSUMABLE].find((candidate) => candidate.id === itemId);
     if (!item) return;
     try {
-      setInventory((current) => addItem(current, createItemStack(item, 1)));
+      const nextInventory = addItem(inventory, createItemStack(item, 1));
+      setInventory(nextInventory);
       setLastEvent(`${item.name} adicionado ao inventário.`);
     } catch (error) {
       setLastEvent(error instanceof Error ? error.message : 'Não foi possível adicionar o item.');
@@ -219,7 +220,8 @@ export function useMechanicsLabViewModel(): MechanicsLabViewModel {
 
   function removeTestItem(itemId: string) {
     try {
-      setInventory((current) => removeItem(current, itemId));
+      const nextInventory = removeItem(inventory, itemId);
+      setInventory(nextInventory);
       setLastEvent('Item removido do inventário.');
     } catch (error) {
       setLastEvent(error instanceof Error ? error.message : 'Não foi possível remover o item.');
