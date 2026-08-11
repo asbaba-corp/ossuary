@@ -509,6 +509,13 @@ Mesmo modelo, para builds de INT: consumível de mana/spell comprado com ouro, c
 
 O jogador **configura as regras**; o jogo executa sozinho. Inventário manual num jogo de grind pesado é imposto de tédio — e, pior, transforma o check-in de 40 segundos em faxina.
 
+O primeiro milestone do domínio de inventário já está implementado no core:
+uma coleção imutável de `ItemStack`, com capacidade configurável (padrão de
+128 slots), empilhamento apenas de consumíveis pelo mesmo `item.id` e rejeição
+segura quando não há espaço. Loot, venda automática e descarte continuam fora
+desse milestone; adicionar esses comportamentos depois não deve alterar as
+regras básicas de armazenamento.
+
 Regras configuráveis, combináveis:
 
 | Regra | Efeito |

@@ -4,6 +4,9 @@ import type {
   CharacterLoadout,
   Equipment,
   EquipmentSlot,
+  Inventory,
+  InventorySummary,
+  Item,
   ItemEffectState,
   ItemStack,
   Party,
@@ -12,12 +15,14 @@ import type {
 } from '@ossuary/core';
 import {
   addCharacter,
+  addItem,
   allocatePartyAttributePoint,
   createCharacter,
   createCharacterLoadout,
   createAttributeBonusEffect,
   createConsumable,
   createEquipment,
+  createInventory,
   createItemEffectState,
   createItemStack,
   createParty,
@@ -25,6 +30,8 @@ import {
   gainPartyExperience,
   getEffectiveCharacterAttributes,
   getPartySummary,
+  getInventorySummary,
+  removeItem,
   removeItemEffect,
   unequipEquipment,
   useItem,
@@ -58,6 +65,9 @@ export interface MechanicsLabViewModel {
   readonly effectiveAttributes: CharacterAttributes;
   readonly testEquipment: readonly Equipment[];
   readonly testConsumable: ItemStack;
+  readonly inventory: Inventory;
+  readonly inventorySummary: InventorySummary;
+  readonly inventoryCandidates: readonly Item[];
   readonly activeItemEffects: ItemEffectState;
   readonly canRemoveTestConsumable: boolean;
   readonly nextLevelXp: number;
@@ -75,6 +85,8 @@ export interface MechanicsLabViewModel {
   readonly unequipSlot: (slot: EquipmentSlot) => void;
   readonly useTestConsumable: () => void;
   readonly removeTestConsumable: () => void;
+  readonly addTestItem: (itemId: string) => void;
+  readonly removeTestItem: (itemId: string) => void;
   readonly reset: () => void;
 }
 
@@ -93,6 +105,7 @@ export function useMechanicsLabViewModel(): MechanicsLabViewModel {
   const [testConsumable, setTestConsumable] = useState<ItemStack>(() =>
     createItemStack(TEST_CONSUMABLE, 2),
   );
+  const [inventory, setInventory] = useState<Inventory>(() => createInventory(4));
   const [activeItemEffects, setActiveItemEffects] = useState<ItemEffectState>(() =>
     createItemEffectState(),
   );
@@ -108,6 +121,7 @@ export function useMechanicsLabViewModel(): MechanicsLabViewModel {
     activeItemEffects,
   );
   const summary = getPartySummary(party);
+  const inventorySummary = getInventorySummary(inventory);
   const nextLevelXp = xpToNextLevel(selectedCharacter.progress.level);
   const xpPercent = Math.min(100, (selectedCharacter.progress.xp / nextLevelXp) * 100);
 
@@ -192,10 +206,33 @@ export function useMechanicsLabViewModel(): MechanicsLabViewModel {
     setLastEvent(`${TEST_CONSUMABLE.name} removido de ${selectedCharacter.name}.`);
   }
 
+  function addTestItem(itemId: string) {
+    const item = [...TEST_EQUIPMENT, TEST_CONSUMABLE].find((candidate) => candidate.id === itemId);
+    if (!item) return;
+    try {
+      const nextInventory = addItem(inventory, createItemStack(item, 1));
+      setInventory(nextInventory);
+      setLastEvent(`${item.name} adicionado ao inventário.`);
+    } catch (error) {
+      setLastEvent(error instanceof Error ? error.message : 'Não foi possível adicionar o item.');
+    }
+  }
+
+  function removeTestItem(itemId: string) {
+    try {
+      const nextInventory = removeItem(inventory, itemId);
+      setInventory(nextInventory);
+      setLastEvent('Item removido do inventário.');
+    } catch (error) {
+      setLastEvent(error instanceof Error ? error.message : 'Não foi possível remover o item.');
+    }
+  }
+
   function reset() {
     setParty(createParty());
     setLoadouts([createCharacterLoadout('character-1')]);
     setTestConsumable(createItemStack(TEST_CONSUMABLE, 2));
+    setInventory(createInventory(4));
     setActiveItemEffects(createItemEffectState());
     setSelectedCharacterId('character-1');
     setSelectedXpState(MONSTER_XP);
@@ -212,6 +249,9 @@ export function useMechanicsLabViewModel(): MechanicsLabViewModel {
     effectiveAttributes,
     testEquipment: TEST_EQUIPMENT,
     testConsumable,
+    inventory,
+    inventorySummary,
+    inventoryCandidates: [...TEST_EQUIPMENT, TEST_CONSUMABLE],
     activeItemEffects,
     canRemoveTestConsumable: activeItemEffects.activeEffects.some(
       (active) => active.itemId === TEST_CONSUMABLE.id && active.targetCharacterId === selectedCharacter.id,
@@ -231,6 +271,8 @@ export function useMechanicsLabViewModel(): MechanicsLabViewModel {
     unequipSlot,
     useTestConsumable,
     removeTestConsumable,
+    addTestItem,
+    removeTestItem,
     reset,
   };
 }
