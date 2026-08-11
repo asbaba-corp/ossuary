@@ -1,12 +1,6 @@
-import { useState } from 'react';
-import {
-  CharacterProgress,
-  PrimaryAttribute,
-  createCharacterProgress,
-  gainExperience,
-  spendAttributePoint,
-  xpToNextLevel,
-} from '@ossuary/core';
+import type { PrimaryAttribute } from '@ossuary/core';
+import Slider from '@react-native-community/slider';
+import type { ReactNode } from 'react';
 import {
   Pressable,
   ScrollView,
@@ -14,9 +8,7 @@ import {
   Text,
   View,
 } from 'react-native';
-
-const MONSTER_XP = 15;
-const TEST_XP_STEP = 10;
+import { useMechanicsLabViewModel } from './mechanics-lab/MechanicsLabViewModel';
 
 const ATTRIBUTE_ROWS: readonly {
   readonly key: PrimaryAttribute;
@@ -30,47 +22,19 @@ const ATTRIBUTE_ROWS: readonly {
 ];
 
 export function MechanicsLabScreen() {
-  const [progress, setProgress] = useState<CharacterProgress>(() =>
-    createCharacterProgress(),
-  );
-  const [lastEvent, setLastEvent] = useState('Nenhum evento ainda.');
-
-  const nextLevelXp = xpToNextLevel(progress.level);
-  const xpPercent = Math.min(100, (progress.xp / nextLevelXp) * 100);
-
-  function applyXp(amount: number, source: string) {
-    setProgress((current) => {
-      const result = gainExperience(current, amount);
-      setLastEvent(
-        result.levelsGained > 0
-          ? `${source} · subiu ${result.levelsGained} nível(is)`
-          : `${source} · +${amount} XP`,
-      );
-      return result.progress;
-    });
-  }
-
-  function removeTestXp() {
-    setProgress((current) => {
-      const nextXp = Math.max(0, current.xp - TEST_XP_STEP);
-      setLastEvent(`Controle de teste · −${current.xp - nextXp} XP`);
-      return { ...current, xp: nextXp };
-    });
-  }
-
-  function allocate(attribute: PrimaryAttribute) {
-    setProgress((current) => {
-      if (current.unspentAttributePoints === 0) return current;
-      const next = spendAttributePoint(current, attribute);
-      setLastEvent(`Ponto distribuído · ${attribute.toUpperCase()} +1`);
-      return next;
-    });
-  }
-
-  function reset() {
-    setProgress(createCharacterProgress());
-    setLastEvent('Laboratório reiniciado.');
-  }
+  const {
+    progress,
+    nextLevelXp,
+    xpPercent,
+    selectedXp,
+    lastEvent,
+    canApplySelectedXp,
+    setSelectedXp,
+    defeatIgnavo,
+    applySelectedXp,
+    allocate,
+    reset,
+  } = useMechanicsLabViewModel();
 
   return (
     <ScrollView
@@ -133,26 +97,36 @@ export function MechanicsLabScreen() {
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Simular derrota de Ignavo"
-          onPress={() => applyXp(MONSTER_XP, 'Ignavo derrotado')}
+          onPress={defeatIgnavo}
           style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}
         >
-          <Text style={styles.primaryButtonText}>⚔ Derrotar Ignavo · +{MONSTER_XP} XP</Text>
+          <Text style={styles.primaryButtonText}>⚔ Derrotar Ignavo · +15 XP</Text>
         </Pressable>
 
-        <View style={styles.buttonRow}>
-          <LabButton
-            label={`+${TEST_XP_STEP} XP`}
-            onPress={() => applyXp(TEST_XP_STEP, 'Ajuste de teste')}
-          />
-          <LabButton
-            label={`−${TEST_XP_STEP} XP · teste`}
-            onPress={removeTestXp}
-            muted
-          />
+        <View style={styles.sliderLabels}>
+          <Text style={styles.label}>XP DA RECOMPENSA DE TESTE</Text>
+          <Text style={styles.xpValue}>{selectedXp} XP</Text>
         </View>
+        <Slider
+          accessibilityLabel="Quantidade de XP da recompensa de teste"
+          maximumTrackTintColor="#3a353d"
+          maximumValue={500}
+          minimumTrackTintColor="#6b8f4f"
+          minimumValue={0}
+          onValueChange={setSelectedXp}
+          step={5}
+          style={styles.slider}
+          thumbTintColor="#b8cf9b"
+          value={selectedXp}
+        />
+        <LabButton
+          label={`Aplicar +${selectedXp} XP`}
+          onPress={applySelectedXp}
+          disabled={!canApplySelectedXp}
+        />
         <Text style={styles.debugNote}>
-          O botão de remover XP é somente um controle visual. No jogo real, XP
-          não é perdido.
+          O slider e o botão de aplicar são ferramentas de inspeção. No jogo
+          real, o XP virá de recompensas de combate.
         </Text>
         <Pressable
           accessibilityRole="button"
@@ -196,7 +170,7 @@ export function MechanicsLabScreen() {
   );
 }
 
-function LabSection({ title, children }: { title: string; children: React.ReactNode }) {
+function LabSection({ title, children }: { title: string; children: ReactNode }) {
   return (
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>{title}</Text>
@@ -207,26 +181,26 @@ function LabSection({ title, children }: { title: string; children: React.ReactN
 
 function LabButton({
   label,
-  muted = false,
+  disabled = false,
   onPress,
 }: {
   label: string;
-  muted?: boolean;
+  disabled?: boolean;
   onPress: () => void;
 }) {
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityState={{ disabled }}
+      disabled={disabled}
       onPress={onPress}
       style={({ pressed }) => [
         styles.secondaryButton,
-        muted && styles.mutedButton,
+        disabled && styles.disabled,
         pressed && styles.pressed,
       ]}
     >
-      <Text style={[styles.secondaryButtonText, muted && styles.mutedButtonText]}>
-        {label}
-      </Text>
+      <Text style={styles.secondaryButtonText}>{label}</Text>
     </Pressable>
   );
 }
@@ -398,10 +372,16 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '800',
   },
-  buttonRow: {
+  sliderLabels: {
+    alignItems: 'center',
     flexDirection: 'row',
-    gap: 8,
-    marginTop: 8,
+    justifyContent: 'space-between',
+    marginTop: 18,
+  },
+  slider: {
+    height: 36,
+    marginHorizontal: -6,
+    marginVertical: 2,
   },
   secondaryButton: {
     alignItems: 'center',
@@ -412,19 +392,13 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: 40,
     justifyContent: 'center',
+    marginTop: 8,
     paddingHorizontal: 8,
   },
   secondaryButtonText: {
     color: '#b8cf9b',
     fontSize: 11,
     fontWeight: '700',
-  },
-  mutedButton: {
-    backgroundColor: '#252329',
-    borderColor: '#5b535a',
-  },
-  mutedButtonText: {
-    color: '#b2a8af',
   },
   debugNote: {
     color: '#766b61',

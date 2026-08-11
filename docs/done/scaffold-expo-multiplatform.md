@@ -96,7 +96,8 @@ não editar em silêncio.
 
 O shell vazio foi substituído por um laboratório temporário de progressão. A
 tela é deliberadamente compartimentada em personagem, controles de teste e
-atributos, e deixa explícito que ainda não representa o jogo final.
+atributos, e deixa explícito que ainda não representa o jogo final. O estado
+do laboratório fica em `MechanicsLabViewModel.ts`, conforme a convenção MVVM.
 
 ## Próximos passos (fora deste escopo)
 

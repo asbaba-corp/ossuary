@@ -7,11 +7,13 @@
 - Seção de personagem com nível, XP, barra de progresso e pontos disponíveis.
 - Botão **Derrotar Ignavo** simula uma recompensa de combate de 15 XP usando o
   core compartilhado.
-- Controles de `+10 XP`, `−10 XP · teste` e reinício para inspeção rápida dos
-  limiares.
+- Faixa de XP de teste entre 0 e 500, com botão para aplicar o valor escolhido,
+  além do botão semântico de derrotar um Ignavo.
 - Seção de atributos com distribuição via `spendAttributePoint`.
-- A tela informa que o botão de remover XP é somente visual e não faz parte da
-  regra real do jogo.
+- Estado, derivados e comandos foram extraídos para
+  `MechanicsLabViewModel.ts`, seguindo MVVM.
+- A tela informa que o slider é somente uma ferramenta de inspeção e não faz
+  parte da regra real do jogo.
 
 ## Decisão de mecânica
 

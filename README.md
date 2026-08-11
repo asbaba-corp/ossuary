@@ -57,8 +57,8 @@ pnpm build:web
 
 O `build:web` exporta o laboratório de mecânicas em `apps/expo/dist`. No
 preview, a tela é identificada por `TESTE` e pelas seções numeradas; o botão
-**Derrotar Ignavo** simula a futura origem de XP. Os botões de adicionar e
-remover XP são ferramentas de inspeção, não regras do jogo.
+**Derrotar Ignavo** simula a futura origem de XP. O botão de aplicar XP usa uma
+faixa de 0 a 500 para inspeção, não é regra do jogo.
 
 O workflow `CI` executa esses checks em cada PR e em pushes para `main`. O
 workflow `Firebase preview` publica o `apps/expo/dist` em um canal temporário
