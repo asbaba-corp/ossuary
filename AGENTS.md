@@ -23,16 +23,21 @@ Design docs are written in Portuguese; that is intentional. Keep them in Portugu
 
 **Git — never commit, push, open a PR, or send anything to GitHub without the user's explicit authorization.** No exceptions.
 
-**Never push directly to `main`.** The flow is always:
+**`main` is the only permanent branch, and it is never committed to directly.** The flow is always:
 
 ```
-feature/<slug>  →  dev  →  PR  →  main
+main  →  <type>/<slug>  →  PR  →  main
 ```
 
-- `main` only receives code through a Pull Request opened from `dev`.
-- No direct commits to `main`, no `push origin main`, not even for "just a quick fix".
-- The `dev` → `main` PR is the version changelog (see section below).
-- Day-to-day work branches off `dev` and merges back into `dev`.
+1. Branch off the latest `main`.
+2. Do the work there.
+3. Open a PR from that branch into `main`.
+4. Merge, then delete the branch.
+
+- **No direct commits to `main`**, no `push origin main`, not even for "just a quick fix".
+- One branch per task. Keep them **small and short-lived** — several people work off `main` at once, and a long-lived branch turns into a merge problem for everyone else.
+- Update from `main` before opening the PR, so the diff shows your change and not someone else's.
+- Branch naming: `feat/`, `fix/`, `docs/`, `refactor/`, `chore/` + short slug.
 
 `main` is protected on GitHub: PR required, force-push and deletion blocked, and the protection applies to admins too. A direct push is rejected by the server, not just by this file. Emergency bypass means temporarily removing the protection — ask the user first, never do it unprompted.
 
@@ -101,57 +106,44 @@ Two rules that carry most of the value:
 - **A resolved open question moves out of the open list** and into the resolved table, with the decision recorded. An open question that was silently answered in code is the most expensive kind of stale doc.
 - **When implementation contradicts a doc, the doc is wrong until proven otherwise** — but say so explicitly instead of quietly editing it. The user decides whether the code or the doc was the mistake.
 
-## PR = release = changelog
+## Pull requests
 
-**One PR is one release.** Every `dev` → `main` PR ships a version, and its description is that version's changelog.
+**One PR is one task**, not a release. There is no version number and no running changelog to maintain — with several people merging into `main`, a shared release branch was more bookkeeping than it was worth.
 
-**There must always be an open `dev` → `main` PR.** It is the shared workspace for the release: as work lands on `dev`, the PR description grows with it. Devs collaborate on the release *inside* that PR. When a release merges, open the next `dev` → `main` PR right away, even if empty. There is never a moment without one.
+### Before starting — check what is already in flight
 
-### Before starting any work — check the open PR
-
-**Always read the open `dev` → `main` PR before writing code.** Its body is the authoritative list of what the current release already contains.
+Someone may already be doing it, or have done it this morning.
 
 ```bash
-rtk gh pr list --base main --head dev --state open
-rtk gh pr view <N>            # read the body: is this change already here?
+rtk gh pr list --state open                      # o que está em andamento
+rtk gh pr list --state merged --limit 20         # o que entrou recentemente
+rtk proxy git log --oneline -20 origin/main
 ```
 
-If the change is already described there, it is already done or in progress — do not redo it. If it is partially there, extend it instead of duplicating. This is the cheapest way to avoid rework across devs.
+If an open PR already covers the change, extend that branch instead of starting a parallel one.
 
-### After every commit — update the PR body
+### The PR description
 
-**Pushing commits without updating the PR description is incomplete work.** The changelog is written continuously, never reconstructed at merge time.
-
-```bash
-rtk gh pr edit <N> --body-file <file>
-```
-
-Add the change under the right heading (`Added` / `Changed` / `Fixed`) and bump the version in the title if scope grew. A reader of that PR must always see the current, complete state of the release.
-
-### Versioning
-
-Versioning starts at **0.01** and grows with scope:
-
-- `0.0X` → normal increment (feature, fix, tweak)
-- `0.X0` → major milestone (new system, new world, server live)
-- `1.00` → App Store release
-
-The PR description **is** the changelog. Format:
+Write it for the person reviewing, and for whoever runs `git log` in six months. Keep it short and concrete:
 
 ```
-## 0.03
+## O que muda
 
-### Added
+<one or two sentences: the change and why>
+
+### Added / Changed / Fixed
 - ...
 
-### Changed
-- ...
-
-### Fixed
-- ...
+### Verificação
+- how it was tested, and what the result was
 ```
 
-Before opening a PR, check the last merged version and increment from it. While the PR stays open, keep editing its description as commits land — the changelog is written continuously, not at merge time.
+Use only the headings you need. Keep the description in sync as you push more commits to the branch — check the PR is still **open** before editing it; editing a merged PR writes history that never shipped in it.
+
+### Merging
+
+- Delete the branch after the merge.
+- If the PR sat long enough for `main` to move, update from `main` and re-check the diff before merging.
 
 ## Commands
 

@@ -467,7 +467,7 @@ Quando o ouro acaba e a vida também:
 
 Regra derivada: **o cálculo offline usa a mesma checagem de custo**, e é validado no servidor junto com o resto do save.
 
-> **Mudou na 0.02.** Uma versão anterior deste documento previa um *piso de ouro* configurável pelo jogador, com o mesmo objetivo. Ele foi descartado: a checagem de custo entrega a mesma proteção sem pedir configuração e sem um número a mais na UI. O piso continua sendo uma opção se algum dia o jogador quiser reservar ouro para outra coisa que não poção — mas aí é conveniência, não segurança.
+> **Mudou depois do protótipo.** Uma versão anterior deste documento previa um *piso de ouro* configurável pelo jogador, com o mesmo objetivo. Ele foi descartado: a checagem de custo entrega a mesma proteção sem pedir configuração e sem um número a mais na UI. O piso continua sendo uma opção se algum dia o jogador quiser reservar ouro para outra coisa que não poção — mas aí é conveniência, não segurança.
 
 #### Runas e consumíveis de spell
 
