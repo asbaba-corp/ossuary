@@ -269,10 +269,25 @@ Sistema separado dos atributos, e o mais recompensador do jogo para quem se dedi
 
 O domínio de itens agora separa `Item` em equipamento e consumível. O loadout
 continua cobrindo seis slots (arma, escudo, elmo, peito, luvas e botas) e
-bônus planos de CONS/STR/DEX/INT. Itens carregam raridade e efeitos; efeitos de
-bônus de atributo podem ser ativados e removidos explicitamente, enquanto
-efeitos futuros ficam registrados sem interpretação. Inventário, ownership,
-loot, duração temporal, merge e reroll ficam para milestones posteriores.
+bônus planos de CONS/STR/DEX/INT. Itens carregam raridade, efeitos e um
+`instanceId` fornecido pela camada chamadora; duas peças do mesmo item-base são
+independentes. Efeitos de bônus de atributo podem ser ativados e removidos
+explicitamente, enquanto efeitos futuros ficam registrados sem interpretação.
+
+Ownership é representado pelo inventário. `equipEquipmentFromInventory` remove
+uma instância possuída, devolve ao inventário a peça anterior do mesmo slot e
+atualiza o loadout em uma transição imutável. `unequipEquipmentToInventory`
+recusa atomicamente a operação quando não há capacidade. Consumíveis e
+instâncias inexistentes não podem ser equipados. A ficha calcula os atributos,
+dano/defesa base e os percentuais efetivos somando personagem, efeitos ativos e
+loadout; o preview expõe valores e deltas sem declarar uma peça vencedora.
+
+Loot concreto é gerado por `createEquipmentFromDropTable`, uma função pura que
+recebe `instanceId`, seed e tabela do chamador. A tabela seleciona uma entrada
+por peso e rola os pools planos de forma determinística, preservando os stats
+explícitos da peça-base. Mesma tabela, seed e instância produzem o mesmo item;
+IDs não são gerados pelo core. A raridade apenas identifica a entrada e os
+pools de bônus da tabela nesta etapa.
 
 ```
 ┌─ BASE ─────────── definida pelo slot e pelo tier do círculo

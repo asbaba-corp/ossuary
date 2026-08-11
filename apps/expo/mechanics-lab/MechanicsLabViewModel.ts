@@ -2,6 +2,8 @@ import { useState } from 'react';
 import type {
   CharacterAttributes,
   CharacterLoadout,
+  EffectiveCharacterStats,
+  EquipmentReplacementPreview,
   Equipment,
   EquipmentSlot,
   Inventory,
@@ -26,14 +28,17 @@ import {
   createItemEffectState,
   createItemStack,
   createParty,
-  equipEquipment,
+  equipEquipmentFromInventory,
   gainPartyExperience,
   getEffectiveCharacterAttributes,
+  getEffectiveCharacterStats,
   getPartySummary,
   getInventorySummary,
   removeItem,
   removeItemEffect,
-  unequipEquipment,
+  previewEquipmentReplacement,
+  createEquipmentFromDropTable,
+  unequipEquipmentToInventory,
   useItem,
   xpToNextLevel,
 } from '@ossuary/core';
@@ -43,7 +48,7 @@ const MIN_TEST_XP = 0;
 const MAX_TEST_XP = 500;
 
 const TEST_EQUIPMENT: readonly Equipment[] = [
-  createEquipment('test-iron-sword', 'Espada de ferro', 'weapon', { str: 2 }, { rarity: 'common' }),
+  createEquipment('test-iron-sword', 'Espada de ferro', 'weapon', { str: 2 }, { rarity: 'common', instanceId: 'test-sword-a', stats: { baseDamage: 8 } }),
   createEquipment('test-bone-shield', 'Escudo de osso', 'shield', { cons: 2 }, { rarity: 'rare' }),
   createEquipment('test-leather-boots', 'Botas de couro', 'boots', { dex: 1 }, { rarity: 'epic' }),
 ];
@@ -63,6 +68,8 @@ export interface MechanicsLabViewModel {
   readonly selectedCharacter: Party['characters'][number];
   readonly selectedLoadout: CharacterLoadout;
   readonly effectiveAttributes: CharacterAttributes;
+  readonly effectiveStats: EffectiveCharacterStats;
+  readonly replacementPreview: EquipmentReplacementPreview | null;
   readonly testEquipment: readonly Equipment[];
   readonly testConsumable: ItemStack;
   readonly inventory: Inventory;
@@ -81,12 +88,13 @@ export interface MechanicsLabViewModel {
   readonly allocate: (attribute: PrimaryAttribute) => void;
   readonly selectCharacter: (id: string) => void;
   readonly recruitCharacter: () => void;
-  readonly equipTestEquipment: (equipmentId: string) => void;
+  readonly equipTestEquipment: (instanceId: string) => void;
   readonly unequipSlot: (slot: EquipmentSlot) => void;
   readonly useTestConsumable: () => void;
   readonly removeTestConsumable: () => void;
   readonly addTestItem: (itemId: string) => void;
   readonly removeTestItem: (itemId: string) => void;
+  readonly generateTestDrop: () => void;
   readonly reset: () => void;
 }
 
@@ -120,6 +128,17 @@ export function useMechanicsLabViewModel(): MechanicsLabViewModel {
     selectedLoadout,
     activeItemEffects,
   );
+  const effectiveStats = getEffectiveCharacterStats(selectedCharacter, selectedLoadout, activeItemEffects);
+  const replacementPreview = inventory.items
+    .map(({ item }) => item)
+    .find((item): item is Equipment => item.kind === 'equipment' && item.slot === 'weapon')
+    ? previewEquipmentReplacement(
+        selectedCharacter,
+        selectedLoadout,
+        inventory.items.map(({ item }) => item).find((item): item is Equipment => item.kind === 'equipment' && item.slot === 'weapon')!,
+        activeItemEffects,
+      )
+    : null;
   const summary = getPartySummary(party);
   const inventorySummary = getInventorySummary(inventory);
   const nextLevelXp = xpToNextLevel(selectedCharacter.progress.level);
@@ -168,28 +187,26 @@ export function useMechanicsLabViewModel(): MechanicsLabViewModel {
     setLastEvent('Novo personagem recrutado no nível 1.');
   }
 
-  function equipTestEquipment(equipmentId: string) {
-    const equipment = TEST_EQUIPMENT.find((item) => item.id === equipmentId);
-    if (!equipment) return;
-    setLoadouts((current) =>
-      current.map((loadout) =>
-        loadout.characterId === selectedCharacter.id
-          ? equipEquipment(loadout, equipment)
-          : loadout,
-      ),
-    );
-    setLastEvent(`${equipment.name} equipado em ${selectedCharacter.name}.`);
+  function equipTestEquipment(instanceId: string) {
+    try {
+      const result = equipEquipmentFromInventory(inventory, selectedLoadout, instanceId);
+      setInventory(result.inventory);
+      setLoadouts((current) => current.map((loadout) => loadout.characterId === selectedCharacter.id ? result.loadout : loadout));
+      setLastEvent(`${result.loadout.equipped[result.loadout.equipped[candidateSlot(result.loadout, instanceId)]?.slot ?? 'weapon']?.name ?? 'Equipamento'} equipado em ${selectedCharacter.name}.`);
+    } catch (error) {
+      setLastEvent(error instanceof Error ? error.message : 'Não foi possível equipar o equipamento.');
+    }
   }
 
   function unequipSlot(slot: EquipmentSlot) {
-    setLoadouts((current) =>
-      current.map((loadout) =>
-        loadout.characterId === selectedCharacter.id
-          ? unequipEquipment(loadout, slot)
-          : loadout,
-      ),
-    );
-    setLastEvent(`Slot ${slot} liberado em ${selectedCharacter.name}.`);
+    try {
+      const result = unequipEquipmentToInventory(inventory, selectedLoadout, slot);
+      setInventory(result.inventory);
+      setLoadouts((current) => current.map((loadout) => loadout.characterId === selectedCharacter.id ? result.loadout : loadout));
+      setLastEvent(`Slot ${slot} liberado em ${selectedCharacter.name}.`);
+    } catch (error) {
+      setLastEvent(error instanceof Error ? error.message : 'Não foi possível desequipar.');
+    }
   }
 
   function useTestConsumable() {
@@ -228,6 +245,19 @@ export function useMechanicsLabViewModel(): MechanicsLabViewModel {
     }
   }
 
+  function generateTestDrop() {
+    const drop = createEquipmentFromDropTable('lab-drop-1', 'lab-seed-1', [
+      { equipment: TEST_EQUIPMENT[0], rarity: 'common', weight: 3, attributeRollPools: { str: [1, 2, 3] } },
+      { equipment: TEST_EQUIPMENT[1], rarity: 'rare', weight: 1, attributeRollPools: { cons: [2, 3, 4] } },
+    ]);
+    try {
+      setInventory(addItem(inventory, createItemStack(drop, 1)));
+      setLastEvent(`${drop.name} (${drop.rarity}) gerado deterministicamente e adicionado.`);
+    } catch (error) {
+      setLastEvent(error instanceof Error ? error.message : 'Não foi possível adicionar o drop.');
+    }
+  }
+
   function reset() {
     setParty(createParty());
     setLoadouts([createCharacterLoadout('character-1')]);
@@ -247,6 +277,8 @@ export function useMechanicsLabViewModel(): MechanicsLabViewModel {
     selectedCharacter,
     selectedLoadout,
     effectiveAttributes,
+    effectiveStats,
+    replacementPreview,
     testEquipment: TEST_EQUIPMENT,
     testConsumable,
     inventory,
@@ -273,6 +305,11 @@ export function useMechanicsLabViewModel(): MechanicsLabViewModel {
     removeTestConsumable,
     addTestItem,
     removeTestItem,
+    generateTestDrop,
     reset,
   };
+}
+
+function candidateSlot(loadout: CharacterLoadout, instanceId: string): EquipmentSlot {
+  return (Object.values(loadout.equipped).find((item) => item?.instanceId === instanceId)?.slot ?? 'weapon') as EquipmentSlot;
 }

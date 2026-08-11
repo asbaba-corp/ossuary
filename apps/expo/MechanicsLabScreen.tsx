@@ -33,6 +33,8 @@ export function MechanicsLabScreen() {
     selectedCharacter,
     selectedLoadout,
     effectiveAttributes,
+    effectiveStats,
+    replacementPreview,
     testEquipment,
     testConsumable,
     canRemoveTestConsumable,
@@ -56,6 +58,7 @@ export function MechanicsLabScreen() {
     removeTestConsumable,
     addTestItem,
     removeTestItem,
+    generateTestDrop,
     reset,
   } = useMechanicsLabViewModel();
 
@@ -213,22 +216,22 @@ export function MechanicsLabScreen() {
 
       <LabSection title="04 · Equipamento (teste)">
         <Text style={styles.helper}>
-          Loadout separado da progressão. As peças abaixo são fixtures diretos;
-          não existe inventário, loot ou geração de itens neste teste.
+          Equipamento pertence ao inventário e é movido atomicamente para o
+          loadout. Este laboratório usa a mesma transição do jogo.
         </Text>
         {testEquipment.map((equipment) => {
-          const equipped = selectedLoadout.equipped[equipment.slot]?.id === equipment.id;
+          const equipped = selectedLoadout.equipped[equipment.slot]?.instanceId === equipment.instanceId;
           return (
-            <View key={equipment.id} style={styles.equipmentRow}>
+            <View key={equipment.instanceId} style={styles.equipmentRow}>
               <View style={styles.equipmentIdentity}>
                 <Text style={styles.equipmentName}>{equipment.name}</Text>
                 <Text style={styles.muted}>
-                  {equipment.slot} · {equipment.rarity} · {formatBonuses(equipment.attributeBonuses)}
+                  {equipment.slot} · {equipment.rarity} · {equipment.instanceId} · dano {equipment.stats.baseDamage}
                 </Text>
               </View>
               <LabButton
                 label={equipped ? 'Desequipar' : 'Equipar'}
-                onPress={() => equipped ? unequipSlot(equipment.slot) : equipTestEquipment(equipment.id)}
+                onPress={() => equipped ? unequipSlot(equipment.slot) : equipTestEquipment(equipment.instanceId)}
               />
             </View>
           );
@@ -248,6 +251,8 @@ export function MechanicsLabScreen() {
             </Pressable>
           ))}
         </View>
+        <Text style={styles.helper}>Stats efetivos: dano {effectiveStats.baseDamage} · defesa {effectiveStats.baseDefense} · dano físico {effectiveStats.physicalDamagePercent}% · crítico {effectiveStats.criticalChancePercent}%</Text>
+        {replacementPreview && <Text style={styles.helper}>Preview da candidata: {replacementPreview.deltas.filter(({ delta }) => delta !== 0).map(({ stat, delta }) => `${String(stat)} ${delta > 0 ? '+' : ''}${delta}`).join(' · ') || 'sem delta'}</Text>}
       </LabSection>
 
       <LabSection title="05 · Consumível (teste)">
@@ -286,21 +291,22 @@ export function MechanicsLabScreen() {
           <Text style={styles.pointsTitle}>slots disponíveis</Text>
         </View>
         {inventoryCandidates.map((item) => (
-          <View key={item.id} style={styles.inventoryRow}>
+          <View key={item.kind === 'equipment' ? item.instanceId : item.id} style={styles.inventoryRow}>
             <View style={styles.equipmentIdentity}>
               <Text style={styles.equipmentName}>{item.name}</Text>
               <Text style={styles.muted}>{item.kind} · {item.rarity}</Text>
             </View>
-            <LabButton label="Adicionar" onPress={() => addTestItem(item.id)} />
+            <LabButton label="Adicionar" onPress={() => addTestItem(item.kind === 'equipment' ? item.instanceId : item.id)} />
           </View>
         ))}
+        <LabButton label="Gerar drop determinístico" onPress={generateTestDrop} />
         {inventory.items.map((stack, index) => (
-          <View key={`${stack.item.id}-${index}`} style={styles.inventoryRow}>
+          <View key={`${stack.item.kind === 'equipment' ? stack.item.instanceId : stack.item.id}-${index}`} style={styles.inventoryRow}>
             <View style={styles.equipmentIdentity}>
               <Text style={styles.equipmentName}>{stack.item.name}</Text>
               <Text style={styles.muted}>quantidade: {stack.quantity}</Text>
             </View>
-            <LabButton label="Remover 1" onPress={() => removeTestItem(stack.item.id)} />
+            <LabButton label="Remover 1" onPress={() => removeTestItem(stack.item.kind === 'equipment' ? stack.item.instanceId : stack.item.id)} />
           </View>
         ))}
       </LabSection>
