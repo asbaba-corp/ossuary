@@ -64,6 +64,9 @@ export function MechanicsLabScreen() {
     testSpells,
     selectedSpellId,
     selectedSpell,
+    selectedSpellLoadout,
+    enabledSpells,
+    spellConfigEvent,
     spellHpPercent,
     spellMana,
     spellEnemyCount,
@@ -76,6 +79,10 @@ export function MechanicsLabScreen() {
     setSpellEnemyCount,
     attemptSpell,
     advanceSpellTime,
+    equipSpell,
+    unequipSpell,
+    setSpellEnabled,
+    moveSpellPriority,
     reset,
   } = useMechanicsLabViewModel();
 
@@ -108,6 +115,46 @@ export function MechanicsLabScreen() {
           Este painel testa apenas a mecânica pura de auto-cast: gatilho, mana,
           cooldown, escala e seed. Não há combate, alvo ou aplicação de efeito.
         </Text>
+        <View style={styles.spellStatusCard}>
+          <Text style={styles.pointsTitle}>
+            Configuração do personagem · {selectedSpellLoadout.entries.length}/{selectedSpellLoadout.maxSlots} slots
+          </Text>
+          <Text style={styles.muted}>
+            As spells abaixo são fixtures disponíveis. A ordem define a prioridade do auto-cast.
+          </Text>
+          <Text style={styles.muted}>
+            Ativas na prioridade: {enabledSpells.map((spell) => spell.name).join(' → ') || 'nenhuma'}
+          </Text>
+        </View>
+        {testSpells.map((spell) => {
+          const entryIndex = selectedSpellLoadout.entries.findIndex((entry) => entry.spellId === spell.id);
+          const entry = selectedSpellLoadout.entries[entryIndex];
+          return (
+            <View key={`config-${spell.id}`} style={styles.spellConfigRow}>
+              <View style={styles.equipmentIdentity}>
+                <Text style={styles.equipmentName}>
+                  {entryIndex >= 0 ? `${entryIndex + 1}. ` : ''}{spell.name}
+                </Text>
+                <Text style={styles.muted}>
+                  {entry ? (entry.enabled ? 'auto-cast ativo' : 'auto-cast desligado') : 'fora do loadout'}
+                </Text>
+              </View>
+              <View style={styles.spellConfigActions}>
+                {entry ? (
+                  <>
+                    <LabButton label={entry.enabled ? 'Desativar' : 'Ativar'} onPress={() => setSpellEnabled(spell.id, !entry.enabled)} />
+                    <LabButton label="↑" onPress={() => moveSpellPriority(spell.id, 'up')} />
+                    <LabButton label="↓" onPress={() => moveSpellPriority(spell.id, 'down')} />
+                    <LabButton label="Remover" onPress={() => unequipSpell(spell.id)} />
+                  </>
+                ) : (
+                  <LabButton label="Equipar" onPress={() => equipSpell(spell.id)} />
+                )}
+              </View>
+            </View>
+          );
+        })}
+        <Text style={styles.event}>{spellConfigEvent}</Text>
         <View style={styles.roster}>
           {testSpells.map((spell) => (
             <Pressable
@@ -700,6 +747,18 @@ const styles = StyleSheet.create({
   spellActions: {
     flexDirection: 'row',
     gap: 8,
+  },
+  spellConfigRow: {
+    borderBottomColor: '#2e2930',
+    borderBottomWidth: 1,
+    gap: 10,
+    paddingBottom: 10,
+    paddingTop: 4,
+  },
+  spellConfigActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
   },
   primaryButton: {
     alignItems: 'center',
