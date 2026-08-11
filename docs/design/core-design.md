@@ -175,6 +175,14 @@ Três saídas, em ordem de recomendação:
 
 Recomendo **XP compartilhado**, com o custo do slot escalando forte: o slot 2 deve ser alcançável no Vestíbulo (para o jogador conhecer o sistema cedo), e o slot 4 deve ser meta de médio prazo.
 
+**Decisão implementada neste milestone:** o XP compartilhado é integral. Cada
+recompensa é aplicada com o mesmo valor a todos os personagens ativos; não há
+fracionamento por quantidade de slots. Nível, XP, pontos e atributos continuam
+sendo estado independente de cada personagem. A API de `packages/core` mantém
+as operações de party imutáveis e limita a party a quatro personagens. O
+`partyPower` atual é apenas a soma dos níveis — um resumo transparente de
+progressão, não um score de combate.
+
 #### Papéis
 
 Quatro slots e quatro atributos não é coincidência — e é uma armadilha se virar regra rígida. A party **não** deve exigir um personagem por atributo, porque isso elimina a decisão de composição e transforma a build numa checklist.
@@ -259,6 +267,13 @@ Os atributos alimentam seis **derivados** — o que o combate realmente consome.
 
 Sistema separado dos atributos, e o mais recompensador do jogo para quem se dedica a ele. Uma peça entrega **três coisas em camadas**:
 
+O domínio de itens agora separa `Item` em equipamento e consumível. O loadout
+continua cobrindo seis slots (arma, escudo, elmo, peito, luvas e botas) e
+bônus planos de CONS/STR/DEX/INT. Itens carregam raridade e efeitos; efeitos de
+bônus de atributo podem ser ativados e removidos explicitamente, enquanto
+efeitos futuros ficam registrados sem interpretação. Inventário, ownership,
+loot, duração temporal, merge e reroll ficam para milestones posteriores.
+
 ```
 ┌─ BASE ─────────── definida pelo slot e pelo tier do círculo
 │   Arma: dano base · Armadura: defesa
@@ -275,9 +290,9 @@ Sistema separado dos atributos, e o mais recompensador do jogo para quem se dedi
 | **Peito** | Defesa (a maior do conjunto) |
 | **Luvas** | Defesa, Cadência |
 | **Botas** | Defesa, velocidade de marcha |
-| **Relicário** | Mana, potência de spell |
+| **Escudo** | Defesa e proteção — fórmula ainda não definida |
 
-**Camada 2 — atributos planos.** Toda peça rola bônus direto em CONS/STR/DEX/INT, com viés pelo slot: peitoral tende a CONS, luvas a DEX, elmo e relicário a INT, arma a STR ou DEX.
+**Camada 2 — atributos planos.** Toda peça rola bônus direto em CONS/STR/DEX/INT, com viés pelo slot: peitoral e escudo tendem a CONS, luvas a DEX, elmo a INT, arma a STR ou DEX.
 
 Isso é seguro justamente porque o equipamento é **bounded**: seis slots, substituíveis. É o oposto do osso, que acumula sem teto e por isso só pode mexer em derivado (§6.4). Um `+5 CONS` de peitoral é uma parcela finita e sempre comparável com a peça que vai substituí-la — que é exatamente a decisão que faz o loot valer a pena.
 
@@ -359,7 +374,8 @@ Restrições que já valem, para não inviabilizarem o resto da arquitetura:
 
 - **Auto-cast.** O jogador não toca no combate (Pilar Cinco). Spells disparam por regra — cooldown, gatilho de HP, quantidade de inimigos. A build da spell é *a configuração do gatilho*, não o clique.
 - **Determinismo.** Spell é resolvida dentro de `resolveCombat`, com o mesmo PRNG semeado. Nada de efeito que só exista na camada visual.
-- **INT é o stat de spell.** Fecha o papel de INT e dá razão para o Relicário existir.
+- **INT é o stat de spell.** O papel do atributo está reservado para spells;
+  ainda não há um slot específico de spell.
 - **Offline.** Spell precisa funcionar no cálculo fechado de progresso offline, ou vira armadilha: o jogador constrói para spell e rende menos com o app fechado.
 
 **Mana.** Spell custa mana; mana é derivado de INT, e `mana steal %` é afixo de equipamento (§4.5). Isso monta um segundo eixo de sustentação paralelo ao HP: um build de spell não sobrevive só com Vigor e Sustento, precisa também sustentar a reserva. É o que dá sentido a `mana steal` existir como afixo em vez de ser número morto.
@@ -675,6 +691,7 @@ Sprites 2D, parallax de camadas, partículas — suficiente para um sidescroller
 | ~~Q17~~ | Tamanho do inventário | **128 slots em 3 páginas** (48 / 48 / 32). Cheio, vende o de menor valor sozinho — a caça não para (§5.4). |
 | ~~Q5b~~ | A poção pode deixar o jogador no vermelho? | **Não.** Custo cheio ou nada; o piso de ouro foi descartado por redundância (§5.3). |
 | ~~Q15~~ | Quantos pontos por nível, e a curva de XP acompanha os 10 níveis-por-círculo ou é independente? | **Três pontos por nível.** O custo para avançar é `round(55 × nível^1,42)` e o XP excedente permanece no nível seguinte. A curva é independente do círculo e continua escalando (§4.4). |
+| ~~Q27~~ | XP compartilhado pela party — confirmar, e definir se é integral ou fracionado por slot. | **Integral:** toda recompensa concede o mesmo XP a cada personagem ativo (§4.2). |
 
 ### Abertas
 
@@ -687,14 +704,13 @@ Sprites 2D, parallax de camadas, partículas — suficiente para um sidescroller
 | Q11 | Quantos círculos entram no lançamento? 100 fases desenhadas é escopo grande para um dev solo. | Data de lançamento, tamanho da T1, pipeline de conteúdo |
 | Q12 | Progressão de dificuldade *dentro* de um círculo: multiplicador plano por fase ou curva por fase? | Balanceamento, sensação das 10 fases |
 | Q13 | Respec de atributos: pago, gratuito ou inexistente? (§4.4) | Frustração de build travada, sumidouro |
-| Q14 | Spells: quantas simultâneas, fonte, escala por tier ou nível? (§4.6) | Papel de INT, Relicário, cálculo offline |
+| Q14 | Spells: quantas simultâneas, fonte, escala por tier ou nível? (§4.6) | Papel de INT, item de spell, cálculo offline |
 | Q16b | Valor de `N` na escada de merge, e se o merge exige mesma base/slot ou aceita qualquer peça (§4.5) | Ritmo do loot, pressão de inventário |
 | Q19 | Runas: consumível de spell separado ou poção de mana basta? (§5.3) | Complexidade da loja, economia de INT |
 | Q21 | Conflito entre auto-venda de common e reserva de insumo para merge (§5.4) | Comportamento padrão, clareza para o jogador |
 | Q24 | Personagens compráveis têm identidade fixa (classe, sprite, afinidade) ou são slots genéricos? (§4.2) | Monetização, arte, profundidade de composição |
 | Q25 | Como o jogo indica para qual dos 4 personagens uma peça serve? (§4.2) | Viabilidade do check-in de 40 s |
 | Q26 | Equipamento é visível no sprite? Com 4 personagens, isso multiplica o custo de arte. | Escopo de arte, peso percebido do loot |
-| Q27 | XP compartilhado pela party — confirmar, e definir se é integral ou fracionado por slot. (§4.2) | Ritmo do recruta tardio, valor do slot |
 | Q29 | Taxa de drop da poeira, calibrada contra o alvo de 1.200 para uma party lendária (§4.5) | Ritmo do endgame inteiro |
 | Q30 | Custo base do reroll em ouro: indexado a tier/círculo, e como escalona por tentativa (§4.5) | Se ficar fixo, inflaciona para grátis no endgame |
 
