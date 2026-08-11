@@ -37,7 +37,7 @@ Para atribuir um pack a um personagem, use a skill `sprite-import`.
 | Parâmetro | Efeito |
 |---|---|
 | `?t=SEGUNDOS` | Adianta a simulação antes do primeiro quadro |
-| `?tab=inv\|stats` | Abre direto numa aba |
+| `?tab=inv\|stats\|best` | Abre direto numa aba |
 | `?pot=1` | Abre o painel de poções |
 | `?auto=1` | Distribui os pontos de atributo sozinho |
 | `?debug=1` | Imprime um resumo em JSON no fim da página |

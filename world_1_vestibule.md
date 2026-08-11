@@ -24,11 +24,20 @@ A borda leste desce para a margem do Aqueronte. É onde Caronte espera.
 
 ## Bestiário
 
+O jogador lê este bestiário dentro do jogo: o protótipo (`prototype/scene.html`)
+expõe as entradas abaixo num pop-up próprio, com figura, dano e drops.
+
+**Os valores de dano são placeholder.** Não há balanceamento por espécie ainda —
+a simulação aplica uma fórmula única a todos os mobs (`2 + rng*3 + onda*0.32`,
+cadência 1,15 s). Os números registrados aqui derivam dos papéis descritos e
+existem para o jogador ler, não para o combate consumir.
+
 ### 1. Ignavos — os Corredores
 
 Vultos nus, sem traço de rosto, correndo em bando. Não te enxergam; te atropelam por acidente.
 
 - **Papel:** trash mob, fraco, em quantidade crescente
+- **Dano (placeholder):** 2–4 por golpe, cadência 1,15 s
 - **Testa:** dano em área e volume de produção
 - **Drop:** Ouro (baixo, constante). Poeira de Passo em chance muito baixa — ver `docs/design/core-design.md` §5.1
 - **Osso:** nenhum. São sombras. Estabelecer isso cedo faz o jogador querer o que tem osso.
@@ -38,6 +47,7 @@ Vultos nus, sem traço de rosto, correndo em bando. Não te enxergam; te atropel
 Enxame de vespas do tamanho de um punho, ferrão longo demais para o corpo.
 
 - **Papel:** HP baixíssimo, muitos ataques por turno
+- **Dano (placeholder):** 1–2 por golpe, cadência 0,4 s
 - **Testa:** velocidade e defesa — quem investiu só em dano bruto apanha aqui
 - **Drop:** Ferrão Partido, Quitina Fina
 
@@ -46,6 +56,7 @@ Enxame de vespas do tamanho de um punho, ferrão longo demais para o corpo.
 Corpos segmentados, pálidos, cegos. Lentos. Enterram-se e reaparecem. Comem o sangue que escorre dos pés dos Ignavos.
 
 - **Papel:** tanque com dreno; cura o que causa de dano
+- **Dano (placeholder):** 5–8 por golpe, cadência 2,0 s
 - **Testa:** sustain e dano concentrado — não dá para vencer no atrito
 - **Drop:** Bílis Coalhada — material de reroll, sumidouro puro
 
@@ -54,6 +65,7 @@ Corpos segmentados, pálidos, cegos. Lentos. Enterram-se e reaparecem. Comem o s
 Figuras encurvadas e imóveis na margem, cobertas de limo, endurecidas por séculos de espera. Só reagem se tocadas.
 
 - **Papel:** defesa altíssima, dano quase nulo. Não te matam — te fazem perder tempo.
+- **Dano (placeholder):** 0–1 por golpe, cadência 3,0 s
 - **Testa:** penetração de armadura. Primeira parede real do jogo, e a solução é um atributo novo, não mais dano.
 - **Drop:** Limo do Aqueronte — material de gate para o mundo 2
 
@@ -62,12 +74,15 @@ Figuras encurvadas e imóveis na margem, cobertas de limo, endurecidas por sécu
 Um Ignavo com uma marca queimada nas costas, onde o remo de Caronte já bateu. Corre sozinho, contra a corrente, na sua direção. É o único ali que te vê.
 
 - **Papel:** spawn raro, dano alto, recompensa alta
+- **Dano (placeholder):** 12–18 por golpe, cadência 1,4 s
 - **Testa:** nada. Existe para criar o hábito de abrir o app.
 - **Drop:** Óbolo — a moeda de Caronte
 
 ## Boss — Caronte, o Barqueiro
 
 Não desce da barca. Olhos como rodas de brasa, remo de madeira negra mais longo que um corpo.
+
+**Dano (placeholder):** 20–30 por golpe, cadência 1,8 s.
 
 **Fase 1, a Recusa:** ele te empurra da margem. Combate que exige tudo que os quatro mobs ensinaram — volume, velocidade, sustain, penetração.
 
