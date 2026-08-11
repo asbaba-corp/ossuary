@@ -1,4 +1,8 @@
-import type { PrimaryAttribute } from '@ossuary/core';
+import {
+  EQUIPMENT_SLOTS,
+  PARTY_MAX_SIZE,
+  type PrimaryAttribute,
+} from '@ossuary/core';
 import Slider from '@react-native-community/slider';
 import type { ReactNode } from 'react';
 import {
@@ -23,7 +27,15 @@ const ATTRIBUTE_ROWS: readonly {
 
 export function MechanicsLabScreen() {
   const {
-    progress,
+    party,
+    summary,
+    selectedCharacterId,
+    selectedCharacter,
+    selectedLoadout,
+    effectiveAttributes,
+    testEquipment,
+    testConsumable,
+    canRemoveTestConsumable,
     nextLevelXp,
     xpPercent,
     selectedXp,
@@ -33,6 +45,12 @@ export function MechanicsLabScreen() {
     defeatIgnavo,
     applySelectedXp,
     allocate,
+    selectCharacter,
+    recruitCharacter,
+    equipTestEquipment,
+    unequipSlot,
+    useTestConsumable,
+    removeTestConsumable,
     reset,
   } = useMechanicsLabViewModel();
 
@@ -61,18 +79,37 @@ export function MechanicsLabScreen() {
       </View>
 
       <LabSection title="01 · Personagem">
+        <Text style={styles.helper}>
+          Party ativa: {summary.characterCount}/{PARTY_MAX_SIZE}. XP é
+          concedido integralmente a todos os personagens ativos.
+        </Text>
+        <View style={styles.roster}>
+          {party.characters.map((character) => (
+            <Pressable
+              key={character.id}
+              onPress={() => selectCharacter(character.id)}
+              style={[styles.rosterButton, character.id === selectedCharacterId && styles.rosterSelected]}
+            >
+              <Text style={styles.rosterName}>{character.name}</Text>
+              <Text style={styles.muted}>Nv. {character.progress.level}</Text>
+            </Pressable>
+          ))}
+        </View>
+        {party.characters.length < 4 && (
+          <LabButton label="Recrutar personagem nível 1" onPress={recruitCharacter} />
+        )}
         <View style={styles.characterHeader}>
           <View>
-            <Text style={styles.characterName}>Sem-Nome</Text>
+            <Text style={styles.characterName}>{selectedCharacter.name}</Text>
             <Text style={styles.muted}>Progressão local de teste</Text>
           </View>
-          <Text style={styles.level}>NÍVEL {progress.level}</Text>
+          <Text style={styles.level}>NÍVEL {selectedCharacter.progress.level}</Text>
         </View>
 
         <View style={styles.xpLabels}>
           <Text style={styles.label}>EXPERIÊNCIA</Text>
           <Text style={styles.xpValue}>
-            {Math.floor(progress.xp)} / {nextLevelXp} XP
+            {Math.floor(selectedCharacter.progress.xp)} / {nextLevelXp} XP
           </Text>
         </View>
         <View style={styles.progressTrack}>
@@ -81,7 +118,7 @@ export function MechanicsLabScreen() {
         <Text style={styles.event}>{lastEvent}</Text>
 
         <View style={styles.pointsCard}>
-          <Text style={styles.pointsValue}>{progress.unspentAttributePoints}</Text>
+          <Text style={styles.pointsValue}>{selectedCharacter.progress.unspentAttributePoints}</Text>
           <View>
             <Text style={styles.pointsTitle}>pontos disponíveis</Text>
             <Text style={styles.muted}>Distribua depois de subir de nível</Text>
@@ -149,15 +186,17 @@ export function MechanicsLabScreen() {
               <Text style={styles.attributeLabel}>{row.label}</Text>
               <Text style={styles.muted}>{row.name}</Text>
             </View>
-            <Text style={styles.attributeValue}>{progress.attributes[row.key]}</Text>
+              <Text style={styles.attributeValue}>
+                {selectedCharacter.progress.attributes[row.key]} → {effectiveAttributes[row.key]}
+              </Text>
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={`Aumentar ${row.name}`}
-              disabled={progress.unspentAttributePoints === 0}
+              disabled={selectedCharacter.progress.unspentAttributePoints === 0}
               onPress={() => allocate(row.key)}
               style={({ pressed }) => [
                 styles.plusButton,
-                progress.unspentAttributePoints === 0 && styles.disabled,
+                selectedCharacter.progress.unspentAttributePoints === 0 && styles.disabled,
                 pressed && styles.pressed,
               ]}
             >
@@ -166,8 +205,78 @@ export function MechanicsLabScreen() {
           </View>
         ))}
       </LabSection>
+
+      <LabSection title="04 · Equipamento (teste)">
+        <Text style={styles.helper}>
+          Loadout separado da progressão. As peças abaixo são fixtures diretos;
+          não existe inventário, loot ou geração de itens neste teste.
+        </Text>
+        {testEquipment.map((equipment) => {
+          const equipped = selectedLoadout.equipped[equipment.slot]?.id === equipment.id;
+          return (
+            <View key={equipment.id} style={styles.equipmentRow}>
+              <View style={styles.equipmentIdentity}>
+                <Text style={styles.equipmentName}>{equipment.name}</Text>
+                <Text style={styles.muted}>
+                  {equipment.slot} · {equipment.rarity} · {formatBonuses(equipment.attributeBonuses)}
+                </Text>
+              </View>
+              <LabButton
+                label={equipped ? 'Desequipar' : 'Equipar'}
+                onPress={() => equipped ? unequipSlot(equipment.slot) : equipTestEquipment(equipment.id)}
+              />
+            </View>
+          );
+        })}
+        <Text style={styles.label}>SLOTS</Text>
+        <View style={styles.slotGrid}>
+          {EQUIPMENT_SLOTS.map((slot) => (
+            <Pressable
+              key={slot}
+              accessibilityRole="button"
+              accessibilityLabel={`Liberar slot ${slot}`}
+              onPress={() => unequipSlot(slot)}
+              style={styles.slotButton}
+            >
+              <Text style={styles.slotName}>{slot}</Text>
+              <Text style={styles.muted}>{selectedLoadout.equipped[slot]?.name ?? 'vazio'}</Text>
+            </Pressable>
+          ))}
+        </View>
+      </LabSection>
+
+      <LabSection title="05 · Consumível (teste)">
+        <Text style={styles.helper}>
+          Usar consome uma unidade e ativa o bônus no personagem selecionado.
+          O efeito pode ser removido explicitamente; não há duração automática.
+        </Text>
+        <View style={styles.consumableCard}>
+          <View style={styles.equipmentIdentity}>
+            <Text style={styles.equipmentName}>{testConsumable.item.name}</Text>
+            <Text style={styles.muted}>
+              {testConsumable.item.rarity} · {testConsumable.quantity} unidade(s)
+            </Text>
+          </View>
+          <LabButton
+            label="Usar"
+            onPress={useTestConsumable}
+            disabled={testConsumable.quantity === 0 || canRemoveTestConsumable}
+          />
+        </View>
+        <LabButton
+          label="Remover efeito"
+          onPress={removeTestConsumable}
+          disabled={!canRemoveTestConsumable}
+        />
+      </LabSection>
     </ScrollView>
   );
+}
+
+function formatBonuses(bonuses: Readonly<Partial<Record<PrimaryAttribute, number>>>): string {
+  return Object.entries(bonuses)
+    .map(([attribute, amount]) => `${attribute.toUpperCase()} +${amount}`)
+    .join(' · ');
 }
 
 function LabSection({ title, children }: { title: string; children: ReactNode }) {
@@ -282,6 +391,73 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
+  },
+  roster: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 12,
+  },
+  rosterButton: {
+    backgroundColor: '#211d20',
+    borderColor: '#403a41',
+    borderRadius: 5,
+    borderWidth: 1,
+    minWidth: 100,
+    padding: 8,
+  },
+  rosterSelected: {
+    backgroundColor: '#2b3b29',
+    borderColor: '#6e925b',
+  },
+  rosterName: {
+    color: '#d8c5a5',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  equipmentRow: {
+    alignItems: 'center',
+    borderTopColor: '#2c2830',
+    borderTopWidth: 1,
+    flexDirection: 'row',
+    minHeight: 58,
+  },
+  equipmentIdentity: {
+    flex: 1,
+  },
+  equipmentName: {
+    color: '#d8c5a5',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  consumableCard: {
+    alignItems: 'center',
+    backgroundColor: '#211d16',
+    borderColor: '#45351f',
+    borderRadius: 6,
+    borderWidth: 1,
+    flexDirection: 'row',
+    padding: 10,
+  },
+  slotGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 8,
+  },
+  slotButton: {
+    backgroundColor: '#211d20',
+    borderColor: '#403a41',
+    borderRadius: 5,
+    borderWidth: 1,
+    padding: 8,
+    width: '48%',
+  },
+  slotName: {
+    color: '#9f8c70',
+    fontSize: 10,
+    fontWeight: '800',
+    textTransform: 'uppercase',
   },
   characterName: {
     color: '#e1d1b6',

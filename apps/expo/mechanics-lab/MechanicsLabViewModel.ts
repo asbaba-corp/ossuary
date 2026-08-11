@@ -1,9 +1,33 @@
 import { useState } from 'react';
-import type { CharacterProgress, PrimaryAttribute } from '@ossuary/core';
+import type {
+  CharacterAttributes,
+  CharacterLoadout,
+  Equipment,
+  EquipmentSlot,
+  ItemEffectState,
+  ItemStack,
+  Party,
+  PartySummary,
+  PrimaryAttribute,
+} from '@ossuary/core';
 import {
-  createCharacterProgress,
-  gainExperience,
-  spendAttributePoint,
+  addCharacter,
+  allocatePartyAttributePoint,
+  createCharacter,
+  createCharacterLoadout,
+  createAttributeBonusEffect,
+  createConsumable,
+  createEquipment,
+  createItemEffectState,
+  createItemStack,
+  createParty,
+  equipEquipment,
+  gainPartyExperience,
+  getEffectiveCharacterAttributes,
+  getPartySummary,
+  removeItemEffect,
+  unequipEquipment,
+  useItem,
   xpToNextLevel,
 } from '@ossuary/core';
 
@@ -11,8 +35,31 @@ const MONSTER_XP = 15;
 const MIN_TEST_XP = 0;
 const MAX_TEST_XP = 500;
 
+const TEST_EQUIPMENT: readonly Equipment[] = [
+  createEquipment('test-iron-sword', 'Espada de ferro', 'weapon', { str: 2 }, { rarity: 'common' }),
+  createEquipment('test-bone-shield', 'Escudo de osso', 'shield', { cons: 2 }, { rarity: 'rare' }),
+  createEquipment('test-leather-boots', 'Botas de couro', 'boots', { dex: 1 }, { rarity: 'epic' }),
+];
+
+const TEST_CONSUMABLE = createConsumable(
+  'test-strength-tonic',
+  'Tônico de força',
+  [createAttributeBonusEffect('test-strength-effect', { str: 1 })],
+  { rarity: 'rare' },
+);
+
 export interface MechanicsLabViewModel {
-  readonly progress: CharacterProgress;
+  readonly party: Party;
+  readonly loadouts: readonly CharacterLoadout[];
+  readonly summary: PartySummary;
+  readonly selectedCharacterId: string;
+  readonly selectedCharacter: Party['characters'][number];
+  readonly selectedLoadout: CharacterLoadout;
+  readonly effectiveAttributes: CharacterAttributes;
+  readonly testEquipment: readonly Equipment[];
+  readonly testConsumable: ItemStack;
+  readonly activeItemEffects: ItemEffectState;
+  readonly canRemoveTestConsumable: boolean;
   readonly nextLevelXp: number;
   readonly xpPercent: number;
   readonly selectedXp: number;
@@ -22,6 +69,12 @@ export interface MechanicsLabViewModel {
   readonly defeatIgnavo: () => void;
   readonly applySelectedXp: () => void;
   readonly allocate: (attribute: PrimaryAttribute) => void;
+  readonly selectCharacter: (id: string) => void;
+  readonly recruitCharacter: () => void;
+  readonly equipTestEquipment: (equipmentId: string) => void;
+  readonly unequipSlot: (slot: EquipmentSlot) => void;
+  readonly useTestConsumable: () => void;
+  readonly removeTestConsumable: () => void;
   readonly reset: () => void;
 }
 
@@ -33,21 +86,38 @@ export interface MechanicsLabViewModel {
  * `useState` nem chama regras do core diretamente.
  */
 export function useMechanicsLabViewModel(): MechanicsLabViewModel {
-  const [progress, setProgress] = useState<CharacterProgress>(() =>
-    createCharacterProgress(),
+  const [party, setParty] = useState<Party>(() => createParty());
+  const [loadouts, setLoadouts] = useState<readonly CharacterLoadout[]>(() => [
+    createCharacterLoadout('character-1'),
+  ]);
+  const [testConsumable, setTestConsumable] = useState<ItemStack>(() =>
+    createItemStack(TEST_CONSUMABLE, 2),
   );
+  const [activeItemEffects, setActiveItemEffects] = useState<ItemEffectState>(() =>
+    createItemEffectState(),
+  );
+  const [selectedCharacterId, setSelectedCharacterId] = useState('character-1');
   const [selectedXp, setSelectedXpState] = useState(MONSTER_XP);
   const [lastEvent, setLastEvent] = useState('Nenhum evento ainda.');
 
-  const nextLevelXp = xpToNextLevel(progress.level);
-  const xpPercent = Math.min(100, (progress.xp / nextLevelXp) * 100);
+  const selectedCharacter = party.characters.find(({ id }) => id === selectedCharacterId) ?? party.characters[0];
+  const selectedLoadout = loadouts.find(({ characterId }) => characterId === selectedCharacter.id) ?? createCharacterLoadout(selectedCharacter.id);
+  const effectiveAttributes = getEffectiveCharacterAttributes(
+    selectedCharacter,
+    selectedLoadout,
+    activeItemEffects,
+  );
+  const summary = getPartySummary(party);
+  const nextLevelXp = xpToNextLevel(selectedCharacter.progress.level);
+  const xpPercent = Math.min(100, (selectedCharacter.progress.xp / nextLevelXp) * 100);
 
   function applyExperience(amount: number, source: string) {
-    const result = gainExperience(progress, amount);
-    setProgress(result.progress);
+    const result = gainPartyExperience(party, amount);
+    setParty(result.party);
+    const levelsGained = result.levelsGainedByCharacter[selectedCharacterId];
     setLastEvent(
-      result.levelsGained > 0
-        ? `${source} · subiu ${result.levelsGained} nível(is)`
+      levelsGained > 0
+        ? `${source} · party ganhou XP; personagem selecionado subiu ${levelsGained} nível(is)`
         : `${source} · +${amount} XP`,
     );
   }
@@ -67,19 +137,85 @@ export function useMechanicsLabViewModel(): MechanicsLabViewModel {
   }
 
   function allocate(attribute: PrimaryAttribute) {
-    if (progress.unspentAttributePoints === 0) return;
-    setProgress(spendAttributePoint(progress, attribute));
+    if (selectedCharacter.progress.unspentAttributePoints === 0) return;
+    setParty(allocatePartyAttributePoint(party, selectedCharacterId, attribute));
     setLastEvent(`Ponto distribuído · ${attribute.toUpperCase()} +1`);
   }
 
+  function selectCharacter(id: string) {
+    if (party.characters.some((character) => character.id === id)) setSelectedCharacterId(id);
+  }
+
+  function recruitCharacter() {
+    const id = `character-${party.characters.length + 1}`;
+    setParty(addCharacter(party, createCharacter(id, `Personagem ${party.characters.length + 1}`)));
+    setLoadouts((current) => [...current, createCharacterLoadout(id)]);
+    setSelectedCharacterId(id);
+    setLastEvent('Novo personagem recrutado no nível 1.');
+  }
+
+  function equipTestEquipment(equipmentId: string) {
+    const equipment = TEST_EQUIPMENT.find((item) => item.id === equipmentId);
+    if (!equipment) return;
+    setLoadouts((current) =>
+      current.map((loadout) =>
+        loadout.characterId === selectedCharacter.id
+          ? equipEquipment(loadout, equipment)
+          : loadout,
+      ),
+    );
+    setLastEvent(`${equipment.name} equipado em ${selectedCharacter.name}.`);
+  }
+
+  function unequipSlot(slot: EquipmentSlot) {
+    setLoadouts((current) =>
+      current.map((loadout) =>
+        loadout.characterId === selectedCharacter.id
+          ? unequipEquipment(loadout, slot)
+          : loadout,
+      ),
+    );
+    setLastEvent(`Slot ${slot} liberado em ${selectedCharacter.name}.`);
+  }
+
+  function useTestConsumable() {
+    const result = useItem(testConsumable, selectedCharacter.id, activeItemEffects);
+    setTestConsumable(result.itemStack);
+    setActiveItemEffects(result.effectState);
+    setLastEvent(`${TEST_CONSUMABLE.name} ativado em ${selectedCharacter.name}.`);
+  }
+
+  function removeTestConsumable() {
+    setActiveItemEffects(
+      removeItemEffect(activeItemEffects, TEST_CONSUMABLE.id, selectedCharacter.id),
+    );
+    setLastEvent(`${TEST_CONSUMABLE.name} removido de ${selectedCharacter.name}.`);
+  }
+
   function reset() {
-    setProgress(createCharacterProgress());
+    setParty(createParty());
+    setLoadouts([createCharacterLoadout('character-1')]);
+    setTestConsumable(createItemStack(TEST_CONSUMABLE, 2));
+    setActiveItemEffects(createItemEffectState());
+    setSelectedCharacterId('character-1');
     setSelectedXpState(MONSTER_XP);
     setLastEvent('Laboratório reiniciado.');
   }
 
   return {
-    progress,
+    party,
+    loadouts,
+    summary,
+    selectedCharacterId,
+    selectedCharacter,
+    selectedLoadout,
+    effectiveAttributes,
+    testEquipment: TEST_EQUIPMENT,
+    testConsumable,
+    activeItemEffects,
+    canRemoveTestConsumable: activeItemEffects.activeEffects.some(
+      (active) => active.itemId === TEST_CONSUMABLE.id && active.targetCharacterId === selectedCharacter.id,
+    ),
     nextLevelXp,
     xpPercent,
     selectedXp,
@@ -89,6 +225,12 @@ export function useMechanicsLabViewModel(): MechanicsLabViewModel {
     defeatIgnavo,
     applySelectedXp,
     allocate,
+    selectCharacter,
+    recruitCharacter,
+    equipTestEquipment,
+    unequipSlot,
+    useTestConsumable,
+    removeTestConsumable,
     reset,
   };
 }
