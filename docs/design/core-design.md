@@ -212,6 +212,10 @@ recompensa fica acumulado no nível seguinte. Cada level-up concede **3 pontos
 de atributo**. A curva é independente do círculo, para que o conteúdo não
 precise redefinir ou comprimir o progresso do personagem.
 
+O personagem começa com `CONS 5`, `STR 6`, `DEX 5` e `INT 4`. Os pontos de
+level-up ficam aguardando distribuição; cada ponto aumenta exatamente um dos
+quatro atributos, escolhido pelo jogador. A distribuição não é automática.
+
 | Atributo | Nome | Fantasia |
 |---|---|---|
 | **CONS** | Constituição | Carne que aguenta |

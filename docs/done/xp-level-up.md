@@ -8,7 +8,8 @@ O progresso de um personagem é um pequeno objeto de valor:
 {
   level: 1,
   xp: 0,
-  unspentAttributePoints: 0
+  unspentAttributePoints: 0,
+  attributes: { cons: 5, str: 6, dex: 5, int: 4 }
 }
 ```
 
@@ -23,6 +24,18 @@ repete o avanço enquanto o saldo atingir o limiar atual. Cada avanço aumenta o
 nível em 1 e adiciona 3 pontos de atributo. O que sobrar continua no nível
 novo. Por exemplo, no nível 1, um ganho de `55 + 7` resulta em nível 2 com 7
 XP e 3 pontos aguardando distribuição.
+
+Os pontos não são atribuídos automaticamente. `spendAttributePoint(progress,
+attribute)` consome um ponto e devolve o personagem com o atributo escolhido
+incrementado em 1. Assim, o ciclo fica separado em duas decisões:
+
+```text
+ganhar XP → subir de nível → receber pontos → escolher o atributo
+```
+
+Um personagem novo começa com `CONS 5`, `STR 6`, `DEX 5` e `INT 4`, os mesmos
+valores usados no protótipo. Distribuir um ponto em `str`, por exemplo, produz
+`STR 7` e reduz `unspentAttributePoints` em 1.
 
 ## Padrão usado
 
@@ -42,13 +55,15 @@ mesma regra sem duplicá-la.
 
 - Adicionado `CharacterProgress` ao `packages/core`.
 - Adicionadas as funções puras `createCharacterProgress`, `xpToNextLevel` e
-  `gainExperience` em `packages/core/src/progression/xp.ts`.
+  `gainExperience` em `packages/core/src/progression/xp.ts`, além de
+  `spendAttributePoint` para a distribuição explícita.
 - A curva usa `round(55 × nível^1,42)` XP por avanço.
 - Cada level-up concede 3 pontos de atributo.
 - Um único ganho pode atravessar vários níveis; XP excedente permanece no
   nível seguinte.
 - Entradas inválidas são rejeitadas com `RangeError`.
-- Nenhuma UI, combate, persistência ou distribuição de atributos foi incluída.
+- Nenhuma UI, combate, persistência ou cálculo de atributos derivados foi
+  incluído.
 
 ## Decisões incorporadas no design
 

@@ -15,6 +15,22 @@ export const XP_RULES = {
   attributePointsPerLevel: 3,
 } as const;
 
+export const DEFAULT_CHARACTER_ATTRIBUTES = {
+  cons: 5,
+  str: 6,
+  dex: 5,
+  int: 4,
+} as const;
+
+export type PrimaryAttribute = keyof CharacterAttributes;
+
+export interface CharacterAttributes {
+  readonly cons: number;
+  readonly str: number;
+  readonly dex: number;
+  readonly int: number;
+}
+
 export interface CharacterProgress {
   /** Nível atual. Um personagem novo começa no nível 1. */
   readonly level: number;
@@ -22,6 +38,8 @@ export interface CharacterProgress {
   readonly xp: number;
   /** Pontos aguardando distribuição em CONS/STR/DEX/INT. */
   readonly unspentAttributePoints: number;
+  /** Atributos primários do personagem. */
+  readonly attributes: CharacterAttributes;
 }
 
 export interface ExperienceResult {
@@ -32,7 +50,12 @@ export interface ExperienceResult {
 }
 
 export function createCharacterProgress(): CharacterProgress {
-  return { level: 1, xp: 0, unspentAttributePoints: 0 };
+  return {
+    level: 1,
+    xp: 0,
+    unspentAttributePoints: 0,
+    attributes: { ...DEFAULT_CHARACTER_ATTRIBUTES },
+  };
 }
 
 /** XP necessário para avançar de `level` para o nível seguinte. */
@@ -75,9 +98,36 @@ export function gainExperience(
       unspentAttributePoints:
         progress.unspentAttributePoints +
         levelsGained * XP_RULES.attributePointsPerLevel,
+      attributes: { ...progress.attributes },
     },
     xpGained: amount,
     levelsGained,
+  };
+}
+
+/**
+ * Distribui um ponto de atributo como uma nova transição de estado.
+ *
+ * O gasto é separado do ganho de XP: subir de nível libera pontos, mas a
+ * escolha de build continua sendo uma decisão explícita do jogador.
+ */
+export function spendAttributePoint(
+  progress: CharacterProgress,
+  attribute: PrimaryAttribute,
+): CharacterProgress {
+  assertProgress(progress);
+  assertPrimaryAttribute(attribute);
+  if (progress.unspentAttributePoints === 0) {
+    throw new RangeError("character has no unspent attribute points");
+  }
+
+  return {
+    ...progress,
+    unspentAttributePoints: progress.unspentAttributePoints - 1,
+    attributes: {
+      ...progress.attributes,
+      [attribute]: progress.attributes[attribute] + 1,
+    },
   };
 }
 
@@ -92,8 +142,22 @@ function assertProgress(progress: CharacterProgress): void {
   ) {
     throw new RangeError("progress.unspentAttributePoints must be a non-negative integer");
   }
+  if (progress.attributes === null || typeof progress.attributes !== "object") {
+    throw new RangeError("progress.attributes must be an object");
+  }
+  for (const attribute of Object.keys(DEFAULT_CHARACTER_ATTRIBUTES) as PrimaryAttribute[]) {
+    if (!Number.isInteger(progress.attributes[attribute]) || progress.attributes[attribute] < 0) {
+      throw new RangeError(`progress.attributes.${attribute} must be a non-negative integer`);
+    }
+  }
   if (progress.xp >= xpToNextLevel(progress.level)) {
     throw new RangeError("progress.xp must be below the current level threshold");
+  }
+}
+
+function assertPrimaryAttribute(value: string): asserts value is PrimaryAttribute {
+  if (!Object.prototype.hasOwnProperty.call(DEFAULT_CHARACTER_ATTRIBUTES, value)) {
+    throw new RangeError(`unknown primary attribute: ${value}`);
   }
 }
 
