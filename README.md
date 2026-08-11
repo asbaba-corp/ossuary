@@ -17,6 +17,22 @@ xdg-open prototype/scene.html      # Linux
 
 **Requisito:** um navegador atual. Só isso.
 
+### Sprites
+
+A pasta `sprites/` **não está no repositório** — são packs de terceiros cuja
+licença permite usar a arte no jogo mas proíbe redistribuir os arquivos.
+
+Sem ela o protótipo funciona: o carregamento falha em silêncio e a arte
+procedural assume. Com ela, sirva por HTTP para o canvas conseguir ler as
+imagens:
+
+```bash
+python3 -m http.server 8765
+# http://localhost:8765/prototype/scene.html
+```
+
+Para atribuir um pack a um personagem, use a skill `sprite-import`.
+
 ### Parâmetros de URL (teste)
 
 | Parâmetro | Efeito |

@@ -1,3 +1,4 @@
+<meta charset="utf-8">
 <title>Ossuary — protótipo de cena</title>
 <style>
   :root {
@@ -284,8 +285,7 @@
           <path d="M4 12h16"/><path d="M10 12v3h4v-3"/>
         </svg>
         <span class="hicon-t">Mochila</span>
-        <i class="dot" id="invDot" hidden></i>
-      </button>
+        </button>
 
       <button class="hicon" id="openStats" aria-haspopup="dialog" title="Atributos (C)">
         <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -448,7 +448,65 @@
   }
   let rng = mulberry32(0xB05E);
 
-  /* ---------- sprites ---------- */
+  /* ==================== SPRITE SHEETS ====================
+     Bloco editado pela skill `sprite-import`. Cada personagem aponta para uma
+     pasta de spritesheets horizontais, quadros quadrados e uniformes.
+
+     Os PNGs NÃO ficam no repositório: a licença CraftPix permite usar a arte
+     no jogo mas proíbe redistribuir os arquivos, e o repo é público. Sem a
+     pasta `sprites/`, o carregamento falha em silêncio e a arte procedural
+     assume — o protótipo nunca quebra por falta de asset.
+
+     `footY` é a linha dos pés dentro do quadro, para assentar no chão.       */
+  const SPRITES = {
+    hero: {
+      base: "../sprites/knight-character-sprites-pixel-art/Spritesheet 128/Knight_1",
+      frame: 128, scale: 1.3, footY: 128, faces: "right",
+      anims: {
+        idle:   { file: "Idle.png",     frames: 4, fps: 6 },
+        walk:   { file: "Walk.png",     frames: 8, fps: 10 },
+        attack: { file: "Attack 1.png", frames: 5, fps: 13, loop: false }
+      }
+    }
+  };
+
+  for (const set of Object.values(SPRITES)) {
+    set.ready = false;
+    let pend = 0, failed = false;
+    for (const a of Object.values(set.anims)) {
+      pend++;
+      const img = new Image();
+      a.img = img;
+      img.onload = () => { if (--pend === 0 && !failed) set.ready = true; };
+      img.onerror = () => { failed = true; set.ready = false; };
+      img.src = set.base + "/" + encodeURIComponent(a.file);
+    }
+  }
+
+  function frameOf(a, t) {
+    const i = Math.floor(t * a.fps);
+    return a.loop === false ? Math.min(i, a.frames - 1) : i % a.frames;
+  }
+
+  function drawSheet(set, animName, t, cx, footScreenY, flip) {
+    const a = set.anims[animName];
+    if (!a || !a.img.complete || !a.img.naturalWidth) return false;
+    const F = set.frame, s = set.scale, dw = F * s;
+    const dx = Math.round(cx - dw / 2);
+    const dy = Math.round(footScreenY - set.footY * s);
+    const sx = frameOf(a, t) * F;
+    if (flip) {
+      ctx.save();
+      ctx.translate(dx + dw, dy); ctx.scale(-1, 1);
+      ctx.drawImage(a.img, sx, 0, F, F, 0, 0, dw, dw);
+      ctx.restore();
+    } else {
+      ctx.drawImage(a.img, sx, 0, F, F, dx, dy, dw, dw);
+    }
+    return true;
+  }
+
+  /* ---------- sprites procedurais (fallback) ---------- */
   const HERO_PAL = {
     k:"#080605", c:"#241c22", C:"#372b34", f:"#100c10",
     e:P.flame, s:"#8a8f96", S:"#c3c8ce", b:"#3f3123"
@@ -813,31 +871,9 @@
   };
   const potionById = (k, id) => POTIONS[k].find(p => p.id === id) || POTIONS[k][0];
 
-  /* ---- itens ---- */
-  const ISLOTS = [
-    { id: "arma", name: "Arma", g: "†" }, { id: "elmo", name: "Elmo", g: "∩" },
-    { id: "peito", name: "Peito", g: "▤" }, { id: "luvas", name: "Luvas", g: "⌒" },
-    { id: "botas", name: "Botas", g: "⊔" }, { id: "reli", name: "Relicário", g: "◇" }
-  ];
-  const RARITY = [
-    { id: "common",    name: "Comum",    col: "#8a8078", w: 68, mult: 1 },
-    { id: "rare",      name: "Raro",     col: "#5f92b5", w: 23, mult: 2.1 },
-    { id: "epic",      name: "Épico",    col: "#9070b8", w: 7.5, mult: 4.2 },
-    { id: "legendary", name: "Lendário", col: "#cb8f3c", w: 1.5, mult: 9 }
-  ];
-  const RW = RARITY.reduce((a, r) => a + r.w, 0);
-
-  function rollItem(depth) {
-    let x = rng() * RW, rar = RARITY[0];
-    for (const r of RARITY) { if (x < r.w) { rar = r; break; } x -= r.w; }
-    const sl = ISLOTS[(rng() * ISLOTS.length) | 0];
-    const ilvl = Math.max(1, depth);
-    return {
-      slot: sl.id, glyph: sl.g, slotName: sl.name,
-      rar: rar.id, rarName: rar.name, col: rar.col, ilvl,
-      value: Math.round((8 + ilvl * 4) * rar.mult)
-    };
-  }
+  /* ---- itens ----
+     Removidos: sem sistema de equipar, o drop só enchia o inventário de peças
+     que não fazem nada. Voltam com equipamento (core-design §4.5). */
 
   const INV_SIZE = 128, INV_PAGE = 48;
 
@@ -847,10 +883,10 @@
     rng = mulberry32(20260811);
     S = {
       t: 0, phase: PHASE.WALK, phaseT: 0,
-      hero: { x: 120, hp: 1, hpMax: 1, mp: 1, mpMax: 1, atkCd: 0, spellCd: 0, hurt: 0, frame: 0, y0: 234 },
+      hero: { x: 120, hp: 1, hpMax: 1, mp: 1, mpMax: 1, atkCd: 0, spellCd: 0, hurt: 0, frame: 0, y0: 234, anim: "idle", animT: 0 },
       mobs: [], pops: [], motes: [],
       cam: 0, wave: 1, nextWaveX: 520,
-      gold: 150, loot: 0, supply: 0, dust: 0, kills: 0, retreats: 0, sold: 0, hold: 0,
+      gold: 150, loot: 0, supply: 0, dust: 0, kills: 0, retreats: 0, hold: 0,
       retreatTo: 0,
 
       // personagem
@@ -911,21 +947,6 @@
   }
 
   /* ---- inventário ---- */
-  function invAdd(item) {
-    const i = S.inv.indexOf(null);
-    if (i >= 0) { S.inv[i] = item; return true; }
-    // cheio: vende o de menor valor. A caça nunca para (§5.4)
-    let worst = 0;
-    for (let k = 1; k < S.inv.length; k++) if (S.inv[k].value < S.inv[worst].value) worst = k;
-    if (S.inv[worst].value < item.value) {
-      S.gold += S.inv[worst].value; S.loot += S.inv[worst].value; S.sold++;
-      S.inv[worst] = item;
-    } else {
-      S.gold += item.value; S.loot += item.value; S.sold++;
-    }
-    return false;
-  }
-
   reset();
 
   function spawnWave() {
@@ -1018,17 +1039,13 @@
           gainXP(9 + ((rng() * 6) | 0));
           pop(tgt.x + 16, tgt.y0 - 26, "+" + g + "o", "#c9a44a");
           if (rng() < 0.05) { s.dust++; pop(tgt.x + 16, tgt.y0 - 40, "+1 poeira", "#9fb6c9"); }
-          if (rng() < 0.3) {
-            const it = rollItem(s.wave);
-            invAdd(it);
-            pop(tgt.x + 16, tgt.y0 - 52, it.slotName, it.col);
-          }
         };
 
         // golpe físico — Cadência define o ritmo, Alcance quantos pega
         h.atkCd -= DT;
         if (h.atkCd <= 0) {
           h.atkCd = 1 / d.cad;
+          h.anim = "attack"; h.animT = 0;
           const crit = rng() < d.crit;
           const targets = alive.slice(0, d.alc);
           for (const tgt of targets) {
@@ -1082,6 +1099,16 @@
       else s.wave++;
       s.nextWaveX = h.x + 620;
       s.phase = PHASE.WALK; s.phaseT = 0;
+    }
+
+    /* animação: o golpe tem prioridade e roda até o fim; fora dele,
+       andar ou parar decide entre walk e idle */
+    h.animT += DT;
+    const atkA = SPRITES.hero.anims.attack;
+    const atkDone = h.anim === "attack" && h.animT >= atkA.frames / atkA.fps;
+    if (h.anim !== "attack" || atkDone) {
+      const want = (s.phase === PHASE.WALK || s.phase === PHASE.RETREAT) ? "walk" : "idle";
+      if (h.anim !== want) { h.anim = want; h.animT = 0; }
     }
 
     // limpeza / timers
@@ -1245,16 +1272,24 @@
       ctx.fillRect(sx + 10, GROUND - 3, 44, 4);
       const moving = s.phase === PHASE.WALK || s.phase === PHASE.RETREAT;
       const back = s.phase === PHASE.RETREAT;
-      const legs = HERO_LEGS[moving ? (Math.floor(h.frame) % 2) : 0];
-      drawSprite(ctx, HERO_BODY, HERO_PAL, sx, sy, HS, back);
-      drawSprite(ctx, legs, HERO_PAL, sx, sy + HERO_BODY.length * HS, HS, back);
+
+      // spritesheet quando disponível; arte procedural quando não
+      const sheet = SPRITES.hero.ready &&
+        drawSheet(SPRITES.hero, h.anim, h.animT, sx + 32, GROUND, back);
+
+      if (!sheet) {
+        const legs = HERO_LEGS[moving ? (Math.floor(h.frame) % 2) : 0];
+        drawSprite(ctx, HERO_BODY, HERO_PAL, sx, sy, HS, back);
+        drawSprite(ctx, legs, HERO_PAL, sx, sy + HERO_BODY.length * HS, HS, back);
+      }
+
       if (h.hurt > 0) {
-        ctx.globalAlpha = 0.4 * (h.hurt / 0.14);
-        drawSprite(ctx, HERO_BODY, { k:"#2a1414", c:"#6b2c28", C:"#853a30", f:"#3a1a18", e:"#d8703a", s:"#8e4038", S:"#a04c40", b:"#5c2a26" }, sx, sy, HS, back);
+        ctx.globalAlpha = 0.3 * (h.hurt / 0.14);
+        ctx.fillStyle = "#8e3028";
+        ctx.fillRect(sx - 2, GROUND - 92, 70, 92);
         ctx.globalAlpha = 1;
       }
-      // brilho do capuz
-      light(sx + 24, sy + 16, 46, 0.12);
+      light(sx + 30, GROUND - 58, 50, 0.1);
     }
 
     // números flutuantes
@@ -1366,22 +1401,7 @@
   function drawInv() {
     const start = S.invPage * INV_PAGE;
     for (let i = 0; i < INV_PAGE; i++) {
-      const idx = start + i, d = slotEls[i];
-      if (idx >= INV_SIZE) { d.hidden = true; continue; }
-      d.hidden = false;
-      const it = S.inv[idx];
-      if (!it) {
-        if (d.dataset.f !== "0") { d.className = "cellslot"; d.textContent = ""; d.title = ""; d.style.borderColor = ""; d.dataset.f = "0"; }
-      } else {
-        const sig = it.glyph + it.rar + it.ilvl;
-        if (d.dataset.f !== sig) {
-          d.className = "cellslot has";
-          d.textContent = it.glyph;
-          d.style.color = it.col; d.style.borderColor = it.col + "66";
-          d.title = it.slotName + " · " + it.rarName + " · nv " + it.ilvl + " · " + it.value + " ouro";
-          d.dataset.f = sig;
-        }
-      }
+      slotEls[i].hidden = start + i >= INV_SIZE;
     }
     const used = S.inv.reduce((a, x) => a + (x ? 1 : 0), 0);
     el("invUsed").textContent = used + " / " + INV_SIZE;
@@ -1486,7 +1506,6 @@
 
     // marcador no ícone: o pop-up fechado precisa avisar que há o que fazer
     el("statDot").hidden = c.points <= 0;
-    el("invDot").hidden = s.inv.every(x => !x);
 
     if (!openModal) return;                 // pop-up fechado, nada a redesenhar
 
@@ -1539,7 +1558,7 @@
         framesWithNegativeGold: negGold,
         hp: Math.round(S.hero.hp), hpMax: S.hero.hpMax,
         mp: Math.round(S.hero.mp), mpMax: S.hero.mpMax,
-        invUsed: used, autoSold: S.sold, spentOnPotions: S.supply,
+        invUsed: used, spentOnPotions: S.supply,
         loot: S.loot, balance: S.loot - S.supply, retreats: S.retreats
       });
       document.body.appendChild(d);

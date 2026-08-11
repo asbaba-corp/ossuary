@@ -7,6 +7,13 @@ build/
 .env
 .env.local
 
+# Sprites de terceiros (CraftPix e afins).
+# A licença permite usar no jogo, mas proíbe redistribuir os arquivos:
+# "You can NOT resell the source files" / "You can not redistribute the art
+# ... in a manner that would make some or all of the art files useable to
+# another end user". Repositório público = redistribuição. Ficam locais.
+sprites/
+
 # Personal instruction files (per-user, never committed)
 wellinstructions.md
 *instructions.md
