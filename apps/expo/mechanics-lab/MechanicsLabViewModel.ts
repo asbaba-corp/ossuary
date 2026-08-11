@@ -33,9 +33,11 @@ import {
   removeItem,
   removeItemEffect,
   useItem,
+  advanceSpellCooldown,
+  resolveSpellAttempt,
   xpToNextLevel,
 } from '@ossuary/core';
-import { TEST_CONSUMABLE, TEST_CONSUMABLE_STACK, TEST_EQUIPMENT } from './lab-fixtures';
+import { TEST_CONSUMABLE, TEST_CONSUMABLE_STACK, TEST_EQUIPMENT, TEST_SPELLS } from './lab-fixtures';
 import { equipFromInventory, getCharacterEquipmentStats, getReplacementPreview, rollTestDrop, unequipToInventory } from './lab-equipment-commands';
 
 const MONSTER_XP = 15;
@@ -79,6 +81,21 @@ export interface MechanicsLabViewModel {
   readonly generateTestDrop: () => void;
   readonly dropChancePercent: number;
   readonly setDropChancePercent: (amount: number) => void;
+  readonly testSpells: readonly typeof TEST_SPELLS[number][];
+  readonly selectedSpellId: string;
+  readonly selectedSpell: typeof TEST_SPELLS[number];
+  readonly spellHpPercent: number;
+  readonly spellMana: number;
+  readonly spellEnemyCount: number;
+  readonly spellCooldownRemaining: number;
+  readonly spellEvent: string;
+  readonly spellAttempt: ReturnType<typeof resolveSpellAttempt> | null;
+  readonly selectSpell: (id: string) => void;
+  readonly setSpellHpPercent: (amount: number) => void;
+  readonly setSpellMana: (amount: number) => void;
+  readonly setSpellEnemyCount: (amount: number) => void;
+  readonly attemptSpell: () => void;
+  readonly advanceSpellTime: () => void;
   readonly reset: () => void;
 }
 
@@ -105,6 +122,13 @@ export function useMechanicsLabViewModel(): MechanicsLabViewModel {
   const [selectedXp, setSelectedXpState] = useState(MONSTER_XP);
   const [lastEvent, setLastEvent] = useState('Nenhum evento ainda.');
   const [dropChancePercent, setDropChancePercentState] = useState(75);
+  const [selectedSpellId, setSelectedSpellId] = useState(TEST_SPELLS[0].id);
+  const [spellHpPercent, setSpellHpPercentState] = useState(35);
+  const [spellMana, setSpellManaState] = useState(50);
+  const [spellEnemyCount, setSpellEnemyCountState] = useState(3);
+  const [spellCooldownRemaining, setSpellCooldownRemaining] = useState(0);
+  const [spellEvent, setSpellEvent] = useState('Nenhuma tentativa de spell.');
+  const [spellAttempt, setSpellAttempt] = useState<ReturnType<typeof resolveSpellAttempt> | null>(null);
   const dropRoll = useRef(0);
 
   const selectedCharacter = party.characters.find(({ id }) => id === selectedCharacterId) ?? party.characters[0];
@@ -129,6 +153,7 @@ export function useMechanicsLabViewModel(): MechanicsLabViewModel {
   const inventorySummary = getInventorySummary(inventory);
   const nextLevelXp = xpToNextLevel(selectedCharacter.progress.level);
   const xpPercent = Math.min(100, (selectedCharacter.progress.xp / nextLevelXp) * 100);
+  const selectedSpell = TEST_SPELLS.find(({ id }) => id === selectedSpellId) ?? TEST_SPELLS[0];
 
   function applyExperience(amount: number, source: string) {
     const result = gainPartyExperience(party, amount);
@@ -257,6 +282,49 @@ export function useMechanicsLabViewModel(): MechanicsLabViewModel {
     setDropChancePercentState(Math.max(0, Math.min(100, Math.round(amount))));
   }
 
+  function selectSpell(id: string) {
+    if (TEST_SPELLS.some((spell) => spell.id === id)) {
+      setSelectedSpellId(id);
+      setSpellCooldownRemaining(0);
+      setSpellAttempt(null);
+      setSpellEvent('Spell selecionada; cooldown liberado para o teste.');
+    }
+  }
+
+  function setSpellHpPercent(amount: number) {
+    setSpellHpPercentState(Math.max(0, Math.min(100, Math.round(amount))));
+  }
+
+  function setSpellMana(amount: number) {
+    setSpellManaState(Math.max(0, Math.min(100, Math.round(amount))));
+  }
+
+  function setSpellEnemyCount(amount: number) {
+    setSpellEnemyCountState(Math.max(0, Math.min(10, Math.round(amount))));
+  }
+
+  function attemptSpell() {
+    const result = resolveSpellAttempt(selectedSpell, {
+      hpPercent: spellHpPercent,
+      manaPercent: spellMana,
+      mana: spellMana,
+      enemyCount: spellEnemyCount,
+      int: effectiveAttributes.int,
+      spellDamagePercent: effectiveStats.spellDamagePercent,
+      cooldownRemaining: spellCooldownRemaining,
+      seed: 'spell-lab-seed',
+    });
+    setSpellAttempt(result);
+    setSpellManaState(result.manaAfter);
+    setSpellCooldownRemaining(result.cooldownAfter);
+    setSpellEvent(`${selectedSpell.name} · ${result.reason}${result.controlChanceSucceeded === false ? ' · chance falhou' : ''}`);
+  }
+
+  function advanceSpellTime() {
+    setSpellCooldownRemaining((current) => advanceSpellCooldown(current, 1));
+    setSpellEvent('Tempo de teste avançou 1s; nenhum efeito de combate foi aplicado.');
+  }
+
   function reset() {
     setParty(createParty());
     setLoadouts([createCharacterLoadout('character-1')]);
@@ -265,6 +333,13 @@ export function useMechanicsLabViewModel(): MechanicsLabViewModel {
     setActiveItemEffects(createItemEffectState());
     setSelectedCharacterId('character-1');
     setSelectedXpState(MONSTER_XP);
+    setSelectedSpellId(TEST_SPELLS[0].id);
+    setSpellHpPercentState(35);
+    setSpellManaState(50);
+    setSpellEnemyCountState(3);
+    setSpellCooldownRemaining(0);
+    setSpellEvent('Nenhuma tentativa de spell.');
+    setSpellAttempt(null);
     setLastEvent('Laboratório reiniciado.');
   }
 
@@ -307,6 +382,21 @@ export function useMechanicsLabViewModel(): MechanicsLabViewModel {
     generateTestDrop,
     dropChancePercent,
     setDropChancePercent,
+    testSpells: TEST_SPELLS,
+    selectedSpellId,
+    selectedSpell,
+    spellHpPercent,
+    spellMana,
+    spellEnemyCount,
+    spellCooldownRemaining,
+    spellEvent,
+    spellAttempt,
+    selectSpell,
+    setSpellHpPercent,
+    setSpellMana,
+    setSpellEnemyCount,
+    attemptSpell,
+    advanceSpellTime,
     reset,
   };
 }
