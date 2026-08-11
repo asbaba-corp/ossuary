@@ -38,7 +38,7 @@ Captura de tela sem interação — `--virtual-time-budget` não avança o `requ
 Nada disso está montado ainda; é o alvo descrito em `plano-tecnico-idle-ios.md`.
 
 - **TypeScript** em tudo, com `packages/core` puro compartilhado por cliente e servidor
-- **iOS/Android:** React Native + Expo · **Web:** React + Vite
+- **iOS/Android/Web:** React Native + Expo — um único codebase (RN Web para a web)
 - **Render:** react-native-skia
 - **Servidor:** Node + TypeScript, Postgres
 

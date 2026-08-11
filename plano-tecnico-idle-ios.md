@@ -26,8 +26,8 @@
 ## 2. Stack
 
 ### Cliente
-**TypeScript + React Native + Expo** (iOS agora, Android no v2 pelo mesmo código).
-**TypeScript + React + Vite** para a web.
+**TypeScript + React Native + Expo** — um único codebase que alvo iOS, Android e Web (RN Web via Expo).
+A web roda no mesmo código React Native, sem projeto Vite separado.
 
 ### Servidor
 **Node + TypeScript.** Não é preferência estética — é o que permite rodar *o mesmo pacote `core`* no servidor e no cliente. Com PVP e validação, essa paridade deixa de ser conveniência e vira requisito de corretude.
