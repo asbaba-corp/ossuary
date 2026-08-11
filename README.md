@@ -2,7 +2,9 @@
 
 Jogo idle 2D sidescroller de dark fantasy sobre o Inferno de Dante. Sem prestige, com party de até 4, PVP assíncrono e sync entre dispositivos.
 
-**Estado: pré-produção.** Ainda não existe código de aplicação — só documentos de design e um protótipo jogável.
+**Estado: pré-produção.** O app tem um scaffold Expo multiplataforma e uma
+página inicial vazia; a lógica do jogo ainda está apenas no protótipo e nos
+documentos de design.
 
 ## Rodar o protótipo
 
@@ -35,13 +37,30 @@ Captura de tela sem interação — `--virtual-time-budget` não avança o `requ
 
 ## Stack planejada
 
-Nada disso está montado ainda; é o alvo descrito em `plano-tecnico-idle-ios.md`.
+O scaffold inicial está montado em `apps/expo`; a arquitetura completa ainda é
+o alvo descrito em `plano-tecnico-idle-ios.md`.
 
 - **TypeScript** em tudo, com `packages/core` puro compartilhado por cliente e servidor
 - **iOS/Android/Web:** React Native + Expo — um único codebase (RN Web para a web)
 - **Render:** react-native-skia
 - **Servidor:** Node + TypeScript, Postgres
 - **Monorepo (pnpm):** `packages/core` (TS puro, lógica do jogo) + `apps/expo` (cliente Expo ios/android/web). Rodar o app web: `pnpm --filter @ossuary/app web`.
+
+### Verificações e preview
+
+```bash
+pnpm install
+pnpm typecheck
+pnpm build:core
+pnpm build:web
+```
+
+O workflow `CI` executa esses checks em cada PR e em pushes para `main`. O
+workflow `Firebase preview` publica o `apps/expo/dist` em um canal temporário
+por PR. Para habilitá-lo, configure no repositório os secrets
+`FIREBASE_TOKEN` (gerado com `firebase login:ci`); a configuração do projeto
+fica em `.firebaserc` e nenhuma credencial fica no código. PRs vindos de forks
+são ignorados porque não recebem secrets do GitHub.
 
 ## Documentos
 

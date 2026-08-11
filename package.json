@@ -5,7 +5,8 @@
   "packageManager": "pnpm@11.21.0",
   "scripts": {
     "typecheck": "pnpm -r typecheck",
-    "build:core": "pnpm --filter @ossuary/core build"
+    "build:core": "pnpm --filter @ossuary/core build",
+    "build:web": "pnpm --filter @ossuary/app exec expo export --platform web"
   },
   "devDependencies": {
     "typescript": "^5.6.3"

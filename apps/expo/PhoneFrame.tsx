@@ -5,8 +5,7 @@ const isWeb = Platform.OS === 'web';
 
 // On native (iOS/Android) the app is full-screen — no frame.
 // On web we wrap the screen in a phone bezel so the game reads like a
-// device on a desktop browser. Platform.OS is evaluated at module load and
-// RN Web tree-shakes the unused branch.
+// device on a desktop browser.
 export function PhoneFrame({ children }: { children: ReactNode }) {
   if (!isWeb) {
     return <View style={styles.native}>{children}</View>;

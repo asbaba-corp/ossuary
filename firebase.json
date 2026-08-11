@@ -1,0 +1,8 @@
+{
+  "hosting": {
+    "site": "ossuary-asbabacorp",
+    "public": "apps/expo/dist",
+    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+    "rewrites": [{ "source": "**", "destination": "/index.html" }]
+  }
+}

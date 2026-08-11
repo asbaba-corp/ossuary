@@ -78,10 +78,17 @@ não editar em silêncio.
 - Docs atualizadas: README, plano-tecnico §2, AGENTS §Stack → Web = React
   Native (Expo).
 
-## Não commitado
+## Melhorias incorporadas na PR #4
 
-Por regra do repositório, nada foi commitado. Branch local:
-`feat/scaffold-expo-multiplatform`.
+- Metadados Expo alinhados ao shell escuro do app e ao palette do Ossuary.
+- Arquitetura documentada como um cliente único em `apps/expo` para iOS,
+  Android e Web.
+- CI em `.github/workflows/ci.yml` para instalar com lockfile, rodar
+  typecheck, compilar o core e exportar a Web.
+- Firebase Hosting configurado em `firebase.json`; o workflow
+  `.github/workflows/firebase-preview.yml` publica um canal temporário por PR.
+  Ele exige o secret `FIREBASE_TOKEN`, não inclui credenciais no repositório e
+  ignora PRs de forks.
 
 ## Próximos passos (fora deste escopo)
 
