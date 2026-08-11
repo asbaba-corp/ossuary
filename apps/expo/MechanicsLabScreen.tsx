@@ -36,6 +36,9 @@ export function MechanicsLabScreen() {
     testEquipment,
     testConsumable,
     canRemoveTestConsumable,
+    inventory,
+    inventorySummary,
+    inventoryCandidates,
     nextLevelXp,
     xpPercent,
     selectedXp,
@@ -51,6 +54,8 @@ export function MechanicsLabScreen() {
     unequipSlot,
     useTestConsumable,
     removeTestConsumable,
+    addTestItem,
+    removeTestItem,
     reset,
   } = useMechanicsLabViewModel();
 
@@ -269,6 +274,36 @@ export function MechanicsLabScreen() {
           disabled={!canRemoveTestConsumable}
         />
       </LabSection>
+
+      <LabSection title="06 · Inventário (teste)">
+        <Text style={styles.helper}>
+          Capacidade de teste: {inventorySummary.usedSlots}/{inventorySummary.capacity} slots.
+          Consumíveis empilham; equipamentos ocupam um slot individual. Cheio,
+          o inventário rejeita a adição sem descartar itens.
+        </Text>
+        <View style={styles.inventorySummary}>
+          <Text style={styles.pointsValue}>{inventorySummary.availableSlots}</Text>
+          <Text style={styles.pointsTitle}>slots disponíveis</Text>
+        </View>
+        {inventoryCandidates.map((item) => (
+          <View key={item.id} style={styles.inventoryRow}>
+            <View style={styles.equipmentIdentity}>
+              <Text style={styles.equipmentName}>{item.name}</Text>
+              <Text style={styles.muted}>{item.kind} · {item.rarity}</Text>
+            </View>
+            <LabButton label="Adicionar" onPress={() => addTestItem(item.id)} />
+          </View>
+        ))}
+        {inventory.items.map((stack) => (
+          <View key={stack.item.id} style={styles.inventoryRow}>
+            <View style={styles.equipmentIdentity}>
+              <Text style={styles.equipmentName}>{stack.item.name}</Text>
+              <Text style={styles.muted}>quantidade: {stack.quantity}</Text>
+            </View>
+            <LabButton label="Remover 1" onPress={() => removeTestItem(stack.item.id)} />
+          </View>
+        ))}
+      </LabSection>
     </ScrollView>
   );
 }
@@ -438,6 +473,24 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     flexDirection: 'row',
     padding: 10,
+  },
+  inventorySummary: {
+    alignItems: 'center',
+    backgroundColor: '#211d16',
+    borderColor: '#45351f',
+    borderRadius: 6,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 8,
+    padding: 10,
+  },
+  inventoryRow: {
+    alignItems: 'center',
+    borderTopColor: '#2c2830',
+    borderTopWidth: 1,
+    flexDirection: 'row',
+    minHeight: 54,
   },
   slotGrid: {
     flexDirection: 'row',
