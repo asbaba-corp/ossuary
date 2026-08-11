@@ -224,6 +224,22 @@
   .derived dt { color: #7a6850; }
   .derived dd { margin: 0; color: var(--bone-b); font-variant-numeric: tabular-nums; text-align: right; }
 
+  /* ---- bestiário ---- */
+  .best { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px; }
+  .beast {
+    display: grid; grid-template-columns: auto 1fr; gap: 12px;
+    background: #1c1510; border: 1px solid #33261a; padding: 12px;
+  }
+  .beast.boss { border-color: #5c3a1c; background: #1f1610; }
+  .beast canvas { width: 56px; height: 68px; image-rendering: pixelated; align-self: start; }
+  .beast h3 { margin: 0 0 2px; font-size: 12px; letter-spacing: 0.06em; text-transform: none; color: var(--bone-b); }
+  .beast .role { color: #6b5a44; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; }
+  .beast p { margin: 7px 0 0; font-size: 11.5px; line-height: 1.6; color: #8a7860; }
+  .beast dl { margin: 8px 0 0; display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; font-size: 11px; }
+  .beast dt { color: #6b5a44; letter-spacing: 0.08em; text-transform: uppercase; font-size: 10px; }
+  .beast dd { margin: 0; color: var(--bone-m); }
+  .beast dd.dmg { color: #c08a6a; font-variant-numeric: tabular-nums; }
+
   /* ---- ledger ---- */
   .ledger {
     display: grid;
@@ -294,6 +310,16 @@
         </svg>
         <span class="hicon-t">Atributos</span>
         <i class="dot" id="statDot" hidden></i>
+      </button>
+
+      <button class="hicon" id="openBest" aria-haspopup="dialog" title="Bestiário (B)">
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path d="M4 5.2A1.6 1.6 0 0 1 5.6 3.6H19v14.8H5.6A1.6 1.6 0 0 0 4 20V5.2Z"/>
+          <path d="M4 20a1.6 1.6 0 0 0 1.6 1.6H19"/>
+          <circle cx="10" cy="9.4" r="1"/><circle cx="14" cy="9.4" r="1"/>
+          <path d="M10.2 13h3.6"/>
+        </svg>
+        <span class="hicon-t">Bestiário</span>
       </button>
     </div>
 
@@ -389,6 +415,24 @@
           <dl class="derived" id="derList"></dl>
         </div>
       </div>
+    </div>
+   </section>
+  </div>
+
+  <!-- ===== Bestiário — pop-up ===== -->
+  <div class="scrim" id="modal-best" hidden>
+   <section class="modal" role="dialog" aria-modal="true" aria-labelledby="ttl-best">
+    <header class="modal-top">
+      <h2 id="ttl-best">Bestiário · Mundo 0, Vestíbulo</h2>
+      <button class="x" data-close aria-label="Fechar">✕</button>
+    </header>
+    <div class="modal-body">
+      <div class="best" id="bestList"></div>
+      <p class="hint">
+        Valores de dano são ilustrativos: o balanceamento por espécie ainda não
+        existe e a simulação usa uma fórmula única para todos os mobs. Arte
+        placeholder.
+      </p>
     </div>
    </section>
   </div>
@@ -560,6 +604,168 @@
     "....kp..pk....",
     "....kp..pk....",
     "...kpp..ppk..."
+  ];
+
+  /* ---- bestiário: uma espécie por entrada, arte no mesmo estilo do MOB ----
+     Dano é placeholder. A simulação ainda aplica uma fórmula única a todos os
+     mobs; estes números derivam dos papéis descritos em world_1_vestibule.md e
+     existem para o jogador ler, não para o combate consumir. */
+
+  const MOSCARDO_PAL = { k:"#161215", b:"#3d3228", y:"#a8862f", w:"#6f7a80", s:"#c9c2b4" };
+  const MOSCARDO = [
+    "..............",
+    "...ww....ww...",
+    "..wwww..wwww..",
+    "..wwww..wwww..",
+    "...ww....ww...",
+    ".....kbbk.....",
+    "....kbyybk....",
+    "....kbbbbk....",
+    "....kbyybk....",
+    "....kbbbbk....",
+    ".....kbbk.....",
+    "......ks......",
+    "......ks......",
+    "......ks......",
+    "......s.......",
+    "..............",
+    ".............."
+  ];
+
+  const GORJA_PAL = { k:"#161215", g:"#8a8272", G:"#a39a86", m:"#40251f" };
+  const GORJA = [
+    "..............",
+    "....kggggk....",
+    "...kgGGGGgk...",
+    "..kgGmmmmGgk..",
+    "..kgGmmmmGgk..",
+    "...kgGGGGgk...",
+    "....kggggk....",
+    "...kggggggk...",
+    "..kgGGGGGGgk..",
+    "...kggggggk...",
+    "....kggggk....",
+    "...kggggggk...",
+    "..kgGGGGGGgk..",
+    "...kggggggk...",
+    "....kggggk....",
+    ".....kggk.....",
+    ".............."
+  ];
+
+  const ENCALHADO_PAL = { k:"#161215", s:"#4a5340", S:"#636d52", r:"#7d7466" };
+  const ENCALHADO = [
+    "..............",
+    "..............",
+    "....kssk......",
+    "...ksSSsk.....",
+    "...ksSSsk.....",
+    "....kssk......",
+    "...ksssssk....",
+    "..ksSSSSSsk...",
+    "..ksSrrSSsk...",
+    "..ksSrrSSsk...",
+    "..ksSSSSSsk...",
+    "...kssssssk...",
+    "...ks....sk...",
+    "...ks....sk...",
+    "..kss....ssk..",
+    "..kss....ssk..",
+    ".ksss....sssk."
+  ];
+
+  // o Marcado é um Ignavo com a queimadura do remo nas costas
+  const MARCADO_PAL = { k:"#161215", n:"#7d736c", p:"#4e4741", P:"#665d55", f:"#8c3a22" };
+  const MARCADO = [
+    "..............",
+    ".....knnk.....",
+    "....knnnnk....",
+    "....knnnnk....",
+    "....knnnnk....",
+    ".....knnk.....",
+    "......nn......",
+    "....kpPPpk....",
+    "...kpPffPpk...",
+    "..kpPffffPpk..",
+    "...kpPffPpk...",
+    "....kpPPpk....",
+    "....kp..pk....",
+    "....kp..pk....",
+    "....kp..pk....",
+    "....kp..pk....",
+    "...kpp..ppk..."
+  ];
+
+  const CARONTE_PAL = { k:"#161215", c:"#241d24", C:"#3a3038", e:"#ff7a2a", o:"#5a4530" };
+  const CARONTE = [
+    "......kcck....",
+    ".....kcCCck...",
+    ".....kcCCck...",
+    "....kceCCeck..",
+    "....kcCCCCck..",
+    ".....kcCCck...",
+    "......kcck....",
+    "..o..kcCCck...",
+    "..o.kcCCCCck..",
+    "..o.kcCCCCck..",
+    "..o.kcCCCCck..",
+    "..o..kcCCck...",
+    "..o..kcCCck...",
+    "..o..kc..ck...",
+    "..o..kc..ck...",
+    "..o.kcc..cck..",
+    "..o.kcc..cck.."
+  ];
+
+  const BESTIARY = [
+    {
+      name: "Ignavos", epithet: "os Corredores", role: "Trash mob",
+      rows: MOB, pal: MOB_PAL,
+      text: "Vultos nus, sem traço de rosto, correndo em bando. Não te enxergam; te atropelam por acidente.",
+      dmg: "2–4 por golpe · cadência 1,15 s",
+      drop: "Ouro (baixo, constante) · Poeira de Passo (chance muito baixa)",
+      test: "Dano em área e volume de produção"
+    },
+    {
+      name: "Moscardos", epithet: "o Aguilhão", role: "Enxame",
+      rows: MOSCARDO, pal: MOSCARDO_PAL,
+      text: "Enxame de vespas do tamanho de um punho, ferrão longo demais para o corpo. HP baixíssimo, muitos ataques por turno.",
+      dmg: "1–2 por golpe · cadência 0,4 s",
+      drop: "Ferrão Partido · Quitina Fina",
+      test: "Velocidade e defesa — quem investiu só em dano bruto apanha aqui"
+    },
+    {
+      name: "Gorjas", epithet: "os Vermes", role: "Tanque com dreno",
+      rows: GORJA, pal: GORJA_PAL,
+      text: "Corpos segmentados, pálidos, cegos. Lentos. Enterram-se e reaparecem. Curam o que causam de dano.",
+      dmg: "5–8 por golpe · cadência 2,0 s",
+      drop: "Bílis Coalhada — material de reroll",
+      test: "Sustain e dano concentrado — não dá para vencer no atrito"
+    },
+    {
+      name: "Encalhados", epithet: "os que Esperam", role: "Parede",
+      rows: ENCALHADO, pal: ENCALHADO_PAL,
+      text: "Figuras encurvadas e imóveis na margem, cobertas de limo, endurecidas por séculos de espera. Só reagem se tocadas.",
+      dmg: "0–1 por golpe · cadência 3,0 s",
+      drop: "Limo do Aqueronte — gate para o Mundo 1",
+      test: "Penetração de armadura. Não te matam — te fazem perder tempo"
+    },
+    {
+      name: "Marcados", epithet: "elite raro", role: "Elite",
+      rows: MARCADO, pal: MARCADO_PAL,
+      text: "Um Ignavo com uma marca queimada nas costas, onde o remo de Caronte já bateu. Corre sozinho, contra a corrente, na sua direção. É o único ali que te vê.",
+      dmg: "12–18 por golpe · cadência 1,4 s",
+      drop: "Óbolo — a moeda de Caronte",
+      test: "Nada. Existe para criar o hábito de abrir o app"
+    },
+    {
+      name: "Caronte", epithet: "o Barqueiro", role: "Guardião · fase 10", boss: true,
+      rows: CARONTE, pal: CARONTE_PAL,
+      text: "Não desce da barca. Olhos como rodas de brasa, remo de madeira negra mais longo que um corpo. Vencer não o mata: ele estende a mão e você paga a travessia em Óbolos.",
+      dmg: "20–30 por golpe · cadência 1,8 s",
+      drop: "Fragmento da barca — o primeiro osso do Ossuary",
+      test: "Tudo que os quatro mobs ensinaram — volume, velocidade, sustain, penetração"
+    }
   ];
 
   function drawSprite(g, rows, pal, x, y, s, flip) {
@@ -1347,11 +1553,11 @@
   ];
 
   /* ---------- pop-ups ---------- */
-  const TABS = ["inv", "stats"];
+  const TABS = ["inv", "stats", "best"];
   let openModal = null, uiDirty = true, lastFocus = null;
   const markUI = () => { uiDirty = true; };
 
-  const TRIGGER = { inv: "openInv", stats: "openStats" };
+  const TRIGGER = { inv: "openInv", stats: "openStats", best: "openBest" };
 
   function setTab(id) {
     if (openModal === id) return;
@@ -1374,6 +1580,7 @@
 
   el("openInv").onclick = () => (openModal === "inv" ? closeModal() : setTab("inv"));
   el("openStats").onclick = () => (openModal === "stats" ? closeModal() : setTab("stats"));
+  el("openBest").onclick = () => (openModal === "best" ? closeModal() : setTab("best"));
 
   for (const id of TABS) {
     const scrim = el("modal-" + id);
@@ -1388,7 +1595,36 @@
     const k = e.key.toLowerCase();
     if (k === "i") { e.preventDefault(); openModal === "inv" ? closeModal() : setTab("inv"); }
     if (k === "c") { e.preventDefault(); openModal === "stats" ? closeModal() : setTab("stats"); }
+    if (k === "b") { e.preventDefault(); openModal === "best" ? closeModal() : setTab("best"); }
   });
+
+  /* bestiário: conteúdo fixo, montado uma vez — nada aqui depende do estado */
+  for (const b of BESTIARY) {
+    const card = document.createElement("article");
+    card.className = "beast" + (b.boss ? " boss" : "");
+
+    const cv = document.createElement("canvas");
+    cv.width = 14; cv.height = 17;
+    cv.setAttribute("role", "img");
+    cv.setAttribute("aria-label", "Figura de " + b.name);
+    const cg = cv.getContext("2d");
+    cg.imageSmoothingEnabled = false;
+    drawSprite(cg, b.rows, b.pal, 0, 0, 1, false);
+
+    const info = document.createElement("div");
+    info.innerHTML =
+      "<h3>" + b.name + " — <span class='role'>" + b.epithet + "</span></h3>" +
+      "<span class='role'>" + b.role + "</span>" +
+      "<p>" + b.text + "</p>" +
+      "<dl>" +
+        "<dt>Dano</dt><dd class='dmg'>" + b.dmg + "</dd>" +
+        "<dt>Drop</dt><dd>" + b.drop + "</dd>" +
+        "<dt>Testa</dt><dd>" + b.test + "</dd>" +
+      "</dl>";
+
+    card.append(cv, info);
+    el("bestList").append(card);
+  }
 
   // grade do inventário, construída uma vez e reaproveitada
   const $grid = el("invGrid"), slotEls = [];
@@ -1508,6 +1744,8 @@
     el("statDot").hidden = c.points <= 0;
 
     if (!openModal) return;                 // pop-up fechado, nada a redesenhar
+
+    if (openModal === "best") return;       // conteúdo fixo, montado uma vez
 
     if (openModal === "inv") {
       drawInv(); refreshPots();
