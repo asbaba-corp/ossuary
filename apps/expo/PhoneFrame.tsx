@@ -40,8 +40,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   bezel: {
-    width: SCREEN_W,
+    width: 'auto',
     height: SCREEN_H,
+    maxHeight: '94%',
+    aspectRatio: SCREEN_W / SCREEN_H,
     backgroundColor: '#050506',
     borderWidth: 10,
     borderColor: '#2a2a31',

@@ -41,6 +41,7 @@ Nada disso está montado ainda; é o alvo descrito em `plano-tecnico-idle-ios.md
 - **iOS/Android/Web:** React Native + Expo — um único codebase (RN Web para a web)
 - **Render:** react-native-skia
 - **Servidor:** Node + TypeScript, Postgres
+- **Monorepo (pnpm):** `packages/core` (TS puro, lógica do jogo) + `apps/expo` (cliente Expo ios/android/web). Rodar o app web: `pnpm --filter @ossuary/app web`.
 
 ## Documentos
 
