@@ -61,6 +61,21 @@ export function MechanicsLabScreen() {
     generateTestDrop,
     dropChancePercent,
     setDropChancePercent,
+    testSpells,
+    selectedSpellId,
+    selectedSpell,
+    spellHpPercent,
+    spellMana,
+    spellEnemyCount,
+    spellCooldownRemaining,
+    spellEvent,
+    spellAttempt,
+    selectSpell,
+    setSpellHpPercent,
+    setSpellMana,
+    setSpellEnemyCount,
+    attemptSpell,
+    advanceSpellTime,
     reset,
   } = useMechanicsLabViewModel();
 
@@ -88,7 +103,64 @@ export function MechanicsLabScreen() {
         </Text>
       </View>
 
-      <LabSection title="01 · Personagem">
+      <LabSection title="01 · Spells (teste isolado)">
+        <Text style={styles.helper}>
+          Este painel testa apenas a mecânica pura de auto-cast: gatilho, mana,
+          cooldown, escala e seed. Não há combate, alvo ou aplicação de efeito.
+        </Text>
+        <View style={styles.roster}>
+          {testSpells.map((spell) => (
+            <Pressable
+              key={spell.id}
+              onPress={() => selectSpell(spell.id)}
+              style={[styles.rosterButton, spell.id === selectedSpellId && styles.rosterSelected]}
+            >
+              <Text style={styles.rosterName}>{spell.name}</Text>
+              <Text style={styles.muted}>{spell.archetype} · {spell.manaCost} mana · {spell.cooldown}s</Text>
+            </Pressable>
+          ))}
+        </View>
+        <Text style={styles.helper}>
+          Gatilho: {selectedSpell.trigger.kind} · INT {effectiveAttributes.int} · dano de spell {effectiveStats.spellDamagePercent}%
+        </Text>
+        <Text style={styles.label}>CONTEXTO DO TESTE</Text>
+        <View style={styles.spellContextRow}>
+          <Text style={styles.muted}>HP {spellHpPercent}%</Text>
+          {[20, 35, 80].map((value) => (
+            <LabButton key={`hp-${value}`} label={`${value}%`} onPress={() => setSpellHpPercent(value)} />
+          ))}
+        </View>
+        <View style={styles.spellContextRow}>
+          <Text style={styles.muted}>Mana {spellMana}/100</Text>
+          {[0, 20, 50, 100].map((value) => (
+            <LabButton key={`mana-${value}`} label={`${value}`} onPress={() => setSpellMana(value)} />
+          ))}
+        </View>
+        <View style={styles.spellContextRow}>
+          <Text style={styles.muted}>Inimigos {spellEnemyCount}</Text>
+          {[0, 3, 5].map((value) => (
+            <LabButton key={`enemy-${value}`} label={`${value}`} onPress={() => setSpellEnemyCount(value)} />
+          ))}
+        </View>
+        <View style={styles.spellStatusCard}>
+          <Text style={styles.pointsTitle}>Cooldown restante: {spellCooldownRemaining}s</Text>
+          <Text style={styles.muted}>Seed fixa: spell-lab-seed (repetições são reproduzíveis)</Text>
+        </View>
+        <View style={styles.spellActions}>
+          <LabButton label="Avançar 1s" onPress={advanceSpellTime} />
+          <LabButton label="Tentar auto-cast" onPress={attemptSpell} />
+        </View>
+        <Text style={styles.event}>{spellEvent}</Text>
+        {spellAttempt && (
+          <Text style={styles.debugNote}>
+            mana depois {spellAttempt.manaAfter} · cooldown depois {spellAttempt.cooldownAfter}
+            {spellAttempt.power === null ? '' : ` · potência ${spellAttempt.power.toFixed(1)}`}
+            {spellAttempt.controlChanceSucceeded === null ? '' : ` · chance ${spellAttempt.controlChanceSucceeded ? 'passou' : 'falhou'}`}
+          </Text>
+        )}
+      </LabSection>
+
+      <LabSection title="02 · Personagem">
         <Text style={styles.helper}>
           Party ativa: {summary.characterCount}/{PARTY_MAX_SIZE}. XP é
           concedido integralmente a todos os personagens ativos.
@@ -136,7 +208,7 @@ export function MechanicsLabScreen() {
         </View>
       </LabSection>
 
-      <LabSection title="02 · Controles de teste">
+      <LabSection title="03 · Controles de teste">
         <Text style={styles.helper}>
           O botão principal imita o caminho futuro: derrotar um monstro gera
           XP através do `packages/core`.
@@ -185,7 +257,7 @@ export function MechanicsLabScreen() {
         </Pressable>
       </LabSection>
 
-      <LabSection title="03 · Atributos">
+      <LabSection title="04 · Atributos">
         <Text style={styles.helper}>
           Level-up libera pontos; a escolha do atributo é manual e permanente.
           Os derivados de combate ainda não estão conectados.
@@ -216,7 +288,7 @@ export function MechanicsLabScreen() {
         ))}
       </LabSection>
 
-      <LabSection title="04 · Equipamento (teste)">
+      <LabSection title="05 · Equipamento (teste)">
         <Text style={styles.helper}>
           Equipamento pertence ao inventário e é movido atomicamente para o
           loadout. Este laboratório usa a mesma transição do jogo.
@@ -257,7 +329,7 @@ export function MechanicsLabScreen() {
         {replacementPreview && <Text style={styles.helper}>Preview da candidata: {replacementPreview.deltas.filter(({ delta }) => delta !== 0).map(({ stat, delta }) => `${String(stat)} ${delta > 0 ? '+' : ''}${delta}`).join(' · ') || 'sem delta'}</Text>}
       </LabSection>
 
-      <LabSection title="05 · Consumível (teste)">
+      <LabSection title="06 · Consumível (teste)">
         <Text style={styles.helper}>
           Usar consome uma unidade e ativa o bônus no personagem selecionado.
           O efeito pode ser removido explicitamente; não há duração automática.
@@ -282,7 +354,7 @@ export function MechanicsLabScreen() {
         />
       </LabSection>
 
-      <LabSection title="06 · Inventário (teste)">
+      <LabSection title="07 · Inventário (teste)">
         <Text style={styles.helper}>
           Capacidade de teste: {inventorySummary.usedSlots}/{inventorySummary.capacity} slots.
           Consumíveis empilham; equipamentos ocupam um slot individual. Cheio,
@@ -609,6 +681,25 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 18,
     marginBottom: 12,
+  },
+  spellContextRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    minHeight: 48,
+  },
+  spellStatusCard: {
+    backgroundColor: '#211d16',
+    borderColor: '#45351f',
+    borderRadius: 6,
+    borderWidth: 1,
+    marginTop: 8,
+    padding: 10,
+  },
+  spellActions: {
+    flexDirection: 'row',
+    gap: 8,
   },
   primaryButton: {
     alignItems: 'center',

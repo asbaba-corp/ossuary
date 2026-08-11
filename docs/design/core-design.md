@@ -257,7 +257,7 @@ Os atributos alimentam seis **derivados** — o que o combate realmente consome.
                  └───────────────► Mana
 ```
 
-**Nenhum atributo é lixo e nenhum derivado tem dono único.** STR resolve a parede do Vestíbulo (Penetração) *e* o dano — sempre defensável, nunca suficiente. INT, que num auto-battler corpo-a-corpo correria risco de virar stat morto, é o primário de *sobrevivência* (Sustento) e *eficiência de limpeza* (Alcance) — e é o stat das spells (§4.5), o que o torna a aposta de longo prazo.
+**Nenhum atributo é lixo e nenhum derivado tem dono único.** STR resolve a parede do Vestíbulo (Penetração) *e* o dano — sempre defensável, nunca suficiente. INT, que num auto-battler corpo-a-corpo correria risco de virar stat morto, é o primário de *sobrevivência* (Sustento) e *eficiência de limpeza* (Alcance) — e é o stat das spells (§4.6), o que o torna a aposta de longo prazo.
 
 **Respec.** Com pontos permanentes e círculos que exigem perfis diferentes, o jogador vai errar a distribuição. Duas saídas: respec pago (sumidouro, coerente com o Pilar Quatro) ou nenhum respec (decisão pesa mais, mas pune quem não leu guia). **Recomendo respec pago** — em jogo sem prestige, build travada errada é o tipo de frustração que faz desinstalar. Fica como Q13.
 
@@ -383,21 +383,114 @@ O escalonamento do ouro pode decair com o tempo ou zerar ao trocar a peça — d
 
 ### 4.6 Spells
 
-**Sistema previsto, não desenhado.** Registrado aqui para reservar o espaço e as restrições.
+Spells são conteúdo data-driven e resolvidas por auto-cast. O jogador não toca
+no combate (Pilar Cinco): uma spell tenta disparar quando seu gatilho está
+satisfeito, seu cooldown terminou e o personagem tem mana suficiente. A
+definição não contém código específico por spell e não escolhe ainda quantas
+spells um personagem pode manter equipadas.
 
-Restrições que já valem, para não inviabilizarem o resto da arquitetura:
+#### Contrato de conteúdo
 
-- **Auto-cast.** O jogador não toca no combate (Pilar Cinco). Spells disparam por regra — cooldown, gatilho de HP, quantidade de inimigos. A build da spell é *a configuração do gatilho*, não o clique.
-- **Determinismo.** Spell é resolvida dentro de `resolveCombat`, com o mesmo PRNG semeado. Nada de efeito que só exista na camada visual.
-- **INT é o stat de spell.** O papel do atributo está reservado para spells;
-  ainda não há um slot específico de spell.
-- **Offline.** Spell precisa funcionar no cálculo fechado de progresso offline, ou vira armadilha: o jogador constrói para spell e rende menos com o app fechado.
+Cada definição imutável contém identidade, arquétipo, custo de mana,
+cooldown, um único gatilho declarativo, efeito e coeficientes de escala. Uma
+forma equivalente ao contrato (nomes ilustrativos, não uma implementação) é:
 
-**Mana.** Spell custa mana; mana é derivado de INT, e `mana steal %` é afixo de equipamento (§4.5). Isso monta um segundo eixo de sustentação paralelo ao HP: um build de spell não sobrevive só com Vigor e Sustento, precisa também sustentar a reserva. É o que dá sentido a `mana steal` existir como afixo em vez de ser número morto.
+```ts
+type SpellDefinition = {
+  id: string
+  name: string
+  archetype: "damage" | "protection" | "control"
+  manaCost: number
+  cooldown: number
+  trigger: SpellTrigger
+  effect: SpellEffect
+  scaling: { basePower: number; intCoefficient: number }
+}
+```
 
-Consequência a respeitar: com auto-cast, **mana é um gargalo automático**, não uma decisão. Se a regeneração for baixa, a spell simplesmente não dispara e o jogador não entende por quê. A telemetria de combate precisa mostrar "spell não disparou: mana insuficiente" de forma legível.
+Os gatilhos possíveis são exclusivos: `cooldown` (tenta sempre que ficar
+pronta), `hpBelow` (HP percentual abaixo ou igual ao limiar), `manaBelow`
+(mana percentual abaixo ou igual ao limiar) e `enemyCount` (quantidade de
+inimigos dentro do mínimo e/ou máximo declarados). O cooldown continua sendo
+uma pré-condição para todos os gatilhos; o tipo `cooldown` apenas não adiciona
+outra condição de combate.
 
-A definir: quantas spells simultâneas, onde dropam, se escalam por tier ou por nível. Q14.
+Os três arquétipos iniciais têm payloads fechados, mas seus números ficam no
+conteúdo:
+
+| Arquétipo | Payload do efeito | Escala inicial |
+|---|---|---|
+| **Dano** | potência, tipo de dano e alvo(s) | `basePower + INT × intCoefficient`, multiplicada por `1 + spellDamagePercent` |
+| **Proteção** | valor de escudo ou mitigação e duração | `basePower + INT × intCoefficient`, multiplicada por `1 + spellDamagePercent` |
+| **Controle** | tipo de controle, duração e chance | potência/duração usam os coeficientes declarados; chance usa o PRNG determinístico |
+
+O contrato de efeito pode evoluir com novos payloads, mas uma definição de
+conteúdo sempre declara seu arquétipo e os campos necessários para ele. Não há
+efeito visual implícito: dano, escudo, mitigação, controle e falha de chance
+precisam aparecer como eventos resolvíveis pelo combate.
+
+#### Camadas e ciclo de disparo
+
+As quatro camadas são deliberadamente separadas:
+
+1. **Definição da spell:** conteúdo imutável, compartilhável entre cliente,
+   servidor e simulador.
+2. **Configuração do auto-cast:** escolha do jogador para uma spell disponível,
+   com `enabled` e ordem/prioridade de tentativa. Ela não reescreve custo,
+   escala ou efeito da definição. A quantidade de spells e os slots continuam
+   em aberto.
+3. **Estado runtime:** mana atual, cooldown restante, efeitos temporários
+   ativos e contadores necessários para a simulação. É estado derivado da
+   execução e não conteúdo persistente da spell.
+4. **Resolução de combate:** o futuro `resolveCombat` avalia contexto,
+   consome recursos e aplica o payload. Esta especificação não implementa
+   `resolveCombat`.
+
+Em cada oportunidade de avaliação, a ordem é: configuração habilitada,
+gatilho satisfeito, cooldown zerado e mana atual maior ou igual ao custo. Só
+então a spell consome exatamente `manaCost`, reinicia o cooldown e produz um
+evento de tentativa para a resolução. Se uma condição falhar, nada é
+consumido e o cooldown não é reiniciado. Razões observáveis são:
+
+| Razão | Condição |
+|---|---|
+| `disabled` | auto-cast desligado ou spell não está ativa |
+| `trigger_not_met` | HP, mana ou quantidade de inimigos fora do gatilho |
+| `cooldown_remaining` | cooldown ainda positivo |
+| `insufficient_mana` | mana atual menor que o custo |
+| `fired` | todas as pré-condições satisfeitas |
+
+Se várias spells estiverem habilitadas e prontas no mesmo instante, a ordem
+da configuração decide qual é tentada primeiro; o limite de spells equipadas
+não é decidido aqui. Uma spell que falha por mana não reserva mana, não entra
+em dívida e pode ser tentada novamente quando a condição mudar.
+
+#### Mana, escala e determinismo
+
+Mana é derivada de INT, e `manaStealPercent` é o afixo de equipamento que
+recupera mana por dano efetivo (§4.5). A resolução usa a reserva atual e nunca
+permite custo abaixo de zero. `spellDamagePercent` do equipamento multiplica a
+potência da spell; INT é a fonte principal e o coeficiente é parte da
+definição. A fórmula exata de derivados e os números de balanceamento vivem
+no conteúdo, não em ramificações por ID.
+
+Qualquer chance, inclusive a chance de controle, recebe o mesmo PRNG semeado
+da resolução do combate. Seed, estado inicial, definições e contexto iguais
+produzem os mesmos eventos e o mesmo estado final. A simulação ativa e o
+cálculo fechado offline usam o mesmo contrato e a mesma sequência de eventos;
+o offline não substitui spell por um bônus médio não reproduzível.
+
+**Q14 fica parcialmente resolvida:** mecânica, arquétipos, gatilhos, escala,
+recursos e determinismo estão fechados. Continuam abertas a fonte de aquisição
+das spells, raridade/tier, escala por nível ou tier de conteúdo, slots e a
+quantidade de spells que um personagem pode equipar. Esses pontos não devem
+ser inferidos pela implementação da mecânica.
+
+**Laboratório de spells.** O laboratório Expo possui uma seção de teste
+isolado que exercita essas regras com fixtures de dano, proteção e controle.
+Ela permite mudar HP, mana, quantidade de inimigos e cooldown, repetir uma
+tentativa com seed fixa e inspecionar a razão do resultado. A seção é
+explicitamente test-only: não implementa combate nem aplica efeitos a alvos.
 
 ### 4.7 Fórmula
 
@@ -726,7 +819,7 @@ Sprites 2D, parallax de camadas, partículas — suficiente para um sidescroller
 | Q11 | Quantos círculos entram no lançamento? 100 fases desenhadas é escopo grande para um dev solo. | Data de lançamento, tamanho da T1, pipeline de conteúdo |
 | Q12 | Progressão de dificuldade *dentro* de um círculo: multiplicador plano por fase ou curva por fase? | Balanceamento, sensação das 10 fases |
 | Q13 | Respec de atributos: pago, gratuito ou inexistente? (§4.4) | Frustração de build travada, sumidouro |
-| Q14 | Spells: quantas simultâneas, fonte, escala por tier ou nível? (§4.6) | Papel de INT, item de spell, cálculo offline |
+| Q14 (parcial) | Spells: fonte, raridade/tier, escala por tier ou nível, slots e quantas simultâneas? (§4.6) | Aquisição, progressão de conteúdo e equipagem |
 | Q16b | Valor de `N` na escada de merge, e se o merge exige mesma base/slot ou aceita qualquer peça (§4.5) | Ritmo do loot, pressão de inventário |
 | Q19 | Runas: consumível de spell separado ou poção de mana basta? (§5.3) | Complexidade da loja, economia de INT |
 | Q21 | Conflito entre auto-venda de common e reserva de insumo para merge (§5.4) | Comportamento padrão, clareza para o jogador |
