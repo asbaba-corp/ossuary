@@ -34,6 +34,18 @@ feature/<slug>  →  dev  →  PR  →  main
 - The `dev` → `main` PR is the version changelog (see section below).
 - Day-to-day work branches off `dev` and merges back into `dev`.
 
+`main` is protected on GitHub: PR required, force-push and deletion blocked, and the protection applies to admins too. A direct push is rejected by the server, not just by this file. Emergency bypass means temporarily removing the protection — ask the user first, never do it unprompted.
+
+**Read the user's personal instruction files before acting.** The project root may hold per-user instruction docs — typically named `*instructions.md` and listed in `.gitignore`, since they are personal and never committed.
+
+```bash
+rtk ls *instructions.md 2>/dev/null
+```
+
+Read whatever is there and follow it. These files carry things the repo cannot: which GitHub account is allowed to push, local environment quirks, personal preferences. They override nothing about safety, but they do decide *how* to carry out a task.
+
+Never commit them, never quote their contents in a commit message, PR, or issue.
+
 **Don't reinvent the wheel.** Before writing anything new, look for an existing function/module in the repo. Balance rule, tick formula, save type — if it already exists, reuse it. Duplicating logic between client and server is a guaranteed bug: it lives in `packages/core`.
 
 ## Pre-commit check
@@ -64,13 +76,36 @@ For every new prompt/feature:
 2. Implement.
 3. On delivery, move the file to `docs/done/<slug>.md`.
 
-## PR = changelog
+## PR = release = changelog
 
-**There must always be an open `dev` → `main` PR.** It is the shared workspace for the release: as work lands on `dev`, the PR description grows with it. Devs collaborate on the release *inside* that PR — it is the living changelog of what the next version will contain.
+**One PR is one release.** Every `dev` → `main` PR ships a version, and its description is that version's changelog.
 
-When a release merges, open the next `dev` → `main` PR right away, even if empty. There is never a moment without one.
+**There must always be an open `dev` → `main` PR.** It is the shared workspace for the release: as work lands on `dev`, the PR description grows with it. Devs collaborate on the release *inside* that PR. When a release merges, open the next `dev` → `main` PR right away, even if empty. There is never a moment without one.
 
-Every `dev` → `main` PR is a changelog entry. Versioning starts at **0.01** and grows with scope:
+### Before starting any work — check the open PR
+
+**Always read the open `dev` → `main` PR before writing code.** Its body is the authoritative list of what the current release already contains.
+
+```bash
+rtk gh pr list --base main --head dev --state open
+rtk gh pr view <N>            # read the body: is this change already here?
+```
+
+If the change is already described there, it is already done or in progress — do not redo it. If it is partially there, extend it instead of duplicating. This is the cheapest way to avoid rework across devs.
+
+### After every commit — update the PR body
+
+**Pushing commits without updating the PR description is incomplete work.** The changelog is written continuously, never reconstructed at merge time.
+
+```bash
+rtk gh pr edit <N> --body-file <file>
+```
+
+Add the change under the right heading (`Added` / `Changed` / `Fixed`) and bump the version in the title if scope grew. A reader of that PR must always see the current, complete state of the release.
+
+### Versioning
+
+Versioning starts at **0.01** and grows with scope:
 
 - `0.0X` → normal increment (feature, fix, tweak)
 - `0.X0` → major milestone (new system, new world, server live)
