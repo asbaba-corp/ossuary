@@ -65,7 +65,7 @@ Read whatever is there and follow it. These files carry things the repo cannot: 
 
 Never commit them, never quote their contents in a commit message, PR, or issue.
 
-**Third-party art stays out of the repo.** `sprites/` is gitignored: free packs (CraftPix and similar) let you ship the art inside a game but forbid redistributing the files, and a public repo is redistribution. Never commit them, and never inline them as data URIs in a versioned file — same violation, different route. Any renderer that uses them keeps a working fallback, because a fresh clone will not have the folder. To wire a pack to a character, use the `sprite-import` skill.
+**Third-party art.** Sprite PNGs live in `sprites/` and **are committed** — the owner's call, made knowingly: free packs (CraftPix and similar) let you ship the art inside a game but their licence forbids redistributing the files, and a public repo is redistribution. Source files (`.psd`) stay out; they are editing material, not runtime assets. When adding a pack, record its name, origin and licence in the PR so provenance stays auditable. To wire a pack to a character, use the `sprite-import` skill, and keep the procedural fallback in any renderer that uses sprites — it is what keeps the prototype working when an asset fails to load.
 
 **Don't reinvent the wheel.** Before writing anything new, look for an existing function/module in the repo. Balance rule, tick formula, save type — if it already exists, reuse it. Duplicating logic between client and server is a guaranteed bug: it lives in `packages/core`.
 

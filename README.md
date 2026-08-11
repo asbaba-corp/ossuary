@@ -19,12 +19,11 @@ xdg-open prototype/scene.html      # Linux
 
 ### Sprites
 
-A pasta `sprites/` **não está no repositório** — são packs de terceiros cuja
-licença permite usar a arte no jogo mas proíbe redistribuir os arquivos.
+Os PNGs ficam em `sprites/` e vêm no repositório; os `.psd` não, por serem
+fonte de edição.
 
-Sem ela o protótipo funciona: o carregamento falha em silêncio e a arte
-procedural assume. Com ela, sirva por HTTP para o canvas conseguir ler as
-imagens:
+O canvas só consegue ler as imagens servido por HTTP — abrir o arquivo direto
+faz o protótipo cair na arte procedural de fallback:
 
 ```bash
 python3 -m http.server 8765
