@@ -20,4 +20,5 @@ export * from "./inventory.js";
 export * from "./random.js";
 export * from "./spells.js";
 export * from "./spell-loadout.js";
+export * from "./spell-runtime.js";
 export * from "./equipment/index.js";

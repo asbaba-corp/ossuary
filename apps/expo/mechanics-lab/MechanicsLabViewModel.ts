@@ -14,6 +14,8 @@ import type {
   Party,
   PartySummary,
   PrimaryAttribute,
+  SpellAutoCastEvent,
+  SpellRuntimeState,
   SpellLoadout,
 } from '@ossuary/core';
 import {
@@ -35,6 +37,9 @@ import {
   removeItemEffect,
   useItem,
   advanceSpellCooldown,
+  advanceSpellRuntime,
+  createSpellRuntimeState,
+  resolveAutoCastOpportunity,
   resolveSpellAttempt,
   createSpellLoadout,
   equipSpell,
@@ -100,12 +105,14 @@ export interface MechanicsLabViewModel {
   readonly spellCooldownRemaining: number;
   readonly spellEvent: string;
   readonly spellAttempt: ReturnType<typeof resolveSpellAttempt> | null;
+  readonly autoCastEvents: readonly SpellAutoCastEvent[];
   readonly selectSpell: (id: string) => void;
   readonly setSpellHpPercent: (amount: number) => void;
   readonly setSpellMana: (amount: number) => void;
   readonly setSpellEnemyCount: (amount: number) => void;
   readonly attemptSpell: () => void;
   readonly advanceSpellTime: () => void;
+  readonly evaluateAutoCast: () => void;
   readonly equipSpell: (spellId: string) => void;
   readonly unequipSpell: (spellId: string) => void;
   readonly setSpellEnabled: (spellId: string, enabled: boolean) => void;
@@ -147,6 +154,8 @@ export function useMechanicsLabViewModel(): MechanicsLabViewModel {
   const [spellEvent, setSpellEvent] = useState('Nenhuma tentativa de spell.');
   const [spellConfigEvent, setSpellConfigEvent] = useState('Nenhuma configuração alterada.');
   const [spellAttempt, setSpellAttempt] = useState<ReturnType<typeof resolveSpellAttempt> | null>(null);
+  const [spellRuntime, setSpellRuntime] = useState<SpellRuntimeState>(() => createSpellRuntimeState(100, 50));
+  const [autoCastEvents, setAutoCastEvents] = useState<readonly SpellAutoCastEvent[]>([]);
   const dropRoll = useRef(0);
 
   const selectedCharacter = party.characters.find(({ id }) => id === selectedCharacterId) ?? party.characters[0];
@@ -310,6 +319,10 @@ export function useMechanicsLabViewModel(): MechanicsLabViewModel {
       setSelectedSpellId(id);
       setSpellCooldownRemaining(0);
       setSpellAttempt(null);
+      setSpellRuntime((current) => ({
+        ...current,
+        cooldowns: { ...current.cooldowns, [id]: 0 },
+      }));
       setSpellEvent('Spell selecionada; cooldown liberado para o teste.');
     }
   }
@@ -370,7 +383,9 @@ export function useMechanicsLabViewModel(): MechanicsLabViewModel {
   }
 
   function setSpellMana(amount: number) {
-    setSpellManaState(Math.max(0, Math.min(100, Math.round(amount))));
+    const nextMana = Math.max(0, Math.min(100, Math.round(amount)));
+    setSpellManaState(nextMana);
+    setSpellRuntime((current) => ({ ...current, mana: nextMana }));
   }
 
   function setSpellEnemyCount(amount: number) {
@@ -391,12 +406,39 @@ export function useMechanicsLabViewModel(): MechanicsLabViewModel {
     setSpellAttempt(result);
     setSpellManaState(result.manaAfter);
     setSpellCooldownRemaining(result.cooldownAfter);
+    setSpellRuntime((current) => ({
+      ...current,
+      mana: result.manaAfter,
+      cooldowns: { ...current.cooldowns, [selectedSpell.id]: result.cooldownAfter },
+    }));
     setSpellEvent(`${selectedSpell.name} · ${result.reason}${result.controlChanceSucceeded === false ? ' · chance falhou' : ''}`);
   }
 
   function advanceSpellTime() {
     setSpellCooldownRemaining((current) => advanceSpellCooldown(current, 1));
+    setSpellRuntime((current) => advanceSpellRuntime(current, 1));
     setSpellEvent('Tempo de teste avançou 1s; nenhum efeito de combate foi aplicado.');
+  }
+
+  function evaluateAutoCast() {
+    try {
+      const result = resolveAutoCastOpportunity(selectedSpellLoadout, TEST_SPELLS, spellRuntime, {
+        hpPercent: spellHpPercent,
+        enemyCount: spellEnemyCount,
+        int: effectiveAttributes.int,
+        spellDamagePercent: effectiveStats.spellDamagePercent,
+        seed: 'spell-lab-seed',
+      });
+      setSpellRuntime(result.runtime);
+      setSpellManaState(result.runtime.mana);
+      setAutoCastEvents(result.events);
+      setSpellEvent(result.events.length === 0
+        ? 'Nenhuma spell equipada para avaliar.'
+        : result.events.map(({ spellId, result: attempt }) => `${spellId} · ${attempt.reason}`).join(' → '));
+    } catch (error) {
+      setAutoCastEvents([]);
+      setSpellEvent(error instanceof Error ? error.message : 'Não foi possível avaliar o auto-cast.');
+    }
   }
 
   function reset() {
@@ -416,6 +458,8 @@ export function useMechanicsLabViewModel(): MechanicsLabViewModel {
     setSpellEvent('Nenhuma tentativa de spell.');
     setSpellConfigEvent('Nenhuma configuração alterada.');
     setSpellAttempt(null);
+    setSpellRuntime(createSpellRuntimeState(100, 50));
+    setAutoCastEvents([]);
     setLastEvent('Laboratório reiniciado.');
   }
 
@@ -470,12 +514,14 @@ export function useMechanicsLabViewModel(): MechanicsLabViewModel {
     spellCooldownRemaining,
     spellEvent,
     spellAttempt,
+    autoCastEvents,
     selectSpell,
     setSpellHpPercent,
     setSpellMana,
     setSpellEnemyCount,
     attemptSpell,
     advanceSpellTime,
+    evaluateAutoCast,
     equipSpell: equipSpellCommand,
     unequipSpell: unequipSpellCommand,
     setSpellEnabled: setSpellEnabledCommand,

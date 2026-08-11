@@ -73,12 +73,14 @@ export function MechanicsLabScreen() {
     spellCooldownRemaining,
     spellEvent,
     spellAttempt,
+    autoCastEvents,
     selectSpell,
     setSpellHpPercent,
     setSpellMana,
     setSpellEnemyCount,
     attemptSpell,
     advanceSpellTime,
+    evaluateAutoCast,
     equipSpell,
     unequipSpell,
     setSpellEnabled,
@@ -196,8 +198,14 @@ export function MechanicsLabScreen() {
         <View style={styles.spellActions}>
           <LabButton label="Avançar 1s" onPress={advanceSpellTime} />
           <LabButton label="Tentar auto-cast" onPress={attemptSpell} />
+          <LabButton label="Avaliar loadout" onPress={evaluateAutoCast} />
         </View>
         <Text style={styles.event}>{spellEvent}</Text>
+        {autoCastEvents.length > 0 && (
+          <Text style={styles.debugNote}>
+            Tentativas nesta oportunidade: {autoCastEvents.map(({ spellId, result }) => `${spellId} (${result.reason})`).join(' · ')}
+          </Text>
+        )}
         {spellAttempt && (
           <Text style={styles.debugNote}>
             mana depois {spellAttempt.manaAfter} · cooldown depois {spellAttempt.cooldownAfter}
