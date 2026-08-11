@@ -507,6 +507,13 @@ duas vagas são usadas apenas para exercitar o limite com as três fixtures
 existentes. O Lab também permite alterar a prioridade e isolar o loadout de
 cada personagem, mas continua sem executar combate.
 
+O motor pré-combate de auto-cast avalia as entradas habilitadas na ordem do
+loadout. Em cada oportunidade, registra as tentativas bloqueadas e para no
+primeiro disparo; esse disparo consome mana e reinicia apenas o cooldown da
+spell escolhida. O estado runtime mantém mana, mana máxima e cooldowns por ID,
+e pode ser avançado por uma duração explícita. O motor não aplica o payload da
+spell: ele retorna eventos para o futuro `resolveCombat`.
+
 ### 4.7 Fórmula
 
 Golpe por tick, contra cada alvo em `Alcance`:
