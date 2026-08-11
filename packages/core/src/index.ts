@@ -19,4 +19,5 @@ export * from "./equipment.js";
 export * from "./inventory.js";
 export * from "./random.js";
 export * from "./spells.js";
+export * from "./spell-loadout.js";
 export * from "./equipment/index.js";

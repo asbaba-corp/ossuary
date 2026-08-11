@@ -492,6 +492,21 @@ Ela permite mudar HP, mana, quantidade de inimigos e cooldown, repetir uma
 tentativa com seed fixa e inspecionar a razão do resultado. A seção é
 explicitamente test-only: não implementa combate nem aplica efeitos a alvos.
 
+#### Configuração do loadout
+
+A configuração do auto-cast é um domínio separado da definição e da resolução
+da spell. Cada personagem possui um `SpellLoadout` imutável com capacidade
+explícita, entradas sem duplicata e ordem de prioridade. Cada entrada pode
+estar habilitada ou desabilitada; equipar e remover uma spell não altera sua
+definição, custo, escala ou efeito.
+
+O domínio recebe a lista de IDs disponíveis do chamador e valida
+disponibilidade, capacidade e duplicatas. A quantidade definitiva de slots e a
+forma de aquisição continuam sendo decisões de conteúdo/progressão. No Lab,
+duas vagas são usadas apenas para exercitar o limite com as três fixtures
+existentes. O Lab também permite alterar a prioridade e isolar o loadout de
+cada personagem, mas continua sem executar combate.
+
 ### 4.7 Fórmula
 
 Golpe por tick, contra cada alvo em `Alcance`:
@@ -819,7 +834,7 @@ Sprites 2D, parallax de camadas, partículas — suficiente para um sidescroller
 | Q11 | Quantos círculos entram no lançamento? 100 fases desenhadas é escopo grande para um dev solo. | Data de lançamento, tamanho da T1, pipeline de conteúdo |
 | Q12 | Progressão de dificuldade *dentro* de um círculo: multiplicador plano por fase ou curva por fase? | Balanceamento, sensação das 10 fases |
 | Q13 | Respec de atributos: pago, gratuito ou inexistente? (§4.4) | Frustração de build travada, sumidouro |
-| Q14 (parcial) | Spells: fonte, raridade/tier, escala por tier ou nível, slots e quantas simultâneas? (§4.6) | Aquisição, progressão de conteúdo e equipagem |
+| Q14 (parcial) | Spells: fonte, raridade/tier, escala por tier ou nível, slots e quantas simultâneas? (§4.6) | Aquisição, progressão de conteúdo e regra definitiva de capacidade |
 | Q16b | Valor de `N` na escada de merge, e se o merge exige mesma base/slot ou aceita qualquer peça (§4.5) | Ritmo do loot, pressão de inventário |
 | Q19 | Runas: consumível de spell separado ou poção de mana basta? (§5.3) | Complexidade da loja, economia de INT |
 | Q21 | Conflito entre auto-venda de common e reserva de insumo para merge (§5.4) | Comportamento padrão, clareza para o jogador |

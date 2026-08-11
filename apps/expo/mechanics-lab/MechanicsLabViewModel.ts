@@ -14,6 +14,7 @@ import type {
   Party,
   PartySummary,
   PrimaryAttribute,
+  SpellLoadout,
 } from '@ossuary/core';
 import {
   addCharacter,
@@ -35,6 +36,12 @@ import {
   useItem,
   advanceSpellCooldown,
   resolveSpellAttempt,
+  createSpellLoadout,
+  equipSpell,
+  getEnabledSpellDefinitions,
+  moveSpellPriority,
+  setSpellEnabled,
+  unequipSpell,
   xpToNextLevel,
 } from '@ossuary/core';
 import { TEST_CONSUMABLE, TEST_CONSUMABLE_STACK, TEST_EQUIPMENT, TEST_SPELLS } from './lab-fixtures';
@@ -84,6 +91,9 @@ export interface MechanicsLabViewModel {
   readonly testSpells: readonly typeof TEST_SPELLS[number][];
   readonly selectedSpellId: string;
   readonly selectedSpell: typeof TEST_SPELLS[number];
+  readonly selectedSpellLoadout: SpellLoadout;
+  readonly enabledSpells: readonly typeof TEST_SPELLS[number][];
+  readonly spellConfigEvent: string;
   readonly spellHpPercent: number;
   readonly spellMana: number;
   readonly spellEnemyCount: number;
@@ -96,6 +106,10 @@ export interface MechanicsLabViewModel {
   readonly setSpellEnemyCount: (amount: number) => void;
   readonly attemptSpell: () => void;
   readonly advanceSpellTime: () => void;
+  readonly equipSpell: (spellId: string) => void;
+  readonly unequipSpell: (spellId: string) => void;
+  readonly setSpellEnabled: (spellId: string, enabled: boolean) => void;
+  readonly moveSpellPriority: (spellId: string, direction: 'up' | 'down') => void;
   readonly reset: () => void;
 }
 
@@ -110,6 +124,9 @@ export function useMechanicsLabViewModel(): MechanicsLabViewModel {
   const [party, setParty] = useState<Party>(() => createParty());
   const [loadouts, setLoadouts] = useState<readonly CharacterLoadout[]>(() => [
     createCharacterLoadout('character-1'),
+  ]);
+  const [spellLoadouts, setSpellLoadouts] = useState<readonly { characterId: string; loadout: SpellLoadout }[]>(() => [
+    { characterId: 'character-1', loadout: createSpellLoadout(2) },
   ]);
   const [testConsumable, setTestConsumable] = useState<ItemStack>(() =>
     TEST_CONSUMABLE_STACK,
@@ -128,6 +145,7 @@ export function useMechanicsLabViewModel(): MechanicsLabViewModel {
   const [spellEnemyCount, setSpellEnemyCountState] = useState(3);
   const [spellCooldownRemaining, setSpellCooldownRemaining] = useState(0);
   const [spellEvent, setSpellEvent] = useState('Nenhuma tentativa de spell.');
+  const [spellConfigEvent, setSpellConfigEvent] = useState('Nenhuma configuração alterada.');
   const [spellAttempt, setSpellAttempt] = useState<ReturnType<typeof resolveSpellAttempt> | null>(null);
   const dropRoll = useRef(0);
 
@@ -154,6 +172,10 @@ export function useMechanicsLabViewModel(): MechanicsLabViewModel {
   const nextLevelXp = xpToNextLevel(selectedCharacter.progress.level);
   const xpPercent = Math.min(100, (selectedCharacter.progress.xp / nextLevelXp) * 100);
   const selectedSpell = TEST_SPELLS.find(({ id }) => id === selectedSpellId) ?? TEST_SPELLS[0];
+  const availableSpellIds = TEST_SPELLS.map(({ id }) => id);
+  const selectedSpellLoadout = spellLoadouts.find(({ characterId }) => characterId === selectedCharacter.id)?.loadout
+    ?? createSpellLoadout(2);
+  const enabledSpells = getEnabledSpellDefinitions(selectedSpellLoadout, TEST_SPELLS);
 
   function applyExperience(amount: number, source: string) {
     const result = gainPartyExperience(party, amount);
@@ -194,6 +216,7 @@ export function useMechanicsLabViewModel(): MechanicsLabViewModel {
     const id = `character-${party.characters.length + 1}`;
     setParty(addCharacter(party, createCharacter(id, `Personagem ${party.characters.length + 1}`)));
     setLoadouts((current) => [...current, createCharacterLoadout(id)]);
+    setSpellLoadouts((current) => [...current, { characterId: id, loadout: createSpellLoadout(2) }]);
     setSelectedCharacterId(id);
     setLastEvent('Novo personagem recrutado no nível 1.');
   }
@@ -291,6 +314,57 @@ export function useMechanicsLabViewModel(): MechanicsLabViewModel {
     }
   }
 
+  function updateSelectedSpellLoadout(update: (loadout: SpellLoadout) => SpellLoadout, event: string) {
+    setSpellLoadouts((current) => current.map((entry) => entry.characterId === selectedCharacter.id
+      ? { ...entry, loadout: update(entry.loadout) }
+      : entry));
+    setSpellConfigEvent(event);
+  }
+
+  function equipSpellCommand(spellId: string) {
+    try {
+      updateSelectedSpellLoadout(
+        (loadout) => equipSpell(loadout, availableSpellIds, spellId),
+        `${TEST_SPELLS.find((spell) => spell.id === spellId)?.name ?? spellId} equipada.`,
+      );
+    } catch (error) {
+      setSpellConfigEvent(error instanceof Error ? error.message : 'Não foi possível equipar a spell.');
+    }
+  }
+
+  function unequipSpellCommand(spellId: string) {
+    try {
+      updateSelectedSpellLoadout(
+        (loadout) => unequipSpell(loadout, spellId),
+        `${TEST_SPELLS.find((spell) => spell.id === spellId)?.name ?? spellId} removida.`,
+      );
+    } catch (error) {
+      setSpellConfigEvent(error instanceof Error ? error.message : 'Não foi possível remover a spell.');
+    }
+  }
+
+  function setSpellEnabledCommand(spellId: string, enabled: boolean) {
+    try {
+      updateSelectedSpellLoadout(
+        (loadout) => setSpellEnabled(loadout, spellId, enabled),
+        `${TEST_SPELLS.find((spell) => spell.id === spellId)?.name ?? spellId} ${enabled ? 'ativada' : 'desativada'}.`,
+      );
+    } catch (error) {
+      setSpellConfigEvent(error instanceof Error ? error.message : 'Não foi possível alterar a spell.');
+    }
+  }
+
+  function moveSpellPriorityCommand(spellId: string, direction: 'up' | 'down') {
+    try {
+      updateSelectedSpellLoadout(
+        (loadout) => moveSpellPriority(loadout, spellId, direction),
+        'Prioridade do auto-cast atualizada.',
+      );
+    } catch (error) {
+      setSpellConfigEvent(error instanceof Error ? error.message : 'Não foi possível alterar a prioridade.');
+    }
+  }
+
   function setSpellHpPercent(amount: number) {
     setSpellHpPercentState(Math.max(0, Math.min(100, Math.round(amount))));
   }
@@ -328,6 +402,7 @@ export function useMechanicsLabViewModel(): MechanicsLabViewModel {
   function reset() {
     setParty(createParty());
     setLoadouts([createCharacterLoadout('character-1')]);
+    setSpellLoadouts([{ characterId: 'character-1', loadout: createSpellLoadout(2) }]);
     setTestConsumable(TEST_CONSUMABLE_STACK);
     setInventory(createInventory(4));
     setActiveItemEffects(createItemEffectState());
@@ -339,6 +414,7 @@ export function useMechanicsLabViewModel(): MechanicsLabViewModel {
     setSpellEnemyCountState(3);
     setSpellCooldownRemaining(0);
     setSpellEvent('Nenhuma tentativa de spell.');
+    setSpellConfigEvent('Nenhuma configuração alterada.');
     setSpellAttempt(null);
     setLastEvent('Laboratório reiniciado.');
   }
@@ -385,6 +461,9 @@ export function useMechanicsLabViewModel(): MechanicsLabViewModel {
     testSpells: TEST_SPELLS,
     selectedSpellId,
     selectedSpell,
+    selectedSpellLoadout,
+    enabledSpells,
+    spellConfigEvent,
     spellHpPercent,
     spellMana,
     spellEnemyCount,
@@ -397,6 +476,10 @@ export function useMechanicsLabViewModel(): MechanicsLabViewModel {
     setSpellEnemyCount,
     attemptSpell,
     advanceSpellTime,
+    equipSpell: equipSpellCommand,
+    unequipSpell: unequipSpellCommand,
+    setSpellEnabled: setSpellEnabledCommand,
+    moveSpellPriority: moveSpellPriorityCommand,
     reset,
   };
 }

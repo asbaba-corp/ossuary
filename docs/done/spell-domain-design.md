@@ -9,6 +9,10 @@ sendo responsabilidade do futuro domínio de combate. O core agora expõe a
 avaliação pura da definição, gatilho, escala e tentativa de auto-cast para que
 essas partes possam ser testadas antes do combate.
 
+A configuração de loadout foi implementada posteriormente como domínio
+separado em `spell-loadout.ts`; este documento continua descrevendo apenas a
+definição e a mecânica de tentativa de auto-cast.
+
 ## Modelo de conteúdo
 
 Uma spell é uma definição imutável e data-driven. Não existe código especial
