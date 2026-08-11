@@ -36,11 +36,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Typecheck all workspaces
-        run: pnpm typecheck
-
       - name: Build shared core
         run: pnpm build:core
+
+      - name: Typecheck all workspaces
+        run: pnpm typecheck
 
       - name: Export web app
         run: pnpm build:web
