@@ -1,8 +1,11 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type {
   CharacterAttributes,
   CharacterLoadout,
+  EffectiveCharacterStats,
+  EquipmentReplacementPreview,
   Equipment,
+  EquipmentDropEntry,
   EquipmentSlot,
   Inventory,
   InventorySummary,
@@ -26,15 +29,17 @@ import {
   createItemEffectState,
   createItemStack,
   createParty,
-  equipEquipment,
+  equipEquipmentFromInventory,
   gainPartyExperience,
   getEffectiveCharacterAttributes,
+  getEffectiveCharacterStats,
   getPartySummary,
   getInventorySummary,
   removeItem,
   removeItemEffect,
-  rollEquipment,
-  unequipEquipment,
+  previewEquipmentReplacement,
+  createEquipmentFromDropTable,
+  unequipEquipmentToInventory,
   useItem,
   xpToNextLevel,
 } from '@ossuary/core';
@@ -44,18 +49,7 @@ const MIN_TEST_XP = 0;
 const MAX_TEST_XP = 500;
 
 const TEST_EQUIPMENT: readonly Equipment[] = [
-  rollEquipment(
-    createEquipment('test-iron-sword', 'Espada de ferro', 'weapon', {}, { rarity: 'common', stats: { baseDamage: 8 } }),
-    'test-iron-sword-instance-a',
-    'sword-seed-a',
-    { str: [1, 3] },
-  ),
-  rollEquipment(
-    createEquipment('test-iron-sword', 'Espada de ferro', 'weapon', {}, { rarity: 'common', stats: { baseDamage: 8 } }),
-    'test-iron-sword-instance-b',
-    'sword-seed-b',
-    { str: [2, 5] },
-  ),
+  createEquipment('test-iron-sword', 'Espada de ferro', 'weapon', { str: 2 }, { rarity: 'common', instanceId: 'test-sword-a', stats: { baseDamage: 8 } }),
   createEquipment('test-bone-shield', 'Escudo de osso', 'shield', { cons: 2 }, { rarity: 'rare' }),
   createEquipment('test-leather-boots', 'Botas de couro', 'boots', { dex: 1 }, { rarity: 'epic' }),
 ];
@@ -75,6 +69,8 @@ export interface MechanicsLabViewModel {
   readonly selectedCharacter: Party['characters'][number];
   readonly selectedLoadout: CharacterLoadout;
   readonly effectiveAttributes: CharacterAttributes;
+  readonly effectiveStats: EffectiveCharacterStats;
+  readonly replacementPreview: EquipmentReplacementPreview | null;
   readonly testEquipment: readonly Equipment[];
   readonly testConsumable: ItemStack;
   readonly inventory: Inventory;
@@ -97,8 +93,11 @@ export interface MechanicsLabViewModel {
   readonly unequipSlot: (slot: EquipmentSlot) => void;
   readonly useTestConsumable: () => void;
   readonly removeTestConsumable: () => void;
-  readonly addTestItem: (itemKey: string) => void;
-  readonly removeTestItem: (itemKey: string) => void;
+  readonly addTestItem: (itemId: string) => void;
+  readonly removeTestItem: (itemId: string) => void;
+  readonly generateTestDrop: () => void;
+  readonly dropChancePercent: number;
+  readonly setDropChancePercent: (amount: number) => void;
   readonly reset: () => void;
 }
 
@@ -124,6 +123,8 @@ export function useMechanicsLabViewModel(): MechanicsLabViewModel {
   const [selectedCharacterId, setSelectedCharacterId] = useState('character-1');
   const [selectedXp, setSelectedXpState] = useState(MONSTER_XP);
   const [lastEvent, setLastEvent] = useState('Nenhum evento ainda.');
+  const [dropChancePercent, setDropChancePercentState] = useState(75);
+  const dropRoll = useRef(0);
 
   const selectedCharacter = party.characters.find(({ id }) => id === selectedCharacterId) ?? party.characters[0];
   const selectedLoadout = loadouts.find(({ characterId }) => characterId === selectedCharacter.id) ?? createCharacterLoadout(selectedCharacter.id);
@@ -132,6 +133,17 @@ export function useMechanicsLabViewModel(): MechanicsLabViewModel {
     selectedLoadout,
     activeItemEffects,
   );
+  const effectiveStats = getEffectiveCharacterStats(selectedCharacter, selectedLoadout, activeItemEffects);
+  const replacementPreview = inventory.items
+    .map(({ item }) => item)
+    .find((item): item is Equipment => item.kind === 'equipment' && item.slot === 'weapon')
+    ? previewEquipmentReplacement(
+        selectedCharacter,
+        selectedLoadout,
+        inventory.items.map(({ item }) => item).find((item): item is Equipment => item.kind === 'equipment' && item.slot === 'weapon')!,
+        activeItemEffects,
+      )
+    : null;
   const summary = getPartySummary(party);
   const inventorySummary = getInventorySummary(inventory);
   const nextLevelXp = xpToNextLevel(selectedCharacter.progress.level);
@@ -181,27 +193,25 @@ export function useMechanicsLabViewModel(): MechanicsLabViewModel {
   }
 
   function equipTestEquipment(instanceId: string) {
-    const equipment = TEST_EQUIPMENT.find((item) => item.instanceId === instanceId);
-    if (!equipment) return;
-    setLoadouts((current) =>
-      current.map((loadout) =>
-        loadout.characterId === selectedCharacter.id
-          ? equipEquipment(loadout, equipment)
-          : loadout,
-      ),
-    );
-    setLastEvent(`${equipment.name} equipado em ${selectedCharacter.name}.`);
+    try {
+      const result = equipEquipmentFromInventory(inventory, selectedLoadout, instanceId);
+      setInventory(result.inventory);
+      setLoadouts((current) => current.map((loadout) => loadout.characterId === selectedCharacter.id ? result.loadout : loadout));
+      setLastEvent(`${result.loadout.equipped[result.loadout.equipped[candidateSlot(result.loadout, instanceId)]?.slot ?? 'weapon']?.name ?? 'Equipamento'} equipado em ${selectedCharacter.name}.`);
+    } catch (error) {
+      setLastEvent(error instanceof Error ? error.message : 'Não foi possível equipar o equipamento.');
+    }
   }
 
   function unequipSlot(slot: EquipmentSlot) {
-    setLoadouts((current) =>
-      current.map((loadout) =>
-        loadout.characterId === selectedCharacter.id
-          ? unequipEquipment(loadout, slot)
-          : loadout,
-      ),
-    );
-    setLastEvent(`Slot ${slot} liberado em ${selectedCharacter.name}.`);
+    try {
+      const result = unequipEquipmentToInventory(inventory, selectedLoadout, slot);
+      setInventory(result.inventory);
+      setLoadouts((current) => current.map((loadout) => loadout.characterId === selectedCharacter.id ? result.loadout : loadout));
+      setLastEvent(`Slot ${slot} liberado em ${selectedCharacter.name}.`);
+    } catch (error) {
+      setLastEvent(error instanceof Error ? error.message : 'Não foi possível desequipar.');
+    }
   }
 
   function useTestConsumable() {
@@ -218,10 +228,8 @@ export function useMechanicsLabViewModel(): MechanicsLabViewModel {
     setLastEvent(`${TEST_CONSUMABLE.name} removido de ${selectedCharacter.name}.`);
   }
 
-  function addTestItem(itemKey: string) {
-    const item = [...TEST_EQUIPMENT, TEST_CONSUMABLE].find((candidate) =>
-      candidate.kind === 'equipment' ? candidate.instanceId === itemKey : candidate.id === itemKey,
-    );
+  function addTestItem(itemId: string) {
+    const item = [...TEST_EQUIPMENT, TEST_CONSUMABLE].find((candidate) => candidate.id === itemId);
     if (!item) return;
     try {
       const nextInventory = addItem(inventory, createItemStack(item, 1));
@@ -232,14 +240,34 @@ export function useMechanicsLabViewModel(): MechanicsLabViewModel {
     }
   }
 
-  function removeTestItem(itemKey: string) {
+  function removeTestItem(itemId: string) {
     try {
-      const nextInventory = removeItem(inventory, itemKey);
+      const nextInventory = removeItem(inventory, itemId);
       setInventory(nextInventory);
       setLastEvent('Item removido do inventário.');
     } catch (error) {
       setLastEvent(error instanceof Error ? error.message : 'Não foi possível remover o item.');
     }
+  }
+
+  function generateTestDrop() {
+    dropRoll.current += 1;
+    const commonWeight = dropChancePercent;
+    const rareWeight = 100 - dropChancePercent;
+    const entries: EquipmentDropEntry[] = [];
+    if (commonWeight > 0) entries.push({ equipment: TEST_EQUIPMENT[0], rarity: 'common', weight: commonWeight, attributeRollPools: { str: [1, 2, 3] } });
+    if (rareWeight > 0) entries.push({ equipment: TEST_EQUIPMENT[1], rarity: 'rare', weight: rareWeight, attributeRollPools: { cons: [2, 3, 4] } });
+    const drop = createEquipmentFromDropTable(`lab-drop-${dropRoll.current}`, `lab-seed-${dropRoll.current}`, entries);
+    try {
+      setInventory(addItem(inventory, createItemStack(drop, 1)));
+      setLastEvent(`${drop.name} (${drop.rarity}) gerado deterministicamente e adicionado.`);
+    } catch (error) {
+      setLastEvent(error instanceof Error ? error.message : 'Não foi possível adicionar o drop.');
+    }
+  }
+
+  function setDropChancePercent(amount: number) {
+    setDropChancePercentState(Math.max(0, Math.min(100, Math.round(amount))));
   }
 
   function reset() {
@@ -261,6 +289,8 @@ export function useMechanicsLabViewModel(): MechanicsLabViewModel {
     selectedCharacter,
     selectedLoadout,
     effectiveAttributes,
+    effectiveStats,
+    replacementPreview,
     testEquipment: TEST_EQUIPMENT,
     testConsumable,
     inventory,
@@ -287,6 +317,13 @@ export function useMechanicsLabViewModel(): MechanicsLabViewModel {
     removeTestConsumable,
     addTestItem,
     removeTestItem,
+    generateTestDrop,
+    dropChancePercent,
+    setDropChancePercent,
     reset,
   };
+}
+
+function candidateSlot(loadout: CharacterLoadout, instanceId: string): EquipmentSlot {
+  return (Object.values(loadout.equipped).find((item) => item?.instanceId === instanceId)?.slot ?? 'weapon') as EquipmentSlot;
 }

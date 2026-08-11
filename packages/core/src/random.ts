@@ -1,18 +1,9 @@
-/** Pequeno gerador determinístico para regras do core. */
-export function deterministicIndex(seed: number | string, length: number, salt = ""): number {
-  if (!Number.isInteger(length) || length < 1) {
-    throw new RangeError("random list length must be a positive integer");
-  }
-
+export function deterministicUnit(seed: number | string, namespace = ""): number {
+  const input = `${String(seed)}:${namespace}`;
   let hash = 2166136261;
-  for (const character of `${seed}:${salt}`) {
-    hash ^= character.charCodeAt(0);
+  for (let index = 0; index < input.length; index += 1) {
+    hash ^= input.charCodeAt(index);
     hash = Math.imul(hash, 16777619);
   }
-  hash += hash << 13;
-  hash ^= hash >>> 7;
-  hash += hash << 3;
-  hash ^= hash >>> 17;
-  hash += hash << 5;
-  return (hash >>> 0) % length;
+  return (hash >>> 0) / 4294967296;
 }

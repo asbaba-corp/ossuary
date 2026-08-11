@@ -33,6 +33,8 @@ export function MechanicsLabScreen() {
     selectedCharacter,
     selectedLoadout,
     effectiveAttributes,
+    effectiveStats,
+    replacementPreview,
     testEquipment,
     testConsumable,
     canRemoveTestConsumable,
@@ -56,6 +58,9 @@ export function MechanicsLabScreen() {
     removeTestConsumable,
     addTestItem,
     removeTestItem,
+    generateTestDrop,
+    dropChancePercent,
+    setDropChancePercent,
     reset,
   } = useMechanicsLabViewModel();
 
@@ -78,7 +83,7 @@ export function MechanicsLabScreen() {
       <View style={styles.notice}>
         <Text style={styles.noticeTitle}>Área experimental</Text>
         <Text style={styles.noticeText}>
-          Esta tela existe para validar XP, level-up, atributos e instâncias de equipamento. Ela não é a
+          Esta tela existe para validar XP, level-up e atributos. Ela não é a
           tela final do jogo e os controles abaixo não representam o combate.
         </Text>
       </View>
@@ -213,8 +218,8 @@ export function MechanicsLabScreen() {
 
       <LabSection title="04 · Equipamento (teste)">
         <Text style={styles.helper}>
-          Duas peças concretas usam o mesmo item-base, mas têm `instanceId` e
-          bônus rolados diferentes. A seed reproduz a mesma peça sem loot real.
+          Equipamento pertence ao inventário e é movido atomicamente para o
+          loadout. Este laboratório usa a mesma transição do jogo.
         </Text>
         {testEquipment.map((equipment) => {
           const equipped = selectedLoadout.equipped[equipment.slot]?.instanceId === equipment.instanceId;
@@ -223,10 +228,7 @@ export function MechanicsLabScreen() {
               <View style={styles.equipmentIdentity}>
                 <Text style={styles.equipmentName}>{equipment.name}</Text>
                 <Text style={styles.muted}>
-                  {equipment.slot} · {equipment.rarity} · {equipment.instanceId}
-                </Text>
-                <Text style={styles.muted}>
-                  {formatBonuses(equipment.attributeBonuses)} · dano base {equipment.stats.baseDamage}
+                  {equipment.slot} · {equipment.rarity} · {equipment.instanceId} · dano {equipment.stats.baseDamage}
                 </Text>
               </View>
               <LabButton
@@ -251,6 +253,8 @@ export function MechanicsLabScreen() {
             </Pressable>
           ))}
         </View>
+        <Text style={styles.helper}>Stats efetivos: dano {effectiveStats.baseDamage} · defesa {effectiveStats.baseDefense} · dano físico {effectiveStats.physicalDamagePercent}% · crítico {effectiveStats.criticalChancePercent}%</Text>
+        {replacementPreview && <Text style={styles.helper}>Preview da candidata: {replacementPreview.deltas.filter(({ delta }) => delta !== 0).map(({ stat, delta }) => `${String(stat)} ${delta > 0 ? '+' : ''}${delta}`).join(' · ') || 'sem delta'}</Text>}
       </LabSection>
 
       <LabSection title="05 · Consumível (teste)">
@@ -284,6 +288,22 @@ export function MechanicsLabScreen() {
           Consumíveis empilham; equipamentos ocupam um slot individual. Cheio,
           o inventário rejeita a adição sem descartar itens.
         </Text>
+        <View style={styles.sliderLabels}>
+          <Text style={styles.label}>CHANCE DA TABELA</Text>
+          <Text style={styles.xpValue}>Espada {dropChancePercent}% · Escudo {100 - dropChancePercent}%</Text>
+        </View>
+        <Slider
+          accessibilityLabel="Chance percentual de espada no drop"
+          maximumTrackTintColor="#3a353d"
+          maximumValue={100}
+          minimumTrackTintColor="#6b8f4f"
+          minimumValue={0}
+          onValueChange={setDropChancePercent}
+          step={5}
+          style={styles.slider}
+          thumbTintColor="#b8cf9b"
+          value={dropChancePercent}
+        />
         <View style={styles.inventorySummary}>
           <Text style={styles.pointsValue}>{inventorySummary.availableSlots}</Text>
           <Text style={styles.pointsTitle}>slots disponíveis</Text>
@@ -292,11 +312,12 @@ export function MechanicsLabScreen() {
           <View key={item.kind === 'equipment' ? item.instanceId : item.id} style={styles.inventoryRow}>
             <View style={styles.equipmentIdentity}>
               <Text style={styles.equipmentName}>{item.name}</Text>
-              <Text style={styles.muted}>{item.kind} · {item.rarity} · {item.kind === 'equipment' ? item.instanceId : 'empilhável'}</Text>
+              <Text style={styles.muted}>{item.kind} · {item.rarity}</Text>
             </View>
             <LabButton label="Adicionar" onPress={() => addTestItem(item.kind === 'equipment' ? item.instanceId : item.id)} />
           </View>
         ))}
+        <LabButton label="Gerar drop determinístico" onPress={generateTestDrop} />
         {inventory.items.map((stack, index) => (
           <View key={`${stack.item.kind === 'equipment' ? stack.item.instanceId : stack.item.id}-${index}`} style={styles.inventoryRow}>
             <View style={styles.equipmentIdentity}>

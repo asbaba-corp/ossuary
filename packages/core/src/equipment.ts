@@ -5,7 +5,8 @@ import {
   type PrimaryAttribute,
 } from "./progression/xp.js";
 import type { Character } from "./party.js";
-import { deterministicIndex } from "./random.js";
+import { deterministicUnit } from "./random.js";
+import { addItem, findItemStack, removeItem, type Inventory } from "./inventory.js";
 
 export const EQUIPMENT_SLOTS = [
   "weapon",
@@ -38,6 +39,36 @@ export interface EquipmentStats {
 export type EquipmentAttributeRollPools = Readonly<
   Partial<Record<PrimaryAttribute, readonly number[]>>
 >;
+
+export interface EquipmentDropEntry {
+  readonly equipment: Equipment;
+  readonly rarity: ItemRarity;
+  readonly weight: number;
+  readonly attributeRollPools: EquipmentAttributeRollPools;
+}
+
+export interface EffectiveCharacterStats extends EquipmentStats {
+  readonly attributes: CharacterAttributes;
+}
+
+export interface EquipmentStatDelta {
+  readonly stat: keyof EffectiveCharacterStats;
+  readonly current: number;
+  readonly candidate: number;
+  readonly delta: number;
+}
+
+export interface EquipmentReplacementPreview {
+  readonly slot: EquipmentSlot;
+  readonly current: Equipment | null;
+  readonly candidate: Equipment;
+  readonly deltas: readonly EquipmentStatDelta[];
+}
+
+export interface EquipmentTransitionResult {
+  readonly inventory: Inventory;
+  readonly loadout: CharacterLoadout;
+}
 
 export interface AttributeBonusEffect {
   readonly kind: "attribute-bonus";
@@ -158,15 +189,16 @@ export function createEquipmentStats(stats: Partial<EquipmentStats> = {}): Equip
   return normalized;
 }
 
-/** Rola apenas bônus planos explicitamente listados; stats adicionais são fornecidos pela peça. */
 export function rollEquipment(
   baseEquipment: Equipment,
   instanceId: string,
   seed: number | string,
   pools: EquipmentAttributeRollPools,
+  rarity: ItemRarity = baseEquipment.rarity,
 ): Equipment {
   assertEquipment(baseEquipment);
   assertNonEmptyString(instanceId, "equipment instanceId");
+  assertItemRarity(rarity);
   assertAttributeRollPools(pools);
   const attributeBonuses: Partial<Record<PrimaryAttribute, number>> = {
     ...baseEquipment.attributeBonuses,
@@ -174,18 +206,35 @@ export function rollEquipment(
   for (const attribute of EQUIPMENT_ATTRIBUTES) {
     const values = pools[attribute];
     if (values !== undefined) {
-      attributeBonuses[attribute] = values[deterministicIndex(seed, values.length, attribute)];
+      attributeBonuses[attribute] = values[Math.floor(deterministicUnit(seed, attribute) * values.length)];
     }
   }
   return {
     ...cloneEquipment(baseEquipment),
     instanceId,
+    rarity,
     attributeBonuses,
     stats: { ...baseEquipment.stats },
   };
 }
 
-export const rollEquipmentStats = rollEquipment;
+export function createEquipmentFromDropTable(
+  instanceId: string,
+  seed: number | string,
+  entries: readonly EquipmentDropEntry[],
+): Equipment {
+  assertNonEmptyString(instanceId, "equipment instanceId");
+  if (!Array.isArray(entries) || entries.length === 0) throw new RangeError("drop table must not be empty");
+  entries.forEach(assertDropEntry);
+  const totalWeight = entries.reduce((total, entry) => total + entry.weight, 0);
+  const target = deterministicUnit(seed, "drop-entry") * totalWeight;
+  let cursor = 0;
+  for (const entry of entries) {
+    cursor += entry.weight;
+    if (target < cursor) return rollEquipment(entry.equipment, instanceId, seed, entry.attributeRollPools, entry.rarity);
+  }
+  return rollEquipment(entries[entries.length - 1].equipment, instanceId, seed, entries[entries.length - 1].attributeRollPools, entries[entries.length - 1].rarity);
+}
 
 export function createConsumable(
   id: string,
@@ -306,31 +355,47 @@ export function equipEquipment(
   };
 }
 
-export function unequipEquipmentByInstanceId(
-  loadout: CharacterLoadout,
-  instanceId: string,
-): CharacterLoadout {
-  assertLoadout(loadout);
-  assertNonEmptyString(instanceId, "equipment instanceId");
-  const slot = EQUIPMENT_SLOTS.find(
-    (candidate) => loadout.equipped[candidate]?.instanceId === instanceId,
-  );
-  if (!slot) throw new RangeError(`equipment instance is not equipped: ${instanceId}`);
-  return unequipEquipment(loadout, slot);
-}
-
 export function unequipEquipment(
   loadout: CharacterLoadout,
-  slotOrInstanceId: EquipmentSlot | string,
+  slot: EquipmentSlot,
 ): CharacterLoadout {
+  assertLoadout(loadout);
+  assertEquipmentSlot(slot);
+  return { characterId: loadout.characterId, equipped: { ...loadout.equipped, [slot]: null } };
+}
+
+export function equipEquipmentFromInventory(
+  inventory: Inventory,
+  loadout: CharacterLoadout,
+  instanceId: string,
+): EquipmentTransitionResult {
+  assertLoadout(loadout);
+  assertNonEmptyString(instanceId, "equipment instanceId");
+  const stack = findItemStack(inventory, instanceId);
+  if (!stack || stack.item.kind !== "equipment" || stack.item.instanceId !== instanceId) {
+    throw new RangeError(`equipment instance is not in inventory: ${instanceId}`);
+  }
+  const candidate = stack.item;
+  const previous = loadout.equipped[candidate.slot];
+  let nextInventory = removeItem(inventory, instanceId);
+  if (previous) nextInventory = addItem(nextInventory, { item: previous, quantity: 1 });
+  return { inventory: nextInventory, loadout: equipEquipment(loadout, candidate) };
+}
+
+export function unequipEquipmentToInventory(
+  inventory: Inventory,
+  loadout: CharacterLoadout,
+  slotOrInstanceId: EquipmentSlot | string,
+): EquipmentTransitionResult {
   assertLoadout(loadout);
   const slot = EQUIPMENT_SLOTS.includes(slotOrInstanceId as EquipmentSlot)
     ? slotOrInstanceId as EquipmentSlot
-    : EQUIPMENT_SLOTS.find(
-      (candidate) => loadout.equipped[candidate]?.instanceId === slotOrInstanceId,
-    );
+    : EQUIPMENT_SLOTS.find((candidateSlot) => loadout.equipped[candidateSlot]?.instanceId === slotOrInstanceId);
   if (!slot) throw new RangeError(`equipment is not equipped: ${slotOrInstanceId}`);
-  return { characterId: loadout.characterId, equipped: { ...loadout.equipped, [slot]: null } };
+  const equipment = loadout.equipped[slot];
+  if (!equipment) throw new RangeError(`equipment slot is empty: ${slot}`);
+  const nextInventory = addItem(inventory, { item: equipment, quantity: 1 });
+  return { inventory: nextInventory, loadout: unequipEquipment(loadout, slot) };
 }
 
 export function getEquippedEquipment(
@@ -362,6 +427,44 @@ export function getEffectiveCharacterAttributes(
   }
   addBonuses(attributes, getActiveItemAttributeBonuses(effectState, character.id));
   return attributes;
+}
+
+export function getEffectiveCharacterStats(
+  character: Character,
+  loadout: CharacterLoadout,
+  effectState: ItemEffectState = createItemEffectState(),
+): EffectiveCharacterStats {
+  const attributes = getEffectiveCharacterAttributes(character, loadout, effectState);
+  const stats = { ...DEFAULT_EQUIPMENT_STATS };
+  for (const equipment of Object.values(loadout.equipped)) {
+    if (!equipment) continue;
+    for (const stat of EQUIPMENT_STAT_KEYS) stats[stat] += equipment.stats[stat];
+  }
+  return { ...stats, attributes };
+}
+
+export function previewEquipmentReplacement(
+  character: Character,
+  loadout: CharacterLoadout,
+  candidate: Equipment,
+  effectState: ItemEffectState = createItemEffectState(),
+): EquipmentReplacementPreview {
+  assertEquipment(candidate);
+  const current = loadout.equipped[candidate.slot];
+  const currentStats = getEffectiveCharacterStats(character, loadout, effectState);
+  const candidateLoadout = equipEquipment(loadout, candidate);
+  const candidateStats = getEffectiveCharacterStats(character, candidateLoadout, effectState);
+  const deltas: EquipmentStatDelta[] = [];
+  for (const stat of [...EQUIPMENT_STAT_KEYS, ...EQUIPMENT_ATTRIBUTES] as const) {
+    const currentValue = getEffectiveStatValue(currentStats, stat);
+    const candidateValue = getEffectiveStatValue(candidateStats, stat);
+    deltas.push({ stat: stat as keyof EffectiveCharacterStats, current: currentValue, candidate: candidateValue, delta: candidateValue - currentValue });
+  }
+  return { slot: candidate.slot, current: current ? cloneEquipment(current) : null, candidate: cloneEquipment(candidate), deltas };
+}
+
+function getEffectiveStatValue(stats: EffectiveCharacterStats, stat: keyof EquipmentStats | PrimaryAttribute): number {
+  return stat in stats ? stats[stat as keyof EquipmentStats] : stats.attributes[stat as PrimaryAttribute];
 }
 
 function createEmptyEquippedItems(): EquippedItems {
@@ -407,9 +510,9 @@ function assertItem(item: Item): void {
 function assertEquipment(equipment: Equipment): void {
   assertItemBase(equipment);
   if (equipment.kind !== "equipment") throw new RangeError("item is not equipment");
-  assertNonEmptyString(equipment.instanceId, "equipment instanceId");
   assertEquipmentSlot(equipment.slot);
   assertAttributeBonuses(equipment.attributeBonuses);
+  assertNonEmptyString(equipment.instanceId, "equipment instanceId");
   assertEquipmentStats(equipment.stats);
 }
 
@@ -490,6 +593,33 @@ function addBonuses(target: MutableCharacterAttributes, bonuses: EquipmentAttrib
   }
 }
 
+function assertEquipmentStats(stats: EquipmentStats): void {
+  if (!stats || typeof stats !== "object") throw new RangeError("equipment stats must be an object");
+  for (const stat of EQUIPMENT_STAT_KEYS) {
+    if (!Number.isInteger(stats[stat]) || stats[stat] < 0) throw new RangeError(`equipment stat must be a non-negative integer: ${stat}`);
+  }
+}
+
+function assertAttributeRollPools(pools: EquipmentAttributeRollPools): void {
+  if (!pools || typeof pools !== "object") throw new RangeError("attribute roll pools must be an object");
+  if (Object.keys(pools).length === 0) throw new RangeError("attribute roll pools must not be empty");
+  for (const [attribute, values] of Object.entries(pools)) {
+    if (!EQUIPMENT_ATTRIBUTES.includes(attribute as PrimaryAttribute)) throw new RangeError(`unknown roll pool attribute: ${attribute}`);
+    if (!Array.isArray(values) || values.length === 0) throw new RangeError(`roll pool must not be empty: ${attribute}`);
+    values.forEach((value) => {
+      if (!Number.isInteger(value) || value < 0) throw new RangeError(`roll pool values must be non-negative integers: ${attribute}`);
+    });
+  }
+}
+
+function assertDropEntry(entry: EquipmentDropEntry): void {
+  if (!entry || typeof entry !== "object") throw new RangeError("drop entry must be an object");
+  assertEquipment(entry.equipment);
+  assertItemRarity(entry.rarity);
+  if (!Number.isInteger(entry.weight) || entry.weight <= 0) throw new RangeError("drop weight must be a positive integer");
+  assertAttributeRollPools(entry.attributeRollPools);
+}
+
 function cloneEffects(effects: readonly ItemEffect[]): readonly ItemEffect[] {
   effects.forEach(assertEffect);
   return effects.map(cloneEffect);
@@ -512,36 +642,12 @@ function cloneEquipment(equipment: Equipment): Equipment {
 }
 
 const EQUIPMENT_ATTRIBUTES: readonly PrimaryAttribute[] = ["cons", "str", "dex", "int"];
-
 const EQUIPMENT_STAT_KEYS: readonly (keyof EquipmentStats)[] = [
-  "baseDamage", "baseDefense", "defensePercent", "physicalDamagePercent",
-  "spellDamagePercent", "criticalChancePercent", "lifestealPercent",
-  "manaStealPercent", "armorPenetrationPercent", "attackSpeedPercent",
+  "baseDamage", "baseDefense", "defensePercent", "physicalDamagePercent", "spellDamagePercent",
+  "criticalChancePercent", "lifestealPercent", "manaStealPercent", "armorPenetrationPercent", "attackSpeedPercent",
 ];
-
 const DEFAULT_EQUIPMENT_STATS: EquipmentStats = {
   baseDamage: 0, baseDefense: 0, defensePercent: 0, physicalDamagePercent: 0,
-  spellDamagePercent: 0, criticalChancePercent: 0, lifestealPercent: 0,
-  manaStealPercent: 0, armorPenetrationPercent: 0, attackSpeedPercent: 0,
+  spellDamagePercent: 0, criticalChancePercent: 0, lifestealPercent: 0, manaStealPercent: 0,
+  armorPenetrationPercent: 0, attackSpeedPercent: 0,
 };
-
-function assertEquipmentStats(stats: EquipmentStats): void {
-  if (!stats || typeof stats !== "object") throw new RangeError("equipment stats must be an object");
-  for (const key of EQUIPMENT_STAT_KEYS) {
-    if (!Number.isInteger(stats[key]) || stats[key] < 0) {
-      throw new RangeError(`equipment stat must be a non-negative integer: ${key}`);
-    }
-  }
-}
-
-function assertAttributeRollPools(pools: EquipmentAttributeRollPools): void {
-  if (!pools || typeof pools !== "object") throw new RangeError("equipment roll pools must be an object");
-  for (const attribute of EQUIPMENT_ATTRIBUTES) {
-    const values = pools[attribute];
-    if (values === undefined) continue;
-    if (!Array.isArray(values) || values.length === 0) throw new RangeError(`roll pool cannot be empty: ${attribute}`);
-    values.forEach((value) => {
-      if (!Number.isInteger(value) || value < 0) throw new RangeError(`roll value must be a non-negative integer: ${attribute}`);
-    });
-  }
-}
