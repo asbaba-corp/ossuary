@@ -77,6 +77,106 @@
     border: 1px solid #241b14;
   }
 
+  /* ---- abas e painéis ---- */
+  .tabs { display: flex; gap: 1px; background: #241b14; border: 1px solid #241b14; border-top: none; }
+  .tabs button {
+    flex: 1; border: none; background: var(--stone-d); color: #7a6850;
+    font-family: var(--mono); font-size: 11px; letter-spacing: 0.12em;
+    text-transform: uppercase; padding: 10px 8px; cursor: pointer;
+  }
+  .tabs button:hover { color: var(--bone-b); background: #1e1610; }
+  .tabs button[aria-selected="true"] { color: var(--flame); background: #1b140e; box-shadow: inset 0 -2px 0 var(--flame); }
+  .tabs button:focus-visible { outline: 2px solid var(--flame); outline-offset: -3px; }
+
+  .panel { background: var(--stone-d); border: 1px solid #241b14; border-top: none; padding: 16px; }
+  .panel h3 {
+    margin: 0 0 10px; font-size: 10px; letter-spacing: 0.14em;
+    text-transform: uppercase; color: #6b5a44; font-weight: 600;
+  }
+  .hint { color: #5d4d3a; font-size: 11px; line-height: 1.65; margin: 12px 0 0; max-width: 74ch; }
+
+  /* ---- personagem ---- */
+  .party { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; }
+  .hero-card { background: #1c1510; border: 1px solid #33261a; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+  .hc-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .hc-name { color: var(--bone-b); font-size: 14px; letter-spacing: 0.04em; }
+  .hc-lv { color: #7a6850; font-size: 11px; }
+  .hc-lv b { color: var(--flame); font-size: 13px; }
+  .hc-row { display: grid; grid-template-columns: 34px 1fr auto; align-items: center; gap: 8px; font-size: 11px; }
+  .hc-row .val { font-size: 11px; color: #9a8a70; }
+  .hc-row .bar { width: 100%; }
+  .hc-note { margin: 2px 0 0; font-size: 11px; color: var(--flame); min-height: 1em; }
+  .bar.xp > i { background: #6b8f4f; }
+  .hero-card.locked {
+    align-items: center; justify-content: center; gap: 4px;
+    border-style: dashed; border-color: #2c2118; color: #4e4132;
+  }
+  .lk { font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; }
+  .lk-p { font-size: 11px; color: #6b5a44; }
+
+  /* ---- inventário ---- */
+  .inv-bar { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; font-size: 11px; }
+  .grow { flex: 1; }
+  .icon-btn {
+    font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;
+    background: #241b14; color: var(--bone-m); border: 1px solid #3f2f20; padding: 7px 12px; cursor: pointer;
+  }
+  .icon-btn:hover { color: var(--flame); border-color: #6b4a26; }
+  .icon-btn[aria-pressed="true"] { color: var(--flame); border-color: #6b4a26; background: #2a1f14; }
+  .icon-btn:focus-visible { outline: 2px solid var(--flame); outline-offset: 2px; }
+  .pager { display: flex; align-items: center; gap: 6px; }
+  .pager button {
+    background: #241b14; color: var(--bone-m); border: 1px solid #3f2f20;
+    width: 26px; height: 24px; font-size: 14px; line-height: 1; cursor: pointer; padding: 0;
+  }
+  .pager button:hover:not(:disabled) { color: var(--flame); }
+  .pager button:disabled { opacity: 0.35; cursor: default; }
+
+  .grid { display: grid; grid-template-columns: repeat(16, 1fr); gap: 3px; }
+  @media (max-width: 720px) { .grid { grid-template-columns: repeat(8, 1fr); } }
+  .cellslot {
+    aspect-ratio: 1; background: #16100c; border: 1px solid #261c14;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; color: #4a3f33; user-select: none;
+  }
+  .cellslot.has { background: #1d1610; }
+
+  /* ---- poções ---- */
+  .potions {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 16px;
+    background: #16100c; border: 1px solid #2c2118; padding: 14px; margin-bottom: 14px;
+  }
+  .sw { display: flex; align-items: center; gap: 8px; font-size: 11.5px; color: var(--bone-m); cursor: pointer; margin-bottom: 10px; }
+  .sw input { accent-color: #b4534b; width: 14px; height: 14px; }
+  .pot-list { display: flex; flex-direction: column; gap: 4px; }
+  .pot {
+    display: flex; align-items: baseline; gap: 8px; text-align: left; width: 100%;
+    background: #1d1610; border: 1px solid #2c2118; color: var(--bone-m);
+    font-family: var(--mono); font-size: 11.5px; padding: 7px 10px; cursor: pointer;
+  }
+  .pot:hover { border-color: #4a3a2a; color: var(--bone-b); }
+  .pot[aria-pressed="true"] { border-color: var(--flame); color: var(--bone-b); background: #251a12; }
+  .pot:focus-visible { outline: 2px solid var(--flame); outline-offset: 2px; }
+  .pot .c { margin-left: auto; color: #c9a44a; font-variant-numeric: tabular-nums; }
+  .pot .h { color: #7fa86b; font-variant-numeric: tabular-nums; }
+  .pot.poor .c { color: #b4534b; }
+
+  /* ---- atributos ---- */
+  .stat-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 22px; }
+  .attrs { display: flex; flex-direction: column; gap: 6px; }
+  .attr { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 10px; font-size: 12px; }
+  .attr .k { color: var(--bone-m); }
+  .attr .k small { color: #6b5a44; letter-spacing: 0.1em; }
+  .attr .v { color: var(--bone-b); font-variant-numeric: tabular-nums; min-width: 2ch; text-align: right; }
+  .attr button {
+    width: 24px; height: 22px; padding: 0; font-size: 14px; line-height: 1;
+    background: #241b14; color: var(--flame); border: 1px solid #3f2f20; cursor: pointer;
+  }
+  .attr button:disabled { opacity: 0.3; cursor: default; color: #6b5a44; }
+  .derived { margin: 0; display: grid; grid-template-columns: 1fr auto; gap: 6px 12px; font-size: 12px; }
+  .derived dt { color: #7a6850; }
+  .derived dd { margin: 0; color: var(--bone-b); font-variant-numeric: tabular-nums; text-align: right; }
+
   /* ---- ledger ---- */
   .ledger {
     display: grid;
@@ -128,6 +228,7 @@
   <div class="hud">
     <div class="hud-item"><span class="lbl">Onda</span><span class="val" id="wave">1</span></div>
     <div class="hud-item"><span class="lbl">HP</span><div class="bar"><i id="hpbar" style="width:100%"></i></div><span class="val" id="hp">120</span></div>
+    <div class="hud-item"><span class="lbl">MP</span><div class="bar mana"><i id="mpbar" style="width:100%"></i></div><span class="val" id="mp">40</span></div>
     <div class="hud-item"><span class="lbl">Ouro</span><span class="val" id="gold">0</span></div>
     <div class="hud-item"><span class="lbl">Abates</span><span class="val" id="kills">0</span></div>
     <span class="phase" id="phase">Andando</span>
@@ -135,12 +236,94 @@
 
   <canvas id="stage" width="960" height="384" aria-label="Cena do protótipo: herói caminhando por uma catacumba de ossos e enfrentando ondas de inimigos"></canvas>
 
+  <nav class="tabs" role="tablist">
+    <button role="tab" id="tab-char" aria-selected="true" data-tab="char">Personagem</button>
+    <button role="tab" id="tab-inv" aria-selected="false" data-tab="inv">Inventário</button>
+    <button role="tab" id="tab-stats" aria-selected="false" data-tab="stats">Atributos</button>
+  </nav>
+
+  <!-- ===== Personagem ===== -->
+  <section class="panel" id="pane-char">
+    <div class="party">
+      <article class="hero-card">
+        <header class="hc-top">
+          <span class="hc-name" id="chName">Sem-Nome</span>
+          <span class="hc-lv">Nível <b id="chLevel">1</b></span>
+        </header>
+        <div class="hc-row"><span class="lbl">Exp</span>
+          <div class="bar xp"><i id="xpbar" style="width:0%"></i></div>
+          <span class="val" id="xpTxt">0 / 55</span>
+        </div>
+        <div class="hc-row"><span class="lbl">Vida</span>
+          <div class="bar"><i id="hpbar2" style="width:100%"></i></div>
+          <span class="val" id="hpTxt">130 / 130</span>
+        </div>
+        <div class="hc-row"><span class="lbl">Mana</span>
+          <div class="bar mana"><i id="mpbar2" style="width:100%"></i></div>
+          <span class="val" id="mpTxt">54 / 54</span>
+        </div>
+        <p class="hc-note" id="ptsNote"></p>
+      </article>
+
+      <article class="hero-card locked"><span class="lk">Slot 2</span><span class="lk-p">2 500 ouro</span></article>
+      <article class="hero-card locked"><span class="lk">Slot 3</span><span class="lk-p">18 000 ouro</span></article>
+      <article class="hero-card locked"><span class="lk">Slot 4</span><span class="lk-p">120 000 ouro</span></article>
+    </div>
+    <p class="hint">A party chega a quatro. Slots e personagens são comprados com ouro — preços ilustrativos, compra ainda não implementada.</p>
+  </section>
+
+  <!-- ===== Inventário ===== -->
+  <section class="panel" id="pane-inv" hidden>
+    <div class="inv-bar">
+      <button id="btnPot" class="icon-btn">◍ Poções</button>
+      <span class="grow"></span>
+      <span class="lbl">Ocupados</span><span class="val" id="invUsed">0 / 128</span>
+      <span class="pager">
+        <button id="pgPrev" aria-label="Página anterior">‹</button>
+        <span class="val" id="pgTxt">1 / 3</span>
+        <button id="pgNext" aria-label="Próxima página">›</button>
+      </span>
+    </div>
+
+    <div class="potions" id="potPanel" hidden>
+      <div class="pot-col">
+        <h3>Poção de vida</h3>
+        <label class="sw"><input type="checkbox" id="potHpOn" checked> <span>Usar automaticamente</span></label>
+        <div class="pot-list" id="potHpList"></div>
+        <p class="hint" id="potHpAff"></p>
+      </div>
+      <div class="pot-col">
+        <h3>Poção de mana</h3>
+        <label class="sw"><input type="checkbox" id="potMpOn" checked> <span>Usar automaticamente</span></label>
+        <div class="pot-list" id="potMpList"></div>
+        <p class="hint" id="potMpAff"></p>
+      </div>
+    </div>
+
+    <div class="grid" id="invGrid"></div>
+    <p class="hint">Só se usa poção com ouro suficiente — o custo nunca deixa o ouro negativo. Inventário cheio não interrompe a caça: o item de menor valor é vendido sozinho.</p>
+  </section>
+
+  <!-- ===== Atributos ===== -->
+  <section class="panel" id="pane-stats" hidden>
+    <div class="stat-cols">
+      <div>
+        <h3>Primários</h3>
+        <div class="attrs" id="attrList"></div>
+      </div>
+      <div>
+        <h3>Derivados</h3>
+        <dl class="derived" id="derList"></dl>
+      </div>
+    </div>
+  </section>
+
   <div class="ledger">
     <div class="cell"><span class="lbl">Loot</span><span class="n pos" id="loot">+0</span></div>
-    <div class="cell"><span class="lbl">Poções</span><span class="n neg" id="supply">−0</span></div>
+    <div class="cell"><span class="lbl">Gasto em poções</span><span class="n" id="supply">0</span></div>
     <div class="cell"><span class="lbl">Saldo da run</span><span class="n" id="balance">0</span></div>
+    <div class="cell"><span class="lbl">Poções disponíveis</span><span class="n" id="afford">0</span></div>
     <div class="cell"><span class="lbl">Poeira</span><span class="n" id="dust">0</span></div>
-    <div class="cell"><span class="lbl">Piso de ouro</span><span class="n" id="floor">20</span></div>
     <div class="cell"><span class="lbl">Recuos</span><span class="n" id="retreats">0</span></div>
   </div>
 
@@ -546,32 +729,144 @@
     WALK: "Andando", ENTER: "Onda entrando", FIGHT: "Combate",
     CLEAR: "Onda limpa", RETREAT: "Recuando"
   };
+  /* ---- catálogo de poções ----
+     A básica custa 50. Só é usada se o ouro cobrir: nunca negativa. */
+  const POTIONS = {
+    hp: [
+      { id: "hp1", name: "Poção Menor", cost: 50,  heal: 45 },
+      { id: "hp2", name: "Poção Média", cost: 120, heal: 130 },
+      { id: "hp3", name: "Poção Maior", cost: 260, heal: 320 }
+    ],
+    mp: [
+      { id: "mp1", name: "Elixir Menor", cost: 50,  heal: 40 },
+      { id: "mp2", name: "Elixir Médio", cost: 120, heal: 110 }
+    ]
+  };
+  const potionById = (k, id) => POTIONS[k].find(p => p.id === id) || POTIONS[k][0];
+
+  /* ---- itens ---- */
+  const ISLOTS = [
+    { id: "arma", name: "Arma", g: "†" }, { id: "elmo", name: "Elmo", g: "∩" },
+    { id: "peito", name: "Peito", g: "▤" }, { id: "luvas", name: "Luvas", g: "⌒" },
+    { id: "botas", name: "Botas", g: "⊔" }, { id: "reli", name: "Relicário", g: "◇" }
+  ];
+  const RARITY = [
+    { id: "common",    name: "Comum",    col: "#8a8078", w: 68, mult: 1 },
+    { id: "rare",      name: "Raro",     col: "#5f92b5", w: 23, mult: 2.1 },
+    { id: "epic",      name: "Épico",    col: "#9070b8", w: 7.5, mult: 4.2 },
+    { id: "legendary", name: "Lendário", col: "#cb8f3c", w: 1.5, mult: 9 }
+  ];
+  const RW = RARITY.reduce((a, r) => a + r.w, 0);
+
+  function rollItem(depth) {
+    let x = rng() * RW, rar = RARITY[0];
+    for (const r of RARITY) { if (x < r.w) { rar = r; break; } x -= r.w; }
+    const sl = ISLOTS[(rng() * ISLOTS.length) | 0];
+    const ilvl = Math.max(1, depth);
+    return {
+      slot: sl.id, glyph: sl.g, slotName: sl.name,
+      rar: rar.id, rarName: rar.name, col: rar.col, ilvl,
+      value: Math.round((8 + ilvl * 4) * rar.mult)
+    };
+  }
+
+  const INV_SIZE = 128, INV_PAGE = 48;
+
   let S;
 
   function reset() {
     rng = mulberry32(20260811);
     S = {
       t: 0, phase: PHASE.WALK, phaseT: 0,
-      hero: { x: 120, hp: 120, hpMax: 120, atkCd: 0, hurt: 0, frame: 0, y0: 234 },
+      hero: { x: 120, hp: 1, hpMax: 1, mp: 1, mpMax: 1, atkCd: 0, spellCd: 0, hurt: 0, frame: 0, y0: 234 },
       mobs: [], pops: [], motes: [],
       cam: 0, wave: 1, nextWaveX: 520,
-      gold: 40, loot: 0, supply: 0, dust: 0, kills: 0, retreats: 0,
-      potionAt: 0.45, potionCost: 25, potionHeal: 45,
-      goldFloor: 20, retreatTo: 0
+      gold: 150, loot: 0, supply: 0, dust: 0, kills: 0, retreats: 0, sold: 0, hold: 0,
+      retreatTo: 0,
+
+      // personagem
+      ch: { name: "Sem-Nome", level: 1, xp: 0, cons: 5, str: 6, dex: 5, int: 4, points: 0 },
+
+      // poções: liga/desliga e escolha por tipo
+      pot: {
+        hp: { on: true, id: "hp1", at: 0.45 },
+        mp: { on: true, id: "mp1", at: 0.35 }
+      },
+
+      inv: new Array(INV_SIZE).fill(null),
+      invPage: 0
     };
     for (let i = 0; i < 34; i++) {
       S.motes.push({ x: rng() * W, y: WALL_Y + rng() * (GROUND - WALL_Y), s: 0.15 + rng() * 0.5, r: 1 + (rng() > 0.8 ? 1 : 0) });
     }
+    recalc(true);
   }
+
+  /* ---- derivados a partir dos primários (core-design §4.4) ---- */
+  function derived(c) {
+    return {
+      vigor:  60 + c.cons * 14,
+      dano:   6 + c.str * 1.7,
+      pen:    c.str * 0.9,
+      cad:    0.78 + c.dex * 0.035,          // ataques por segundo
+      crit:   Math.min(0.6, 0.03 + c.dex * 0.008),
+      alc:    1 + Math.floor((c.dex + c.int) / 14),
+      sust:   c.int * 0.006,                 // fração do dano devolvida
+      mana:   18 + c.int * 9,
+      spell:  10 + c.int * 2.4
+    };
+  }
+
+  function recalc(fill) {
+    const h = S.hero, d = derived(S.ch);
+    h.hpMax = Math.round(d.vigor);
+    h.mpMax = Math.round(d.mana);
+    if (fill) { h.hp = h.hpMax; h.mp = h.mpMax; }
+    h.hp = Math.min(h.hp, h.hpMax);
+    h.mp = Math.min(h.mp, h.mpMax);
+    S.d = d;
+  }
+
+  const xpNeeded = lv => Math.round(55 * Math.pow(lv, 1.42));
+
+  function gainXP(n) {
+    const c = S.ch;
+    c.xp += n;
+    while (c.xp >= xpNeeded(c.level)) {
+      c.xp -= xpNeeded(c.level);
+      c.level++; c.points += 3;
+      recalc(false);
+      S.hero.hp = S.hero.hpMax; S.hero.mp = S.hero.mpMax;
+      pop(S.hero.x + 24, S.hero.y0 - 46, "nível " + c.level, "#d9c9a8");
+    }
+  }
+
+  /* ---- inventário ---- */
+  function invAdd(item) {
+    const i = S.inv.indexOf(null);
+    if (i >= 0) { S.inv[i] = item; return true; }
+    // cheio: vende o de menor valor. A caça nunca para (§5.4)
+    let worst = 0;
+    for (let k = 1; k < S.inv.length; k++) if (S.inv[k].value < S.inv[worst].value) worst = k;
+    if (S.inv[worst].value < item.value) {
+      S.gold += S.inv[worst].value; S.loot += S.inv[worst].value; S.sold++;
+      S.inv[worst] = item;
+    } else {
+      S.gold += item.value; S.loot += item.value; S.sold++;
+    }
+    return false;
+  }
+
   reset();
 
   function spawnWave() {
     const n = 5;
+    const hp = Math.round(26 * Math.pow(1.11, S.wave - 1));
     for (let i = 0; i < n; i++) {
       S.mobs.push({
         x: S.cam + W + 30 + i * 46,
         slot: S.hero.x + 96 + i * 40,
-        hp: 26, hpMax: 26, atkCd: 0.6 + rng() * 0.7, hurt: 0, dead: 0, frame: 0, y0: 249
+        hp, hpMax: hp, atkCd: 0.6 + rng() * 0.7, hurt: 0, dead: 0, frame: 0, y0: 249
       });
     }
   }
@@ -585,16 +880,24 @@
     const s = S, h = s.hero;
     s.t += DT; s.phaseT += DT;
 
-    // poção automática — queima ouro, mas nunca fura o piso (core-design §5.3)
-    if (h.hp < h.hpMax * s.potionAt && h.hp > 0) {
-      if (s.gold - s.potionCost >= s.goldFloor) {
-        s.gold -= s.potionCost; s.supply += s.potionCost;
-        h.hp = Math.min(h.hpMax, h.hp + s.potionHeal);
-        pop(h.x + 24, h.y0 - 22, "poção −" + s.potionCost, "#b4534b");
-      } else if (!s.warnedFloor) {
-        s.warnedFloor = true;
-        pop(h.x + 24, h.y0 - 30, "piso de ouro", "#c9a44a");
+    /* poção automática: só sai se o ouro cobrir o custo inteiro.
+       Nunca negativa — com 100 de ouro dá para duas de 50, e ponto. */
+    const quaff = (kind, cur, max, apply, col) => {
+      const cfg = s.pot[kind];
+      if (!cfg.on || cur >= max * cfg.at || cur <= 0 && kind === "hp") return;
+      const p = potionById(kind, cfg.id);
+      if (s.gold >= p.cost) {
+        s.gold -= p.cost; s.supply += p.cost;
+        apply(p.heal);
+        pop(h.x + 24, h.y0 - (kind === "hp" ? 22 : 34), p.name.split(" ")[0] + " −" + p.cost, col);
+      } else if (!s.warned) {
+        s.warned = true;
+        pop(h.x + 24, h.y0 - 30, "sem ouro p/ poção", "#c9a44a");
       }
+    };
+    if (h.hp > 0) {
+      quaff("hp", h.hp, h.hpMax, v => { h.hp = Math.min(h.hpMax, h.hp + v); }, "#b4534b");
+      quaff("mp", h.mp, h.mpMax, v => { h.mp = Math.min(h.mpMax, h.mp + v); }, "#5f92b5");
     }
 
     // sem poção e sem HP → recua para fase mais rasa, não morre (§3.3)
@@ -604,6 +907,7 @@
       s.retreats++;
       s.retreatTo = Math.max(120, h.x - 300);
       s.wave = Math.max(1, s.wave - 1);
+      s.hold = 5;
       pop(h.x + 24, h.y0 - 34, "recuando", "#c9a44a");
     }
 
@@ -611,8 +915,9 @@
       h.x = Math.max(s.retreatTo, h.x - 150 * DT);
       h.frame += DT * 7;
       h.hp = Math.min(h.hpMax * 0.6, h.hp + 26 * DT);
+      h.mp = Math.min(h.mpMax, h.mp + 14 * DT);
       if (h.x <= s.retreatTo && h.hp >= h.hpMax * 0.6 - 0.5) {
-        s.warnedFloor = false;
+        s.warned = false;
         s.nextWaveX = h.x + 620;
         s.phase = PHASE.WALK; s.phaseT = 0;
       }
@@ -633,40 +938,80 @@
     }
 
     if (s.phase === PHASE.FIGHT) {
-      // herói ataca o mais próximo
-      h.atkCd -= DT;
+      const d = s.d;
       const alive = s.mobs.filter(m => !m.dead);
       if (alive.length === 0) { s.phase = PHASE.CLEAR; s.phaseT = 0; }
-      else if (h.atkCd <= 0) {
-        h.atkCd = 0.55;
-        const tgt = alive[0];
-        const crit = rng() < 0.18;
-        const dmg = Math.round((7 + rng() * 5) * (crit ? 2.1 : 1));
-        tgt.hp -= dmg; tgt.hurt = 0.16;
-        pop(tgt.x + 20, tgt.y0 - 12, (crit ? "✦" : "") + dmg, crit ? P.flameC : P.boneB);
-        if (tgt.hp <= 0) {
+      else {
+        const kill = (tgt) => {
           tgt.dead = 0.45; s.kills++;
-          const g = 6 + ((rng() * 6) | 0);
+          const g = 14 + s.wave * 3 + ((rng() * 9) | 0);
           s.gold += g; s.loot += g;
+          gainXP(9 + ((rng() * 6) | 0));
           pop(tgt.x + 16, tgt.y0 - 26, "+" + g + "o", "#c9a44a");
           if (rng() < 0.05) { s.dust++; pop(tgt.x + 16, tgt.y0 - 40, "+1 poeira", "#9fb6c9"); }
+          if (rng() < 0.3) {
+            const it = rollItem(s.wave);
+            invAdd(it);
+            pop(tgt.x + 16, tgt.y0 - 52, it.slotName, it.col);
+          }
+        };
+
+        // golpe físico — Cadência define o ritmo, Alcance quantos pega
+        h.atkCd -= DT;
+        if (h.atkCd <= 0) {
+          h.atkCd = 1 / d.cad;
+          const crit = rng() < d.crit;
+          const targets = alive.slice(0, d.alc);
+          for (const tgt of targets) {
+            const dmg = Math.max(1, Math.round((d.dano * (0.85 + rng() * 0.3)) * (crit ? 2.1 : 1)));
+            tgt.hp -= dmg; tgt.hurt = 0.16;
+            h.hp = Math.min(h.hpMax, h.hp + dmg * d.sust);
+            pop(tgt.x + 20, tgt.y0 - 12, (crit ? "✦" : "") + dmg, crit ? P.flameC : P.boneB);
+            if (tgt.hp <= 0) kill(tgt);
+          }
         }
-      }
-      // mobs atacam
-      for (const m of alive) {
-        m.atkCd -= DT;
-        if (m.atkCd <= 0) {
-          m.atkCd = 1.15;
-          const dmg = 2 + ((rng() * 3) | 0);
-          h.hp = Math.max(0, h.hp - dmg); h.hurt = 0.14;
-          pop(h.x + 22, h.y0 - 8, "−" + dmg, "#b4534b");
+
+        /* spell de auto-cast: consome mana, dispara sozinha (§4.6).
+           É o que faz a poção de mana ter função em vez de ser enfeite. */
+        h.spellCd -= DT;
+        const SPELL_MANA = 16;
+        if (h.spellCd <= 0 && h.mp >= SPELL_MANA && alive.length >= 2) {
+          h.spellCd = 3.4; h.mp -= SPELL_MANA;
+          for (const tgt of alive.slice(0, 3)) {
+            if (tgt.dead) continue;
+            const dmg = Math.max(1, Math.round(d.spell * (0.9 + rng() * 0.25)));
+            tgt.hp -= dmg; tgt.hurt = 0.16;
+            pop(tgt.x + 20, tgt.y0 - 26, "✷" + dmg, "#7fa8d8");
+            if (tgt.hp <= 0) kill(tgt);
+          }
+        }
+
+        // mobs atacam
+        for (const m of alive) {
+          if (m.dead) continue;
+          m.atkCd -= DT;
+          if (m.atkCd <= 0) {
+            m.atkCd = 1.15;
+            const raw = 2 + ((rng() * 3) | 0) + s.wave * 0.32;
+            const dmg = Math.max(1, Math.round(raw));
+            h.hp = Math.max(0, h.hp - dmg); h.hurt = 0.14;
+            pop(h.x + 22, h.y0 - 8, "−" + dmg, "#b4534b");
+          }
         }
       }
     }
 
+    // mana regenera devagar fora de combate
+    if (s.phase !== PHASE.FIGHT) h.mp = Math.min(h.mpMax, h.mp + 3.5 * DT);
+
     if (s.phase === PHASE.CLEAR && s.phaseT > 0.9) {
       s.mobs.length = 0;
-      s.wave++; s.nextWaveX = h.x + 620;
+      /* depois de recuar, farma a profundidade atual antes de voltar a
+         avançar — é a "fase de melhor saldo" do §5.3, e é o que evita
+         ficar oscilando na fronteira de lucro */
+      if (s.hold > 0) s.hold--;
+      else s.wave++;
+      s.nextWaveX = h.x + 620;
       s.phase = PHASE.WALK; s.phaseT = 0;
     }
 
@@ -868,38 +1213,238 @@
   const $wave = el("wave"), $hp = el("hp"), $hpbar = el("hpbar"), $gold = el("gold"),
         $kills = el("kills"), $phase = el("phase"), $loot = el("loot"),
         $supply = el("supply"), $balance = el("balance"), $dust = el("dust"),
-        $floor = el("floor"), $retreats = el("retreats");
+        $retreats = el("retreats"), $afford = el("afford"), $mp = el("mp"), $mpbar = el("mpbar");
+
+  const pct = (a, b) => (100 * Math.max(0, Math.min(1, a / b))) + "%";
 
   function hud() {
-    const s = S;
+    const s = S, h = s.hero;
     $wave.textContent = s.wave;
-    $hp.textContent = Math.ceil(s.hero.hp);
-    $hpbar.style.width = (100 * s.hero.hp / s.hero.hpMax) + "%";
+    $hp.textContent = Math.ceil(h.hp);
+    $hpbar.style.width = pct(h.hp, h.hpMax);
+    $mp.textContent = Math.ceil(h.mp);
+    $mpbar.style.width = pct(h.mp, h.mpMax);
     $gold.textContent = s.gold;
     $kills.textContent = s.kills;
     $phase.textContent = s.phase;
     $loot.textContent = "+" + s.loot;
-    $supply.textContent = "−" + s.supply;
+    $supply.textContent = s.supply;
     const bal = s.loot - s.supply;
     $balance.textContent = (bal >= 0 ? "+" : "") + bal;
     $balance.className = "n " + (bal >= 0 ? "pos" : "neg");
     $dust.textContent = s.dust;
-    $floor.textContent = s.goldFloor;
     $retreats.textContent = s.retreats;
+    // quantas poções o ouro atual paga — em vez do acumulado negativo
+    const cost = potionById("hp", s.pot.hp.id).cost;
+    $afford.textContent = Math.floor(s.gold / cost);
+  }
+
+  /* ---------- painéis ---------- */
+  const ATTRS = [
+    { k: "cons", n: "CONS", d: "Constituição" }, { k: "str", n: "STR", d: "Força" },
+    { k: "dex", n: "DEX", d: "Destreza" }, { k: "int", n: "INT", d: "Inteligência" }
+  ];
+
+  let tab = "char", uiDirty = true;
+  const markUI = () => { uiDirty = true; };
+
+  function setTab(t) {
+    tab = t;
+    for (const id of ["char", "inv", "stats"]) {
+      el("pane-" + id).hidden = id !== t;
+      el("tab-" + id).setAttribute("aria-selected", String(id === t));
+    }
+    markUI();
+  }
+  for (const b of document.querySelectorAll(".tabs button")) {
+    b.onclick = () => setTab(b.dataset.tab);
+  }
+
+  // grade do inventário, construída uma vez e reaproveitada
+  const $grid = el("invGrid"), slotEls = [];
+  for (let i = 0; i < INV_PAGE; i++) {
+    const d = document.createElement("div");
+    d.className = "cellslot";
+    $grid.appendChild(d); slotEls.push(d);
+  }
+
+  function drawInv() {
+    const start = S.invPage * INV_PAGE;
+    for (let i = 0; i < INV_PAGE; i++) {
+      const idx = start + i, d = slotEls[i];
+      if (idx >= INV_SIZE) { d.hidden = true; continue; }
+      d.hidden = false;
+      const it = S.inv[idx];
+      if (!it) {
+        if (d.dataset.f !== "0") { d.className = "cellslot"; d.textContent = ""; d.title = ""; d.style.borderColor = ""; d.dataset.f = "0"; }
+      } else {
+        const sig = it.glyph + it.rar + it.ilvl;
+        if (d.dataset.f !== sig) {
+          d.className = "cellslot has";
+          d.textContent = it.glyph;
+          d.style.color = it.col; d.style.borderColor = it.col + "66";
+          d.title = it.slotName + " · " + it.rarName + " · nv " + it.ilvl + " · " + it.value + " ouro";
+          d.dataset.f = sig;
+        }
+      }
+    }
+    const used = S.inv.reduce((a, x) => a + (x ? 1 : 0), 0);
+    el("invUsed").textContent = used + " / " + INV_SIZE;
+    el("pgTxt").textContent = (S.invPage + 1) + " / 3";
+    el("pgPrev").disabled = S.invPage === 0;
+    el("pgNext").disabled = S.invPage === 2;
+  }
+  el("pgPrev").onclick = () => { S.invPage = Math.max(0, S.invPage - 1); drawInv(); };
+  el("pgNext").onclick = () => { S.invPage = Math.min(2, S.invPage + 1); drawInv(); };
+
+  // painel de poções
+  const $potPanel = el("potPanel"), $btnPot = el("btnPot");
+  $btnPot.onclick = () => {
+    const open = $potPanel.hidden;
+    $potPanel.hidden = !open;
+    $btnPot.setAttribute("aria-pressed", String(open));
+  };
+
+  function buildPotList(kind) {
+    const host = el(kind === "hp" ? "potHpList" : "potMpList");
+    host.textContent = "";
+    for (const p of POTIONS[kind]) {
+      const b = document.createElement("button");
+      b.className = "pot";
+      b.innerHTML = '<span>' + p.name + '</span><span class="h">+' + p.heal + '</span><span class="c">' + p.cost + ' o</span>';
+      b.onclick = () => { S.pot[kind].id = p.id; refreshPots(); };
+      host.appendChild(b);
+    }
+  }
+  buildPotList("hp"); buildPotList("mp");
+
+  el("potHpOn").onchange = e => { S.pot.hp.on = e.target.checked; };
+  el("potMpOn").onchange = e => { S.pot.mp.on = e.target.checked; };
+
+  function refreshPots() {
+    for (const kind of ["hp", "mp"]) {
+      const host = el(kind === "hp" ? "potHpList" : "potMpList");
+      POTIONS[kind].forEach((p, i) => {
+        const b = host.children[i];
+        b.setAttribute("aria-pressed", String(S.pot[kind].id === p.id));
+        b.classList.toggle("poor", S.gold < p.cost);
+      });
+      const sel = potionById(kind, S.pot[kind].id);
+      const n = Math.floor(S.gold / sel.cost);
+      el(kind === "hp" ? "potHpAff" : "potMpAff").textContent =
+        S.pot[kind].on
+          ? "Com " + S.gold + " de ouro dá para " + n + " " + (n === 1 ? "uso" : "usos") + "."
+          : "Desligada.";
+    }
+  }
+
+  // atributos
+  const $attrList = el("attrList");
+  const attrRows = ATTRS.map(a => {
+    const row = document.createElement("div");
+    row.className = "attr";
+    row.innerHTML = '<span class="k"><small>' + a.n + '</small> ' + a.d + '</span><span class="v"></span>';
+    const b = document.createElement("button");
+    b.textContent = "+"; b.setAttribute("aria-label", "Aumentar " + a.d);
+    b.onclick = () => {
+      if (S.ch.points <= 0) return;
+      S.ch.points--; S.ch[a.k]++; recalc(false); markUI();
+    };
+    row.appendChild(b); $attrList.appendChild(row);
+    return { a, v: row.querySelector(".v"), b };
+  });
+
+  const DER = [
+    ["Vigor (HP)", d => Math.round(d.vigor)],
+    ["Dano", d => d.dano.toFixed(1)],
+    ["Penetração", d => d.pen.toFixed(1)],
+    ["Cadência", d => d.cad.toFixed(2) + " /s"],
+    ["Crítico", d => (d.crit * 100).toFixed(1) + "%"],
+    ["Alcance", d => d.alc + (d.alc > 1 ? " alvos" : " alvo")],
+    ["Sustento", d => (d.sust * 100).toFixed(1) + "%"],
+    ["Mana", d => Math.round(d.mana)],
+    ["Dano de spell", d => d.spell.toFixed(1)]
+  ];
+  const $derList = el("derList");
+  const derRows = DER.map(([name]) => {
+    const dt = document.createElement("dt"); dt.textContent = name;
+    const dd = document.createElement("dd");
+    $derList.append(dt, dd); return dd;
+  });
+
+  function drawPanels() {
+    const s = S, c = s.ch, h = s.hero;
+    if (tab === "char") {
+      el("chName").textContent = c.name;
+      el("chLevel").textContent = c.level;
+      const need = xpNeeded(c.level);
+      el("xpbar").style.width = pct(c.xp, need);
+      el("xpTxt").textContent = c.xp + " / " + need;
+      el("hpbar2").style.width = pct(h.hp, h.hpMax);
+      el("hpTxt").textContent = Math.ceil(h.hp) + " / " + h.hpMax;
+      el("mpbar2").style.width = pct(h.mp, h.mpMax);
+      el("mpTxt").textContent = Math.ceil(h.mp) + " / " + h.mpMax;
+      el("ptsNote").textContent = c.points > 0
+        ? c.points + (c.points === 1 ? " ponto a distribuir" : " pontos a distribuir") + " — aba Atributos"
+        : "";
+    } else if (tab === "inv") {
+      drawInv(); refreshPots();
+    } else {
+      for (const r of attrRows) { r.v.textContent = c[r.a.k]; r.b.disabled = c.points <= 0; }
+      DER.forEach(([, f], i) => { derRows[i].textContent = f(s.d); });
+      el("pane-stats").querySelector("h3").textContent =
+        c.points > 0 ? "Primários · " + c.points + " a distribuir" : "Primários";
+    }
   }
 
   /* ---------- pré-aquecimento: ?t=SEGUNDOS adianta a simulação ----------
      Serve para capturar um estado específico (combate, recuo) sem esperar. */
   {
-    const t = parseFloat(new URLSearchParams(location.search).get("t"));
+    const q = new URLSearchParams(location.search);
+    const t = parseFloat(q.get("t"));
+    let minGold = Infinity, negGold = 0, maxWave = 1;
     if (Number.isFinite(t) && t > 0) {
-      const n = Math.min(60 * 60 * 10, Math.round(t / DT));
-      for (let i = 0; i < n; i++) step();
+      const n = Math.min(60 * 60 * 90, Math.round(t / DT));
+      // ?auto=1 distribui os pontos sozinho — serve para testar o caminho
+      // em que o jogador investe, oposto ao de deixar os pontos parados
+      const auto = q.get("auto");
+      const order = ["str", "cons", "dex", "int"];
+      let oi = 0;
+      for (let i = 0; i < n; i++) {
+        step();
+        if (auto) {
+          while (S.ch.points > 0) { S.ch.points--; S.ch[order[oi++ % 4]]++; recalc(false); }
+        }
+        if (S.gold < minGold) minGold = S.gold;
+        if (S.gold < 0) negGold++;
+        if (S.wave > maxWave) maxWave = S.wave;
+      }
+    }
+    // ?tab=inv|stats|char abre direto numa aba — útil para captura
+    const wanted = q.get("tab");
+    if (wanted && ["char", "inv", "stats"].includes(wanted)) setTab(wanted);
+    if (q.get("pot")) { $potPanel.hidden = false; $btnPot.setAttribute("aria-pressed", "true"); }
+
+    // ?debug=1 imprime um resumo verificável por --dump-dom
+    if (q.get("debug")) {
+      const used = S.inv.reduce((a, x) => a + (x ? 1 : 0), 0);
+      const d = document.createElement("pre");
+      d.id = "dbg";
+      d.textContent = "DBG " + JSON.stringify({
+        wave: S.wave, maxWave, kills: S.kills, level: S.ch.level, xp: S.ch.xp,
+        points: S.ch.points, gold: S.gold, minGold: minGold === Infinity ? S.gold : minGold,
+        framesWithNegativeGold: negGold,
+        hp: Math.round(S.hero.hp), hpMax: S.hero.hpMax,
+        mp: Math.round(S.hero.mp), mpMax: S.hero.mpMax,
+        invUsed: used, autoSold: S.sold, spentOnPotions: S.supply,
+        loot: S.loot, balance: S.loot - S.supply, retreats: S.retreats
+      });
+      document.body.appendChild(d);
     }
   }
 
   /* ---------- loop ---------- */
-  let paused = false, mult = 1, acc = 0, last = performance.now();
+  let paused = false, mult = 1, acc = 0, last = performance.now(), uiTick = 0;
 
   function frame(now) {
     const dt = Math.min(0.25, (now - last) / 1000);
@@ -910,6 +1455,9 @@
       while (acc >= DT && guard++ < 240) { step(); acc -= DT; }
     }
     render(); hud();
+    // painéis não precisam de 60 Hz
+    uiTick += dt;
+    if (uiTick > 0.12 || uiDirty) { uiTick = 0; uiDirty = false; drawPanels(); }
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
@@ -926,6 +1474,10 @@
     $speed.textContent = "Velocidade " + mult + "×";
     $speed.setAttribute("aria-pressed", String(mult !== 1));
   };
-  el("reset").onclick = () => { reset(); };
+  el("reset").onclick = () => {
+    reset();
+    el("potHpOn").checked = true; el("potMpOn").checked = true;
+    markUI();
+  };
 })();
 </script>
