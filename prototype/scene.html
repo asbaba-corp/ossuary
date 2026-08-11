@@ -77,6 +77,9 @@
     border: 1px solid #241b14;
   }
 
+  /* ---- party fixa, entre o palco e as abas ---- */
+  .party-bar { border-bottom: none; padding: 14px 16px; }
+
   /* ---- abas e painéis ---- */
   .tabs { display: flex; gap: 1px; background: #241b14; border: 1px solid #241b14; border-top: none; }
   .tabs button {
@@ -234,14 +237,8 @@
 
   <canvas id="stage" width="960" height="384" aria-label="Cena do protótipo: herói caminhando por uma catacumba de ossos e enfrentando ondas de inimigos"></canvas>
 
-  <nav class="tabs" role="tablist">
-    <button role="tab" id="tab-char" aria-selected="true" data-tab="char">Personagem</button>
-    <button role="tab" id="tab-inv" aria-selected="false" data-tab="inv">Inventário</button>
-    <button role="tab" id="tab-stats" aria-selected="false" data-tab="stats">Atributos</button>
-  </nav>
-
-  <!-- ===== Personagem ===== -->
-  <section class="panel" id="pane-char">
+  <!-- ===== Party — sempre visível, fora das abas ===== -->
+  <section class="panel party-bar">
     <div class="party">
       <article class="hero-card">
         <header class="hc-top">
@@ -270,8 +267,13 @@
     <p class="hint">A party chega a quatro. Slots e personagens são comprados com ouro — preços ilustrativos, compra ainda não implementada.</p>
   </section>
 
+  <nav class="tabs" role="tablist">
+    <button role="tab" id="tab-inv" aria-selected="true" data-tab="inv">Inventário</button>
+    <button role="tab" id="tab-stats" aria-selected="false" data-tab="stats">Atributos</button>
+  </nav>
+
   <!-- ===== Inventário ===== -->
-  <section class="panel" id="pane-inv" hidden>
+  <section class="panel" id="pane-inv">
     <div class="inv-bar">
       <button id="btnPot" class="icon-btn">◍ Poções</button>
       <span class="grow"></span>
@@ -318,7 +320,7 @@
 
   <div class="ledger">
     <div class="cell"><span class="lbl">Loot</span><span class="n pos" id="loot">+0</span></div>
-    <div class="cell"><span class="lbl">Gasto em poções</span><span class="n" id="supply">0</span></div>
+    <div class="cell"><span class="lbl">Gasto em poções</span><span class="n neg" id="supply">0</span></div>
     <div class="cell"><span class="lbl">Saldo da run</span><span class="n" id="balance">0</span></div>
     <div class="cell"><span class="lbl">Poções disponíveis</span><span class="n" id="afford">0</span></div>
     <div class="cell"><span class="lbl">Poeira</span><span class="n" id="dust">0</span></div>
@@ -1240,12 +1242,13 @@
     { k: "dex", n: "DEX", d: "Destreza" }, { k: "int", n: "INT", d: "Inteligência" }
   ];
 
-  let tab = "char", uiDirty = true;
+  const TABS = ["inv", "stats"];
+  let tab = "inv", uiDirty = true;
   const markUI = () => { uiDirty = true; };
 
   function setTab(t) {
     tab = t;
-    for (const id of ["char", "inv", "stats"]) {
+    for (const id of TABS) {
       el("pane-" + id).hidden = id !== t;
       el("tab-" + id).setAttribute("aria-selected", String(id === t));
     }
@@ -1369,20 +1372,22 @@
 
   function drawPanels() {
     const s = S, c = s.ch, h = s.hero;
-    if (tab === "char") {
-      el("chName").textContent = c.name;
-      el("chLevel").textContent = c.level;
-      const need = xpNeeded(c.level);
-      el("xpbar").style.width = pct(c.xp, need);
-      el("xpTxt").textContent = c.xp + " / " + need;
-      el("hpbar2").style.width = pct(h.hp, h.hpMax);
-      el("hpTxt").textContent = Math.ceil(h.hp) + " / " + h.hpMax;
-      el("mpbar2").style.width = pct(h.mp, h.mpMax);
-      el("mpTxt").textContent = Math.ceil(h.mp) + " / " + h.mpMax;
-      el("ptsNote").textContent = c.points > 0
-        ? c.points + (c.points === 1 ? " ponto a distribuir" : " pontos a distribuir") + " — aba Atributos"
-        : "";
-    } else if (tab === "inv") {
+
+    // ficha da party: fora das abas, então atualiza sempre
+    el("chName").textContent = c.name;
+    el("chLevel").textContent = c.level;
+    const need = xpNeeded(c.level);
+    el("xpbar").style.width = pct(c.xp, need);
+    el("xpTxt").textContent = c.xp + " / " + need;
+    el("hpbar2").style.width = pct(h.hp, h.hpMax);
+    el("hpTxt").textContent = Math.ceil(h.hp) + " / " + h.hpMax;
+    el("mpbar2").style.width = pct(h.mp, h.mpMax);
+    el("mpTxt").textContent = Math.ceil(h.mp) + " / " + h.mpMax;
+    el("ptsNote").textContent = c.points > 0
+      ? c.points + (c.points === 1 ? " ponto a distribuir" : " pontos a distribuir") + " — aba Atributos"
+      : "";
+
+    if (tab === "inv") {
       drawInv(); refreshPots();
     } else {
       for (const r of attrRows) { r.v.textContent = c[r.a.k]; r.b.disabled = c.points <= 0; }
@@ -1417,7 +1422,7 @@
     }
     // ?tab=inv|stats|char abre direto numa aba — útil para captura
     const wanted = q.get("tab");
-    if (wanted && ["char", "inv", "stats"].includes(wanted)) setTab(wanted);
+    if (wanted && TABS.includes(wanted)) setTab(wanted);
     if (q.get("pot")) { $potPanel.hidden = false; $btnPot.setAttribute("aria-pressed", "true"); }
 
     // ?debug=1 imprime um resumo verificável por --dump-dom
