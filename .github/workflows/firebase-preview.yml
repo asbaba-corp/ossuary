@@ -1,0 +1,72 @@
+name: Firebase Preview
+
+# Deploys a Firebase Hosting preview channel for every PR.
+# The workflow runs from the PR branch, so the preview reflects the PR's code.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+concurrency:
+  group: firebase-preview-${{ github.event.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  preview:
+    # GitHub does not expose repository secrets to fork PRs.
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.21.0
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build web bundle
+        run: pnpm --filter @ossuary/app build:web
+
+      - name: Deploy preview channel
+        id: deploy
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+        run: |
+          if [ -z "$FIREBASE_TOKEN" ]; then
+            echo "::error::FIREBASE_TOKEN is not configured in repository secrets"
+            exit 1
+          fi
+
+          OUTPUT_FILE=$(mktemp)
+          npx -y firebase-tools hosting:channel:deploy "pr-${{ github.event.number }}" \
+            --expires 7d --project ossuary-asbabacorp --token "$FIREBASE_TOKEN" \
+            --json > "$OUTPUT_FILE"
+
+          URL=$(grep -oE 'https://[^"[:space:]]+\.(web\.app|firebaseapp\.com)' "$OUTPUT_FILE" | tail -1)
+          if [ -z "$URL" ]; then
+            echo "::error::Firebase deployment completed without returning a preview URL"
+            cat "$OUTPUT_FILE"
+            exit 1
+          fi
+
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+
+      - name: Comment preview URL
+        if: ${{ steps.deploy.outputs.url != '' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr comment "${{ github.event.number }}" --body "Firebase preview: ${{ steps.deploy.outputs.url }}"

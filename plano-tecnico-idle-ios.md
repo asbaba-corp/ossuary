@@ -26,8 +26,8 @@
 ## 2. Stack
 
 ### Cliente
-**TypeScript + React Native + Expo** (iOS agora, Android no v2 pelo mesmo código).
-**TypeScript + React + Vite** para a web.
+**TypeScript + React Native + Expo** — um único codebase que alvo iOS, Android e Web (RN Web via Expo).
+A web roda no mesmo código React Native, sem projeto Vite separado.
 
 ### Servidor
 **Node + TypeScript.** Não é preferência estética — é o que permite rodar *o mesmo pacote `core`* no servidor e no cliente. Com PVP e validação, essa paridade deixa de ser conveniência e vira requisito de corretude.
@@ -42,7 +42,7 @@ Mantido da v0.1: Unity e Godot têm estado de projeto preso ao editor, o que nã
 
 ---
 
-## 3. Arquitetura: núcleo compartilhado, agora com três consumidores
+## 3. Arquitetura: núcleo compartilhado entre cliente e servidor
 
 ```
                     ┌────────────────────────────────┐
@@ -53,14 +53,13 @@ Mantido da v0.1: Unity e Godot têm estado de projeto preso ao editor, o que nã
                        │          │              │
           ┌────────────┘          │              └───────────┐
           ▼                       ▼                          ▼
-   ┌─────────────┐        ┌──────────────┐          ┌────────────────┐
-   │  apps/ios   │        │  apps/web    │          │  server        │
-   │  React      │        │  React DOM   │          │  Node + TS     │
-   │  Native     │        │  jogo+editor │          │  validação·PVP │
-   └──────┬──────┘        └──────┬───────┘          └───────┬────────┘
-          │                      │                          │
-          └──────────┬───────────┘                          │
-                     ▼                                      │
+   ┌──────────────────────┐                           ┌────────────────┐
+   │  apps/expo           │                           │  server        │
+   │  React Native + Web  │                           │  Node + TS     │
+   │  jogo + PhoneFrame   │                           │  validação·PVP │
+   └──────────┬───────────┘                           └───────┬────────┘
+              └──────────────────┬───────────────────────────┘
+                                 ▼
               cliente simula                                │
               e propõe estado  ──────────────────────────────┘
                                     servidor revalida
@@ -110,8 +109,7 @@ deserialize(blob: SaveBlob): GameState
 │   └── ui/                   # componentes compartilháveis (opcional)
 │
 ├── apps/
-│   ├── mobile/               # Expo — iOS agora, Android no v2
-│   ├── web/                  # jogo em browser
+│   ├── expo/                 # Expo — iOS, Android e Web (RN Web)
 │   └── editor/               # map maker / engine (fase tardia)
 │
 └── server/
@@ -321,7 +319,7 @@ Os dois marcados como novos costumam ser descobertos tarde. Exclusão de conta *
 
 | Fase | Entrega | Critério de saída |
 |---|---|---|
-| 0 | Monorepo, TS, testes, CI, lint barrando imports de plataforma no core | `pnpm test` roda o núcleo |
+| 0 | Monorepo, TS, testes, CI (preview no Firebase via GitHub Actions — `.github/workflows/firebase-preview.yml`), lint barrando imports de plataforma no core | `pnpm test` roda o núcleo |
 | 1 | `core` completo sem UI: tick, economia, save, migrations, PRNG, combate determinístico | Simulação de 200h em <1s; combate reproduz com o mesmo seed |
 | 2 | Schema de conteúdo + dados iniciais | CI valida o conteúdo |
 | 3 | Web jogável (feia) sobre o core | Loop jogável, dá pra sentir e balancear |

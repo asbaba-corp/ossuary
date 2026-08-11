@@ -14,7 +14,7 @@ Design docs are written in Portuguese; that is intentional. Keep them in Portugu
 ## Stack
 
 - TypeScript everywhere. `packages/core` (pure TS) is shared by iOS, web and server.
-- iOS client: React Native + Expo. Web: React + Vite.
+- iOS/Android/Web client: React Native + Expo (single codebase for all three platforms).
 - Rendering: react-native-skia (2D sidescroller, same render code on iOS and web).
 - Server: Node + TypeScript, Postgres (saves in `jsonb`).
 - Content is **data**, not code.

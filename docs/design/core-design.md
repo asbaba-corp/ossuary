@@ -631,8 +631,7 @@ A arena é o endgame infinito (plano técnico §7). O core design precisa respei
 
 ```
 packages/core        lógica pura, zero render
-  └ apps/ios         Skia canvas
-  └ apps/web         Skia via CanvasKit/WASM
+  └ apps/expo        Skia via iOS, Android e RN Web
 ```
 
 Sprites 2D, parallax de camadas, partículas — suficiente para um sidescroller idle e longe do teto do Skia.
