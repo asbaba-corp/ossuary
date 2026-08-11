@@ -59,6 +59,8 @@ export function MechanicsLabScreen() {
     addTestItem,
     removeTestItem,
     generateTestDrop,
+    dropChancePercent,
+    setDropChancePercent,
     reset,
   } = useMechanicsLabViewModel();
 
@@ -286,6 +288,22 @@ export function MechanicsLabScreen() {
           Consumíveis empilham; equipamentos ocupam um slot individual. Cheio,
           o inventário rejeita a adição sem descartar itens.
         </Text>
+        <View style={styles.sliderLabels}>
+          <Text style={styles.label}>CHANCE DA TABELA</Text>
+          <Text style={styles.xpValue}>Espada {dropChancePercent}% · Escudo {100 - dropChancePercent}%</Text>
+        </View>
+        <Slider
+          accessibilityLabel="Chance percentual de espada no drop"
+          maximumTrackTintColor="#3a353d"
+          maximumValue={100}
+          minimumTrackTintColor="#6b8f4f"
+          minimumValue={0}
+          onValueChange={setDropChancePercent}
+          step={5}
+          style={styles.slider}
+          thumbTintColor="#b8cf9b"
+          value={dropChancePercent}
+        />
         <View style={styles.inventorySummary}>
           <Text style={styles.pointsValue}>{inventorySummary.availableSlots}</Text>
           <Text style={styles.pointsTitle}>slots disponíveis</Text>

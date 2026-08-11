@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type {
   CharacterAttributes,
   CharacterLoadout,
   EffectiveCharacterStats,
   EquipmentReplacementPreview,
   Equipment,
+  EquipmentDropEntry,
   EquipmentSlot,
   Inventory,
   InventorySummary,
@@ -95,6 +96,8 @@ export interface MechanicsLabViewModel {
   readonly addTestItem: (itemId: string) => void;
   readonly removeTestItem: (itemId: string) => void;
   readonly generateTestDrop: () => void;
+  readonly dropChancePercent: number;
+  readonly setDropChancePercent: (amount: number) => void;
   readonly reset: () => void;
 }
 
@@ -120,6 +123,8 @@ export function useMechanicsLabViewModel(): MechanicsLabViewModel {
   const [selectedCharacterId, setSelectedCharacterId] = useState('character-1');
   const [selectedXp, setSelectedXpState] = useState(MONSTER_XP);
   const [lastEvent, setLastEvent] = useState('Nenhum evento ainda.');
+  const [dropChancePercent, setDropChancePercentState] = useState(75);
+  const dropRoll = useRef(0);
 
   const selectedCharacter = party.characters.find(({ id }) => id === selectedCharacterId) ?? party.characters[0];
   const selectedLoadout = loadouts.find(({ characterId }) => characterId === selectedCharacter.id) ?? createCharacterLoadout(selectedCharacter.id);
@@ -246,16 +251,23 @@ export function useMechanicsLabViewModel(): MechanicsLabViewModel {
   }
 
   function generateTestDrop() {
-    const drop = createEquipmentFromDropTable('lab-drop-1', 'lab-seed-1', [
-      { equipment: TEST_EQUIPMENT[0], rarity: 'common', weight: 3, attributeRollPools: { str: [1, 2, 3] } },
-      { equipment: TEST_EQUIPMENT[1], rarity: 'rare', weight: 1, attributeRollPools: { cons: [2, 3, 4] } },
-    ]);
+    dropRoll.current += 1;
+    const commonWeight = dropChancePercent;
+    const rareWeight = 100 - dropChancePercent;
+    const entries: EquipmentDropEntry[] = [];
+    if (commonWeight > 0) entries.push({ equipment: TEST_EQUIPMENT[0], rarity: 'common', weight: commonWeight, attributeRollPools: { str: [1, 2, 3] } });
+    if (rareWeight > 0) entries.push({ equipment: TEST_EQUIPMENT[1], rarity: 'rare', weight: rareWeight, attributeRollPools: { cons: [2, 3, 4] } });
+    const drop = createEquipmentFromDropTable(`lab-drop-${dropRoll.current}`, `lab-seed-${dropRoll.current}`, entries);
     try {
       setInventory(addItem(inventory, createItemStack(drop, 1)));
       setLastEvent(`${drop.name} (${drop.rarity}) gerado deterministicamente e adicionado.`);
     } catch (error) {
       setLastEvent(error instanceof Error ? error.message : 'Não foi possível adicionar o drop.');
     }
+  }
+
+  function setDropChancePercent(amount: number) {
+    setDropChancePercentState(Math.max(0, Math.min(100, Math.round(amount))));
   }
 
   function reset() {
@@ -306,6 +318,8 @@ export function useMechanicsLabViewModel(): MechanicsLabViewModel {
     addTestItem,
     removeTestItem,
     generateTestDrop,
+    dropChancePercent,
+    setDropChancePercent,
     reset,
   };
 }

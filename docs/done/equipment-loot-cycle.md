@@ -12,7 +12,8 @@
 - `createEquipmentFromDropTable` seleciona uma entrada ponderada e rola pools
   deterministicamente, sem `Math.random()` nem geração de IDs.
 - O laboratório usa as transições do core, exibe stats/preview e gera drops de
-  uma tabela fixture.
+  uma tabela fixture. A chance percentual entre as entradas pode ser ajustada
+  e cada rolagem usa seed e `instanceId` explícitos diferentes.
 
 ## Verificação
 
