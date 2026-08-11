@@ -1,19 +1,12 @@
-import { StyleSheet, View } from 'react-native';
 import { PhoneFrame } from './PhoneFrame';
+import { MechanicsLabScreen } from './MechanicsLabScreen';
 
-// Boilerplate: blank page, rendered inside a phone frame on web
-// (full-screen on iOS/Android). Game content goes here later.
+// O preview atual é um laboratório isolado; o shell final entra quando o
+// loop de jogo e a navegação forem definidos.
 export default function App() {
   return (
     <PhoneFrame>
-      <View style={styles.page} />
+      <MechanicsLabScreen />
     </PhoneFrame>
   );
 }
-
-const styles = StyleSheet.create({
-  page: {
-    flex: 1,
-    backgroundColor: '#0e0e12',
-  },
-});

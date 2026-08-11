@@ -40,7 +40,8 @@ não editar em silêncio.
   - `package.json` → name `@ossuary/app`, dep `@ossuary/core: workspace:*`,
     script `typecheck`
   - `app.json` → name/slug "Ossuary", `platforms: [ios, android, web]`
-  - `App.tsx` → página em branco dentro de `PhoneFrame`
+  - `App.tsx` → laboratório de mecânicas dentro de `PhoneFrame`
+  - `MechanicsLabScreen.tsx` → tela isolada para testar XP, level-up e atributos
   - `PhoneFrame.tsx` → bezel web-only, responsivo (maxHeight 94%, aspect-ratio)
 
 ## Passos
@@ -50,7 +51,7 @@ não editar em silêncio.
 3. `apps/expo` via `create-expo-app -t blank-typescript`; renomear, adicionar
    dep do workspace, plataformas, instalar `react-dom` + `react-native-web`
    (web). ✅
-4. `PhoneFrame.tsx` + `App.tsx` (página em branco no frame). ✅
+4. `PhoneFrame.tsx` + `App.tsx` (laboratório de mecânicas no frame). ✅
 5. `pnpm install`; `build:core`; `typecheck` do app; `expo export --platform web`. ✅
 
 ## Verificação
@@ -74,7 +75,8 @@ não editar em silêncio.
 - `apps/expo`: Expo SDK 57, alvo ios/android/web.
   - `PhoneFrame.tsx`: bezel de celular web-only, responsivo, full-screen no
     nativo.
-  - `App.tsx`: página em branco (#0e0e12) dentro do frame.
+  - `App.tsx`: laboratório de mecânicas dentro do frame.
+  - `MechanicsLabScreen.tsx`: laboratório visual temporário de progressão.
 - Docs atualizadas: README, plano-tecnico §2, AGENTS §Stack → Web = React
   Native (Expo).
 
@@ -89,6 +91,12 @@ não editar em silêncio.
   `.github/workflows/firebase-preview.yml` publica um canal temporário por PR.
   Ele exige o secret `FIREBASE_TOKEN`, não inclui credenciais no repositório e
   ignora PRs de forks.
+
+## Atualização posterior
+
+O shell vazio foi substituído por um laboratório temporário de progressão. A
+tela é deliberadamente compartimentada em personagem, controles de teste e
+atributos, e deixa explícito que ainda não representa o jogo final.
 
 ## Próximos passos (fora deste escopo)
 

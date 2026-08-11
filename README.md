@@ -2,9 +2,9 @@
 
 Jogo idle 2D sidescroller de dark fantasy sobre o Inferno de Dante. Sem prestige, com party de até 4, PVP assíncrono e sync entre dispositivos.
 
-**Estado: pré-produção.** O app tem um scaffold Expo multiplataforma e uma
-página inicial vazia; a lógica do jogo ainda está apenas no protótipo e nos
-documentos de design.
+**Estado: pré-produção.** O app tem um scaffold Expo multiplataforma e um
+laboratório visual isolado para testar XP, level-up e atributos; a lógica do
+jogo ainda não está conectada ao loop de combate.
 
 ## Rodar o protótipo
 
@@ -54,6 +54,11 @@ pnpm typecheck
 pnpm build:core
 pnpm build:web
 ```
+
+O `build:web` exporta o laboratório de mecânicas em `apps/expo/dist`. No
+preview, a tela é identificada por `TESTE` e pelas seções numeradas; o botão
+**Derrotar Ignavo** simula a futura origem de XP. Os botões de adicionar e
+remover XP são ferramentas de inspeção, não regras do jogo.
 
 O workflow `CI` executa esses checks em cada PR e em pushes para `main`. O
 workflow `Firebase preview` publica o `apps/expo/dist` em um canal temporário
