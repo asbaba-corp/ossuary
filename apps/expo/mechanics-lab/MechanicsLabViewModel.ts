@@ -33,6 +33,7 @@ import {
   getInventorySummary,
   removeItem,
   removeItemEffect,
+  rollEquipment,
   unequipEquipment,
   useItem,
   xpToNextLevel,
@@ -43,7 +44,18 @@ const MIN_TEST_XP = 0;
 const MAX_TEST_XP = 500;
 
 const TEST_EQUIPMENT: readonly Equipment[] = [
-  createEquipment('test-iron-sword', 'Espada de ferro', 'weapon', { str: 2 }, { rarity: 'common' }),
+  rollEquipment(
+    createEquipment('test-iron-sword', 'Espada de ferro', 'weapon', {}, { rarity: 'common', stats: { baseDamage: 8 } }),
+    'test-iron-sword-instance-a',
+    'sword-seed-a',
+    { str: [1, 3] },
+  ),
+  rollEquipment(
+    createEquipment('test-iron-sword', 'Espada de ferro', 'weapon', {}, { rarity: 'common', stats: { baseDamage: 8 } }),
+    'test-iron-sword-instance-b',
+    'sword-seed-b',
+    { str: [2, 5] },
+  ),
   createEquipment('test-bone-shield', 'Escudo de osso', 'shield', { cons: 2 }, { rarity: 'rare' }),
   createEquipment('test-leather-boots', 'Botas de couro', 'boots', { dex: 1 }, { rarity: 'epic' }),
 ];
@@ -81,12 +93,12 @@ export interface MechanicsLabViewModel {
   readonly allocate: (attribute: PrimaryAttribute) => void;
   readonly selectCharacter: (id: string) => void;
   readonly recruitCharacter: () => void;
-  readonly equipTestEquipment: (equipmentId: string) => void;
+  readonly equipTestEquipment: (instanceId: string) => void;
   readonly unequipSlot: (slot: EquipmentSlot) => void;
   readonly useTestConsumable: () => void;
   readonly removeTestConsumable: () => void;
-  readonly addTestItem: (itemId: string) => void;
-  readonly removeTestItem: (itemId: string) => void;
+  readonly addTestItem: (itemKey: string) => void;
+  readonly removeTestItem: (itemKey: string) => void;
   readonly reset: () => void;
 }
 
@@ -168,8 +180,8 @@ export function useMechanicsLabViewModel(): MechanicsLabViewModel {
     setLastEvent('Novo personagem recrutado no nível 1.');
   }
 
-  function equipTestEquipment(equipmentId: string) {
-    const equipment = TEST_EQUIPMENT.find((item) => item.id === equipmentId);
+  function equipTestEquipment(instanceId: string) {
+    const equipment = TEST_EQUIPMENT.find((item) => item.instanceId === instanceId);
     if (!equipment) return;
     setLoadouts((current) =>
       current.map((loadout) =>
@@ -206,8 +218,10 @@ export function useMechanicsLabViewModel(): MechanicsLabViewModel {
     setLastEvent(`${TEST_CONSUMABLE.name} removido de ${selectedCharacter.name}.`);
   }
 
-  function addTestItem(itemId: string) {
-    const item = [...TEST_EQUIPMENT, TEST_CONSUMABLE].find((candidate) => candidate.id === itemId);
+  function addTestItem(itemKey: string) {
+    const item = [...TEST_EQUIPMENT, TEST_CONSUMABLE].find((candidate) =>
+      candidate.kind === 'equipment' ? candidate.instanceId === itemKey : candidate.id === itemKey,
+    );
     if (!item) return;
     try {
       const nextInventory = addItem(inventory, createItemStack(item, 1));
@@ -218,9 +232,9 @@ export function useMechanicsLabViewModel(): MechanicsLabViewModel {
     }
   }
 
-  function removeTestItem(itemId: string) {
+  function removeTestItem(itemKey: string) {
     try {
-      const nextInventory = removeItem(inventory, itemId);
+      const nextInventory = removeItem(inventory, itemKey);
       setInventory(nextInventory);
       setLastEvent('Item removido do inventário.');
     } catch (error) {

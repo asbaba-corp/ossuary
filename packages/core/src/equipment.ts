@@ -5,6 +5,7 @@ import {
   type PrimaryAttribute,
 } from "./progression/xp.js";
 import type { Character } from "./party.js";
+import { deterministicIndex } from "./random.js";
 
 export const EQUIPMENT_SLOTS = [
   "weapon",
@@ -20,6 +21,23 @@ export type ItemRarity = "common" | "rare" | "epic" | "legendary";
 export type ItemKind = "equipment" | "consumable";
 
 export type EquipmentAttributeBonuses = Readonly<Partial<Record<PrimaryAttribute, number>>>;
+
+export interface EquipmentStats {
+  readonly baseDamage: number;
+  readonly baseDefense: number;
+  readonly defensePercent: number;
+  readonly physicalDamagePercent: number;
+  readonly spellDamagePercent: number;
+  readonly criticalChancePercent: number;
+  readonly lifestealPercent: number;
+  readonly manaStealPercent: number;
+  readonly armorPenetrationPercent: number;
+  readonly attackSpeedPercent: number;
+}
+
+export type EquipmentAttributeRollPools = Readonly<
+  Partial<Record<PrimaryAttribute, readonly number[]>>
+>;
 
 export interface AttributeBonusEffect {
   readonly kind: "attribute-bonus";
@@ -38,6 +56,8 @@ export type ItemEffect = AttributeBonusEffect | FutureItemEffect;
 export interface ItemOptions {
   readonly rarity?: ItemRarity;
   readonly effects?: readonly ItemEffect[];
+  readonly instanceId?: string;
+  readonly stats?: Partial<EquipmentStats>;
 }
 
 interface ItemBase {
@@ -49,8 +69,10 @@ interface ItemBase {
 
 export interface Equipment extends ItemBase {
   readonly kind: "equipment";
+  readonly instanceId: string;
   readonly slot: EquipmentSlot;
   readonly attributeBonuses: EquipmentAttributeBonuses;
+  readonly stats: EquipmentStats;
 }
 
 export interface Consumable extends ItemBase {
@@ -118,15 +140,52 @@ export function createEquipment(
   const item = {
     kind: "equipment" as const,
     id,
+    instanceId: options.instanceId ?? id,
     name,
     rarity: options.rarity ?? "common",
     effects: cloneEffects(options.effects ?? []),
     slot,
     attributeBonuses: { ...attributeBonuses },
+    stats: createEquipmentStats(options.stats),
   };
   assertEquipment(item);
   return item;
 }
+
+export function createEquipmentStats(stats: Partial<EquipmentStats> = {}): EquipmentStats {
+  const normalized = { ...DEFAULT_EQUIPMENT_STATS, ...stats };
+  assertEquipmentStats(normalized);
+  return normalized;
+}
+
+/** Rola apenas bônus planos explicitamente listados; stats adicionais são fornecidos pela peça. */
+export function rollEquipment(
+  baseEquipment: Equipment,
+  instanceId: string,
+  seed: number | string,
+  pools: EquipmentAttributeRollPools,
+): Equipment {
+  assertEquipment(baseEquipment);
+  assertNonEmptyString(instanceId, "equipment instanceId");
+  assertAttributeRollPools(pools);
+  const attributeBonuses: Partial<Record<PrimaryAttribute, number>> = {
+    ...baseEquipment.attributeBonuses,
+  };
+  for (const attribute of EQUIPMENT_ATTRIBUTES) {
+    const values = pools[attribute];
+    if (values !== undefined) {
+      attributeBonuses[attribute] = values[deterministicIndex(seed, values.length, attribute)];
+    }
+  }
+  return {
+    ...cloneEquipment(baseEquipment),
+    instanceId,
+    attributeBonuses,
+    stats: { ...baseEquipment.stats },
+  };
+}
+
+export const rollEquipmentStats = rollEquipment;
 
 export function createConsumable(
   id: string,
@@ -247,12 +306,30 @@ export function equipEquipment(
   };
 }
 
-export function unequipEquipment(
+export function unequipEquipmentByInstanceId(
   loadout: CharacterLoadout,
-  slot: EquipmentSlot,
+  instanceId: string,
 ): CharacterLoadout {
   assertLoadout(loadout);
-  assertEquipmentSlot(slot);
+  assertNonEmptyString(instanceId, "equipment instanceId");
+  const slot = EQUIPMENT_SLOTS.find(
+    (candidate) => loadout.equipped[candidate]?.instanceId === instanceId,
+  );
+  if (!slot) throw new RangeError(`equipment instance is not equipped: ${instanceId}`);
+  return unequipEquipment(loadout, slot);
+}
+
+export function unequipEquipment(
+  loadout: CharacterLoadout,
+  slotOrInstanceId: EquipmentSlot | string,
+): CharacterLoadout {
+  assertLoadout(loadout);
+  const slot = EQUIPMENT_SLOTS.includes(slotOrInstanceId as EquipmentSlot)
+    ? slotOrInstanceId as EquipmentSlot
+    : EQUIPMENT_SLOTS.find(
+      (candidate) => loadout.equipped[candidate]?.instanceId === slotOrInstanceId,
+    );
+  if (!slot) throw new RangeError(`equipment is not equipped: ${slotOrInstanceId}`);
   return { characterId: loadout.characterId, equipped: { ...loadout.equipped, [slot]: null } };
 }
 
@@ -330,8 +407,10 @@ function assertItem(item: Item): void {
 function assertEquipment(equipment: Equipment): void {
   assertItemBase(equipment);
   if (equipment.kind !== "equipment") throw new RangeError("item is not equipment");
+  assertNonEmptyString(equipment.instanceId, "equipment instanceId");
   assertEquipmentSlot(equipment.slot);
   assertAttributeBonuses(equipment.attributeBonuses);
+  assertEquipmentStats(equipment.stats);
 }
 
 function assertConsumable(consumable: Consumable): void {
@@ -424,7 +503,7 @@ function cloneEffect(effect: ItemEffect): ItemEffect {
 
 function cloneItem(item: Item): Item {
   return item.kind === "equipment"
-    ? { ...item, attributeBonuses: { ...item.attributeBonuses }, effects: cloneEffects(item.effects) }
+    ? { ...item, attributeBonuses: { ...item.attributeBonuses }, stats: { ...item.stats }, effects: cloneEffects(item.effects) }
     : { ...item, effects: cloneEffects(item.effects) };
 }
 
@@ -433,3 +512,36 @@ function cloneEquipment(equipment: Equipment): Equipment {
 }
 
 const EQUIPMENT_ATTRIBUTES: readonly PrimaryAttribute[] = ["cons", "str", "dex", "int"];
+
+const EQUIPMENT_STAT_KEYS: readonly (keyof EquipmentStats)[] = [
+  "baseDamage", "baseDefense", "defensePercent", "physicalDamagePercent",
+  "spellDamagePercent", "criticalChancePercent", "lifestealPercent",
+  "manaStealPercent", "armorPenetrationPercent", "attackSpeedPercent",
+];
+
+const DEFAULT_EQUIPMENT_STATS: EquipmentStats = {
+  baseDamage: 0, baseDefense: 0, defensePercent: 0, physicalDamagePercent: 0,
+  spellDamagePercent: 0, criticalChancePercent: 0, lifestealPercent: 0,
+  manaStealPercent: 0, armorPenetrationPercent: 0, attackSpeedPercent: 0,
+};
+
+function assertEquipmentStats(stats: EquipmentStats): void {
+  if (!stats || typeof stats !== "object") throw new RangeError("equipment stats must be an object");
+  for (const key of EQUIPMENT_STAT_KEYS) {
+    if (!Number.isInteger(stats[key]) || stats[key] < 0) {
+      throw new RangeError(`equipment stat must be a non-negative integer: ${key}`);
+    }
+  }
+}
+
+function assertAttributeRollPools(pools: EquipmentAttributeRollPools): void {
+  if (!pools || typeof pools !== "object") throw new RangeError("equipment roll pools must be an object");
+  for (const attribute of EQUIPMENT_ATTRIBUTES) {
+    const values = pools[attribute];
+    if (values === undefined) continue;
+    if (!Array.isArray(values) || values.length === 0) throw new RangeError(`roll pool cannot be empty: ${attribute}`);
+    values.forEach((value) => {
+      if (!Number.isInteger(value) || value < 0) throw new RangeError(`roll value must be a non-negative integer: ${attribute}`);
+    });
+  }
+}
