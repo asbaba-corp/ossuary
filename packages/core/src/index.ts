@@ -18,3 +18,4 @@ export * from "./party.js";
 export * from "./equipment.js";
 export * from "./inventory.js";
 export * from "./random.js";
+export * from "./equipment/index.js";
