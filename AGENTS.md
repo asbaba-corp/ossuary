@@ -74,7 +74,32 @@ For every new prompt/feature:
 
 1. Write the plan to `docs/todo/<slug>.md` before implementing.
 2. Implement.
-3. On delivery, move the file to `docs/done/<slug>.md`.
+3. **Review every doc and fold in what changed** (see below).
+4. Move the plan to `docs/done/<slug>.md`.
+
+### After any change, sweep the docs
+
+**A change is not finished while a doc still describes the old behavior.** After every change — feature, fix, or tweak — walk the docs and update whatever the change touched. Docs drifting out of sync is worse than no docs: the next person trusts them and is wrong.
+
+```bash
+rtk ls docs/design/*.md docs/done/*.md *.md
+```
+
+What to check each time:
+
+| Doc | Fold in |
+|---|---|
+| `docs/design/core-design.md` | New systems, decided open questions, changed rules and formulas |
+| `world_*.md` | Anything affecting that world's bestiary, phases or drops |
+| `plano-tecnico-idle-ios.md` | Stack, architecture, sync, PVP, monetization decisions |
+| `docs/done/<slug>.md` | What was actually delivered, and how it differed from the plan |
+| `AGENTS.md` | New commands, new conventions, new constraints |
+| Open PR body | The change, under `Added` / `Changed` / `Fixed` |
+
+Two rules that carry most of the value:
+
+- **A resolved open question moves out of the open list** and into the resolved table, with the decision recorded. An open question that was silently answered in code is the most expensive kind of stale doc.
+- **When implementation contradicts a doc, the doc is wrong until proven otherwise** — but say so explicitly instead of quietly editing it. The user decides whether the code or the doc was the mistake.
 
 ## PR = release = changelog
 
