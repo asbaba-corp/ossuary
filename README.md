@@ -17,6 +17,21 @@ xdg-open prototype/scene.html      # Linux
 
 **Requisito:** um navegador atual. Só isso.
 
+### Sprites
+
+Os PNGs ficam em `sprites/` e vêm no repositório; os `.psd` não, por serem
+fonte de edição.
+
+O canvas só consegue ler as imagens servido por HTTP — abrir o arquivo direto
+faz o protótipo cair na arte procedural de fallback:
+
+```bash
+python3 -m http.server 8765
+# http://localhost:8765/prototype/scene.html
+```
+
+Para atribuir um pack a um personagem, use a skill `sprite-import`.
+
 ### Parâmetros de URL (teste)
 
 | Parâmetro | Efeito |
@@ -78,7 +93,7 @@ são ignorados porque não recebem secrets do GitHub.
 |---|---|
 | `docs/design/core-design.md` | Pilares, core loop, combate, economia, Ossuary, mapa de mundos |
 | `plano-tecnico-idle-ios.md` | Stack, arquitetura, sync, PVP, monetização |
-| `world_1_vestibule.md` | Mundo 1 — bestiário e fases |
+| `world_1_vestibule.md` | Mundo 0, o Vestíbulo — bestiário e fases |
 | `AGENTS.md` | Fluxo de trabalho e convenções do repositório |
 
 ## Contribuir

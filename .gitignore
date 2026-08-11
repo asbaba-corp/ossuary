@@ -7,6 +7,15 @@ build/
 .env
 .env.local
 
+# Sprites: os PNGs vão para o repositório (decisão do dono).
+# Os PSD ficam de fora — são fonte de edição, não asset de runtime, e
+# respondem por quase metade do peso da pasta.
+sprites/**/PSD/
+sprites/**/*.psd
+# cupom e atalho de venda que vêm nos packs; os License.txt ficam, são procedência
+sprites/**/COUPON.*
+sprites/**/*.url
+
 # Personal instruction files (per-user, never committed)
 wellinstructions.md
 *instructions.md
