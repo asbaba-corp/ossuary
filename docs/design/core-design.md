@@ -158,7 +158,7 @@ Esta divisão é a decisão mais importante da party, porque define o custo de U
 | Nível e pontos de atributo (§4.4) | **Ossuary** e marcos de abate (§6) |
 | Equipamento, 6 slots (§4.5) | Ouro, poeira, materiais |
 | Spells (§4.6) | Progresso de fases |
-| Limiares de poção | Piso de ouro (§5.3) |
+| Limiares e tier de poção | Regra de custo da poção (§5.3) |
 | | Power-ups de party |
 
 **O Ossuary é da conta, não do personagem.** Isso é obrigatório: se ossos fossem por personagem, comprar o quarto slot no Círculo VIII entregaria alguém sem nenhuma meta-progressão, e o Pilar Três desmontaria. Sendo da conta, o osso multiplica a party inteira — inclusive quem chegou agora.
@@ -453,17 +453,21 @@ Poção é consumida por regra, não por toque — coerente com o Pilar Cinco:
 
 O jogador configura os limiares e o **tier** da poção. Tier maior cura mais e custa desproporcionalmente mais — a escolha de tier é decisão de eficiência, não upgrade óbvio.
 
-#### O piso de ouro
+#### A poção nunca negativa o ouro
 
-**O jogador define um piso de ouro que não quer furar.** Ao atingi-lo:
+**Regra:** a poção só é consumida se o ouro cobrir o custo inteiro. Custo cheio ou nada — não existe usar poção "no vermelho". Com 100 de ouro e poção de 50, o jogador tem exatamente dois usos.
+
+Isso resolve sozinho o problema que o progresso offline cria: quem fecha o app com a caça no prejuízo não volta falido oito horas depois, porque o consumo trava assim que o ouro acaba, em vez de continuar cavando. É o tipo de perda que faz desinstalar, e a regra a torna impossível por construção.
+
+Quando o ouro acaba e a vida também:
 
 1. O consumo de poção para.
-2. O herói **recua para uma fase mais rasa**, onde sobrevive sem poção, e continua farmando lá.
-3. O jogador é notificado.
+2. A party **recua para uma fase mais rasa**, onde sobrevive sem poção.
+3. Ela **farma essa profundidade** antes de voltar a avançar — a "fase de melhor saldo" desta seção, na prática.
 
-Este mecanismo não é conveniência — é **infraestrutura de segurança**, e é obrigatório por causa do progresso offline. Sem ele, um jogador que fecha o app com a caça no vermelho volta oito horas depois falido, tendo queimado em poções tudo que levou uma semana para juntar. Isso é o tipo de perda que faz desinstalar, e é inteiramente evitável.
+Regra derivada: **o cálculo offline usa a mesma checagem de custo**, e é validado no servidor junto com o resto do save.
 
-Regra derivada: **o cálculo offline nunca pode furar o piso.** O piso é validado no servidor junto com o resto do save.
+> **Mudou na 0.02.** Uma versão anterior deste documento previa um *piso de ouro* configurável pelo jogador, com o mesmo objetivo. Ele foi descartado: a checagem de custo entrega a mesma proteção sem pedir configuração e sem um número a mais na UI. O piso continua sendo uma opção se algum dia o jogador quiser reservar ouro para outra coisa que não poção — mas aí é conveniência, não segurança.
 
 #### Runas e consumíveis de spell
 
@@ -659,6 +663,8 @@ Sprites 2D, parallax de camadas, partículas — suficiente para um sidescroller
 | ~~Q23~~ | O que a poeira compra? | **O legendary.** ~50 poeiras no último degrau da escada de merge. Destino único (§4.5). |
 | ~~Q16~~ | Merge de itens | **Escada de raridade:** N×common→rare, N×rare→epic, N×epic + 50 poeira→legendary (§4.5). `N` fica para o balanceamento. |
 | ~~Q28~~ | Efeito único do legendary é aleatório? | **Aleatório, mas rerollável.** Ouro com custo escalonado (rota padrão) ou 1 poeira fixa (válvula de escape) (§4.5). |
+| ~~Q17~~ | Tamanho do inventário | **128 slots em 3 páginas** (48 / 48 / 32). Cheio, vende o de menor valor sozinho — a caça não para (§5.4). |
+| ~~Q5b~~ | A poção pode deixar o jogador no vermelho? | **Não.** Custo cheio ou nada; o piso de ouro foi descartado por redundância (§5.3). |
 
 ### Abertas
 
@@ -674,7 +680,6 @@ Sprites 2D, parallax de camadas, partículas — suficiente para um sidescroller
 | Q14 | Spells: quantas simultâneas, fonte, escala por tier ou nível? (§4.6) | Papel de INT, Relicário, cálculo offline |
 | Q15 | Quantos pontos por nível, e a curva de XP acompanha os 10 níveis-por-círculo ou é independente? | Ritmo de progressão, sensação de grind |
 | Q16b | Valor de `N` na escada de merge, e se o merge exige mesma base/slot ou aceita qualquer peça (§4.5) | Ritmo do loot, pressão de inventário |
-| Q17 | Tamanho do inventário. Com merge previsto, o jogador acumula lixo por design — cabe quanto? | UI, sensação de loot, pressão de sumidouro |
 | Q19 | Runas: consumível de spell separado ou poção de mana basta? (§5.3) | Complexidade da loja, economia de INT |
 | Q21 | Conflito entre auto-venda de common e reserva de insumo para merge (§5.4) | Comportamento padrão, clareza para o jogador |
 | Q24 | Personagens compráveis têm identidade fixa (classe, sprite, afinidade) ou são slots genéricos? (§4.2) | Monetização, arte, profundidade de composição |
