@@ -142,8 +142,28 @@ Use only the headings you need. Keep the description in sync as you push more co
 
 ### Merging
 
-- Delete the branch after the merge.
 - If the PR sat long enough for `main` to move, update from `main` and re-check the diff before merging.
+
+### A merged branch is deleted — always
+
+**The merge is not finished while the branch still exists.** Delete it locally and on the remote, immediately after merging:
+
+```bash
+rtk proxy git checkout main && rtk proxy git pull --ff-only origin main
+rtk proxy git branch -d <branch>            # -d refuses if not merged; that is the safety net
+rtk proxy git push origin --delete <branch>
+```
+
+Leaving merged branches around is not harmless: `git branch -r` stops being a list of *what is in flight* and becomes a graveyard, and the next person cannot tell live work from finished work.
+
+Sweep for leftovers whenever you pull:
+
+```bash
+rtk proxy git fetch origin --prune
+rtk proxy git branch -r --merged origin/main | grep -v 'origin/main$'
+```
+
+Anything that lists there is merged and should be gone. Use `-d`, never `-D`: if git refuses, the branch has commits that never reached `main` and deleting it would lose them.
 
 ## Commands
 
