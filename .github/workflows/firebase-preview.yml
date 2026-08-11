@@ -37,6 +37,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Build shared core
+        run: pnpm build:core
+
       - name: Build web bundle
         run: pnpm --filter @ossuary/app build:web
 

@@ -19,6 +19,20 @@ Design docs are written in Portuguese; that is intentional. Keep them in Portugu
 - Server: Node + TypeScript, Postgres (saves in `jsonb`).
 - Content is **data**, not code.
 
+## UI architecture
+
+**MVVM is mandatory for new screens and screen components in `apps/expo`.**
+
+- `*ViewModel.ts` owns local UI state, derived display values and named user
+  commands; it may call the shared core but must not render JSX.
+- `*Screen.tsx` and presentational components are the View: they render the
+  ViewModel and bind controls to its commands; they do not own business state
+  or duplicate core rules.
+- `packages/core` remains Functional Core: pure TypeScript, immutable state
+  transitions and no React/MVVM dependency.
+- Temporary test screens follow the same separation and must be clearly
+  marked as test-only in the UI and documentation.
+
 ## Rules
 
 **Git — never commit, push, open a PR, or send anything to GitHub without the user's explicit authorization.** No exceptions.

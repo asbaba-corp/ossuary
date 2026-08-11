@@ -12,3 +12,5 @@ export const GAME_NAME = "Ossuary" as const;
 export type Platform = "ios" | "android" | "web";
 
 export const SUPPORTED_PLATFORMS: readonly Platform[] = ["ios", "android", "web"];
+
+export * from "./progression/xp.js";

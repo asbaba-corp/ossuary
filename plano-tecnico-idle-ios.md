@@ -82,6 +82,18 @@ deserialize(blob: SaveBlob): GameState
 
 **Isso implica:** nada de `Math.random()` dentro do core. Um PRNG semeado (xorshift, mulberry32) explícito, passado como parâmetro. Um `Math.random()` esquecido no combate é o tipo de bug que só aparece em produção, de forma intermitente, e leva dias para achar.
 
+### 3.1 ViewModel obrigatório no cliente Expo
+
+As telas do cliente seguem **MVVM**. O `ViewModel` concentra estado local da
+interface, valores derivados para exibição e comandos nomeados; a `View` fica
+responsável por renderização e binding. A View não duplica regra de negócio e
+não chama o core diretamente. O ViewModel pode adaptar o `packages/core`, que
+continua sendo Functional Core puro e compartilhado com o servidor.
+
+Essa separação também vale para laboratórios e telas temporárias. Um teste pode
+simular uma entrada, mas deve fazê-lo por um comando do ViewModel e deixar
+explícito que a simulação não é regra do jogo.
+
 ---
 
 ## 4. Estrutura do repositório

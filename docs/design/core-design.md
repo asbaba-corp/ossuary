@@ -206,6 +206,16 @@ O poder do personagem vem de quatro sistemas independentes. Nenhum substitui out
 
 Abate dá XP. XP dá nível. **Cada nível concede pontos que o jogador distribui** entre quatro atributos:
 
+O personagem começa no nível 1 com 0 XP. Para avançar do nível `L` para o
+próximo, precisa de `round(55 × L^1,42)` XP; o XP excedente de um abate ou
+recompensa fica acumulado no nível seguinte. Cada level-up concede **3 pontos
+de atributo**. A curva é independente do círculo, para que o conteúdo não
+precise redefinir ou comprimir o progresso do personagem.
+
+O personagem começa com `CONS 5`, `STR 6`, `DEX 5` e `INT 4`. Os pontos de
+level-up ficam aguardando distribuição; cada ponto aumenta exatamente um dos
+quatro atributos, escolhido pelo jogador. A distribuição não é automática.
+
 | Atributo | Nome | Fantasia |
 |---|---|---|
 | **CONS** | Constituição | Carne que aguenta |
@@ -664,6 +674,7 @@ Sprites 2D, parallax de camadas, partículas — suficiente para um sidescroller
 | ~~Q28~~ | Efeito único do legendary é aleatório? | **Aleatório, mas rerollável.** Ouro com custo escalonado (rota padrão) ou 1 poeira fixa (válvula de escape) (§4.5). |
 | ~~Q17~~ | Tamanho do inventário | **128 slots em 3 páginas** (48 / 48 / 32). Cheio, vende o de menor valor sozinho — a caça não para (§5.4). |
 | ~~Q5b~~ | A poção pode deixar o jogador no vermelho? | **Não.** Custo cheio ou nada; o piso de ouro foi descartado por redundância (§5.3). |
+| ~~Q15~~ | Quantos pontos por nível, e a curva de XP acompanha os 10 níveis-por-círculo ou é independente? | **Três pontos por nível.** O custo para avançar é `round(55 × nível^1,42)` e o XP excedente permanece no nível seguinte. A curva é independente do círculo e continua escalando (§4.4). |
 
 ### Abertas
 
@@ -677,7 +688,6 @@ Sprites 2D, parallax de camadas, partículas — suficiente para um sidescroller
 | Q12 | Progressão de dificuldade *dentro* de um círculo: multiplicador plano por fase ou curva por fase? | Balanceamento, sensação das 10 fases |
 | Q13 | Respec de atributos: pago, gratuito ou inexistente? (§4.4) | Frustração de build travada, sumidouro |
 | Q14 | Spells: quantas simultâneas, fonte, escala por tier ou nível? (§4.6) | Papel de INT, Relicário, cálculo offline |
-| Q15 | Quantos pontos por nível, e a curva de XP acompanha os 10 níveis-por-círculo ou é independente? | Ritmo de progressão, sensação de grind |
 | Q16b | Valor de `N` na escada de merge, e se o merge exige mesma base/slot ou aceita qualquer peça (§4.5) | Ritmo do loot, pressão de inventário |
 | Q19 | Runas: consumível de spell separado ou poção de mana basta? (§5.3) | Complexidade da loja, economia de INT |
 | Q21 | Conflito entre auto-venda de common e reserva de insumo para merge (§5.4) | Comportamento padrão, clareza para o jogador |
