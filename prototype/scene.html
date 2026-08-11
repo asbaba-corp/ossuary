@@ -227,8 +227,6 @@
 
   <div class="hud">
     <div class="hud-item"><span class="lbl">Onda</span><span class="val" id="wave">1</span></div>
-    <div class="hud-item"><span class="lbl">HP</span><div class="bar"><i id="hpbar" style="width:100%"></i></div><span class="val" id="hp">120</span></div>
-    <div class="hud-item"><span class="lbl">MP</span><div class="bar mana"><i id="mpbar" style="width:100%"></i></div><span class="val" id="mp">40</span></div>
     <div class="hud-item"><span class="lbl">Ouro</span><span class="val" id="gold">0</span></div>
     <div class="hud-item"><span class="lbl">Abates</span><span class="val" id="kills">0</span></div>
     <span class="phase" id="phase">Andando</span>
@@ -1210,20 +1208,17 @@
 
   /* ---------- HUD ---------- */
   const el = id => document.getElementById(id);
-  const $wave = el("wave"), $hp = el("hp"), $hpbar = el("hpbar"), $gold = el("gold"),
+  const $wave = el("wave"), $gold = el("gold"),
         $kills = el("kills"), $phase = el("phase"), $loot = el("loot"),
         $supply = el("supply"), $balance = el("balance"), $dust = el("dust"),
-        $retreats = el("retreats"), $afford = el("afford"), $mp = el("mp"), $mpbar = el("mpbar");
+        $retreats = el("retreats"), $afford = el("afford");
 
   const pct = (a, b) => (100 * Math.max(0, Math.min(1, a / b))) + "%";
 
+  // Vida e mana vivem na ficha do personagem (§ aba Personagem), não no topo
   function hud() {
-    const s = S, h = s.hero;
+    const s = S;
     $wave.textContent = s.wave;
-    $hp.textContent = Math.ceil(h.hp);
-    $hpbar.style.width = pct(h.hp, h.hpMax);
-    $mp.textContent = Math.ceil(h.mp);
-    $mpbar.style.width = pct(h.mp, h.mpMax);
     $gold.textContent = s.gold;
     $kills.textContent = s.kills;
     $phase.textContent = s.phase;
