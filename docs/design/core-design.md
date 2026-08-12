@@ -138,6 +138,27 @@ Toda aleatoriedade vem de PRNG semeado. Nenhum `Math.random()` no core, nunca.
 
 `resolveCombat` recebe `Party`, não `GameState` — é o ponto onde a normalização de stats da arena entra depois sem reescrita (plano técnico §7.5). No PVP, a assinatura é `resolveCombat(party, enemyParty, seed)`: **a mesma função, com uma party do outro lado**.
 
+**Implementação incremental atual:** o primeiro núcleo recebe snapshots de
+combatentes artificiais, em vez de `Party` e `Wave`. Isso mantém o domínio
+testável antes de existirem bestiário e conteúdo concreto; o adaptador que
+converterá progressão/equipamento em snapshots fica para a integração do loop.
+O motor já é tick-based, sem `Math.random()`, produz log determinístico e
+expõe `victory` ou `defeat`. Derrota é apenas um resultado do combate neste
+nível; a regra de recuo e qualquer consequência persistente pertencem ao loop
+do jogo, ainda não implementado.
+
+O snapshot pode carregar um loadout de spells, definições, mana e atributos de
+escala. Nesse caso, o próprio tick avalia o autocast pela prioridade do
+loadout. Spells de dano, proteção e controle produzem eventos e efeitos
+temporários; o loop futuro apenas conectará esses ticks a caminhada, waves,
+loot, recompensas e recuo.
+
+No Lab, `createCombatantFromCharacter` é o adaptador que compõe o personagem
+selecionado com equipamento, loadout de spells, efeitos de itens, fórmulas de
+atributos e bônus do Ossuary antes de iniciar o combate. O runtime de mana,
+cooldowns e efeitos continua pertencendo exclusivamente à instância daquele
+combate.
+
 ### 4.2 A party
 
 **Até quatro personagens. O jogador começa com um.** Slots e personagens são comprados com ouro — é isso que dá ao ouro um destino perene e estrutural, não só consumíveis.

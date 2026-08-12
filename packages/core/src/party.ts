@@ -1,22 +1,23 @@
 import {
-  createCharacterProgress,
   gainExperience,
   spendAttributePoint,
   type CharacterAttributes,
-  type CharacterProgress,
   type ExperienceResult,
   type PrimaryAttribute,
 } from "./progression/xp.js";
+import {
+  assertCharacter,
+  cloneCharacter,
+  createCharacter,
+  type Character,
+} from "./character.js";
+
+export { createCharacter } from "./character.js";
+export type { Character } from "./character.js";
 
 export const PARTY_MAX_SIZE = 4 as const;
 export const DEFAULT_CHARACTER_ID = "character-1" as const;
 export const DEFAULT_CHARACTER_NAME = "Sem-Nome" as const;
-
-export interface Character {
-  readonly id: string;
-  readonly name: string;
-  readonly progress: CharacterProgress;
-}
 
 export interface Party {
   readonly characters: readonly Character[];
@@ -35,16 +36,6 @@ export interface PartySummary {
   readonly unspentAttributePointsByCharacter: Readonly<Record<string, number>>;
   /** Soma dos níveis; ainda não é um score de combate. */
   readonly partyPower: number;
-}
-
-export function createCharacter(
-  id: string,
-  name: string,
-  progress: CharacterProgress = createCharacterProgress(),
-): Character {
-  assertCharacterIdentity(id, name);
-  assertCharacterProgress(progress);
-  return { id, name, progress: cloneProgress(progress) };
 }
 
 export function createParty(
@@ -182,31 +173,6 @@ function assertParty(party: Party): void {
   }
 }
 
-function assertCharacter(character: Character): void {
-  if (!character || typeof character !== "object") throw new RangeError("character must be an object");
-  assertCharacterIdentity(character.id, character.name);
-  assertCharacterProgress(character.progress);
-}
-
-function assertCharacterIdentity(id: string, name: string): void {
-  if (typeof id !== "string" || id.trim() === "") throw new RangeError("character id must be a non-empty string");
-  if (typeof name !== "string" || name.trim() === "") throw new RangeError("character name must be a non-empty string");
-}
-
 function assertCharacterId(id: string): void {
   if (typeof id !== "string" || id.trim() === "") throw new RangeError("character id must be a non-empty string");
-}
-
-function assertCharacterProgress(progress: CharacterProgress): void {
-  // gainExperience/spendAttributePoint validate all progress invariants, but
-  // this call also validates progress passed to createCharacter.
-  gainExperience(progress, 0);
-}
-
-function cloneProgress(progress: CharacterProgress): CharacterProgress {
-  return { ...progress, attributes: { ...progress.attributes } };
-}
-
-function cloneCharacter(character: Character): Character {
-  return { ...character, progress: cloneProgress(character.progress) };
 }

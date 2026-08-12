@@ -16,6 +16,7 @@ export const SUPPORTED_PLATFORMS: readonly Platform[] = ["ios", "android", "web"
 export * from "./progression/xp.js";
 export * from "./progression/derived.js";
 export * from "./party.js";
+export * from "./character.js";
 export * from "./equipment.js";
 export * from "./inventory.js";
 export * from "./random.js";
@@ -24,4 +25,5 @@ export * from "./spell-loadout.js";
 export * from "./spell-runtime.js";
 export * from "./ossuary.js";
 export * from "./economy.js";
+export * from "./combat/index.js";
 export * from "./equipment/index.js";

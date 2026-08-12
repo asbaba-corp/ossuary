@@ -1,9 +1,11 @@
-import type { DerivedStatFormulas, Equipment, EquipmentDropEntry, ItemStack, OssuaryUpgradeDefinition, SpellDefinition } from '@ossuary/core';
+import type { CombatRules, CombatantSnapshot, DerivedStatFormulas, Equipment, EquipmentDropEntry, ItemStack, OssuaryUpgradeDefinition, SpellDefinition } from '@ossuary/core';
 import {
   createAttributeBonusEffect,
   createConsumable,
   createEquipment,
   createItemStack,
+  createSpellLoadout,
+  equipSpell,
 } from '@ossuary/core';
 
 export const TEST_SPELLS: readonly SpellDefinition[] = [
@@ -80,6 +82,75 @@ export const TEST_DERIVED_FORMULAS: DerivedStatFormulas = {
   sustain: { base: 0, attribute: 'int', coefficient: 1 },
   mana: { base: 50, attribute: 'int', coefficient: 10 },
 };
+
+/** Combates artificiais: validam o domínio sem bestiário, waves ou loot. */
+export const TEST_COMBAT_RULES: CombatRules = {
+  tickSeconds: 0.25,
+  defenseConstant: 100,
+};
+
+export const TEST_COMBAT_PRESETS: Readonly<Record<'victory' | 'defeat' | 'effects', readonly CombatantSnapshot[]>> = {
+  victory: [
+    {
+      id: 'lab-party', name: 'Party de teste', side: 'party',
+      stats: { maxHp: 100, damage: 25, defense: 10, penetration: 5, attacksPerSecond: 2, criticalChancePercent: 0, criticalMultiplier: 2, sustainPercent: 0 },
+      spells: createTestCombatSpellSetup(['lab-ember-bolt'], 40),
+    },
+    {
+      id: 'lab-enemy', name: 'Alvo de teste', side: 'enemy',
+      stats: { maxHp: 60, damage: 8, defense: 0, penetration: 0, attacksPerSecond: 1, criticalChancePercent: 0, criticalMultiplier: 2, sustainPercent: 0 },
+    },
+  ],
+  defeat: [
+    {
+      id: 'lab-party', name: 'Party de teste', side: 'party',
+      stats: { maxHp: 40, damage: 2, defense: 0, penetration: 0, attacksPerSecond: 1, criticalChancePercent: 0, criticalMultiplier: 2, sustainPercent: 0 },
+    },
+    {
+      id: 'lab-enemy', name: 'Alvo de teste', side: 'enemy',
+      stats: { maxHp: 100, damage: 20, defense: 0, penetration: 0, attacksPerSecond: 2, criticalChancePercent: 0, criticalMultiplier: 2, sustainPercent: 0 },
+    },
+  ],
+  effects: [
+    {
+      id: 'lab-party', name: 'Party de efeitos', side: 'party',
+      stats: { maxHp: 100, damage: 4, defense: 0, penetration: 0, attacksPerSecond: 1, criticalChancePercent: 0, criticalMultiplier: 2, sustainPercent: 0 },
+      spells: createTestCombatSpellSetup(['lab-bone-aegis', 'lab-grave-bind'], 100),
+    },
+    {
+      id: 'lab-enemy-a', name: 'Alvo de controle A', side: 'enemy',
+      stats: { maxHp: 100, damage: 30, defense: 0, penetration: 0, attacksPerSecond: 1, criticalChancePercent: 0, criticalMultiplier: 2, sustainPercent: 0 },
+    },
+    {
+      id: 'lab-enemy-b', name: 'Alvo de controle B', side: 'enemy',
+      stats: { maxHp: 100, damage: 0, defense: 0, penetration: 0, attacksPerSecond: 0, criticalChancePercent: 0, criticalMultiplier: 2, sustainPercent: 0 },
+    },
+    {
+      id: 'lab-enemy-c', name: 'Alvo de controle C', side: 'enemy',
+      stats: { maxHp: 100, damage: 0, defense: 0, penetration: 0, attacksPerSecond: 0, criticalChancePercent: 0, criticalMultiplier: 2, sustainPercent: 0 },
+    },
+  ],
+};
+
+export const TEST_PARTY_COMBAT_ENEMY: CombatantSnapshot = {
+  id: 'lab-party-target',
+  name: 'Alvo da party',
+  side: 'enemy',
+  stats: { maxHp: 10, damage: 1, defense: 0, penetration: 0, attacksPerSecond: 1, criticalChancePercent: 0, criticalMultiplier: 2, sustainPercent: 0 },
+};
+
+function createTestCombatSpellSetup(spellIds: readonly string[], maxMana: number) {
+  let loadout = createSpellLoadout(spellIds.length);
+  for (const spellId of spellIds) loadout = equipSpell(loadout, TEST_SPELLS.map(({ id }) => id), spellId);
+  return {
+    loadout,
+    definitions: TEST_SPELLS,
+    maxMana,
+    initialMana: maxMana,
+    int: 5,
+    spellDamagePercent: 0,
+  } as const;
+}
 
 export function createTestDropTable(
   commonWeight: number,
