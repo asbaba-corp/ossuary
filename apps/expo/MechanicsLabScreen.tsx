@@ -1,6 +1,7 @@
 import {
   EQUIPMENT_SLOTS,
   PARTY_MAX_SIZE,
+  type CombatEvent,
   type OssuaryDerivedStat,
   type PrimaryAttribute,
 } from '@ossuary/core';
@@ -114,6 +115,14 @@ export function MechanicsLabScreen() {
     addTestDust,
     recordTestRunIncome,
     recordTestRunExpense,
+    combatState,
+    combatEvents,
+    combatPreset,
+    combatResolutionMessage,
+    selectCombatPreset,
+    resetCombat,
+    advanceCombatTick,
+    resolveCombatToEnd,
     reset,
   } = useMechanicsLabViewModel();
 
@@ -334,7 +343,50 @@ export function MechanicsLabScreen() {
         <Text style={styles.event}>{economyEvent}</Text>
       </LabSection>
 
-      <LabSection title="04 · Personagem">
+      <LabSection title="04 · Combate (teste isolado)">
+        <Text style={styles.helper}>
+          Este painel executa somente o domínio determinístico de combate físico.
+          Não há loop do jogo, wave, spell, loot, recuo ou morte permanente.
+        </Text>
+        <View style={styles.spellActions}>
+          <LabButton label="Party selecionada" onPress={() => selectCombatPreset('party')} />
+          <LabButton label="Preset vitória" onPress={() => selectCombatPreset('victory')} />
+          <LabButton label="Preset derrota" onPress={() => selectCombatPreset('defeat')} />
+          <LabButton label="Preset efeitos" onPress={() => selectCombatPreset('effects')} />
+          <LabButton label="Resetar" onPress={resetCombat} />
+        </View>
+        <View style={styles.pointsCard}>
+          <View style={styles.combatSummary}>
+            <Text style={styles.pointsTitle}>Resultado: {combatOutcomeLabel(combatState.outcome)}</Text>
+            <Text style={styles.muted}>preset {combatPreset} · tick {combatState.tick} · {combatState.elapsedSeconds.toFixed(2)}s</Text>
+            {combatState.combatants.map((combatant) => (
+              <Text key={combatant.snapshot.id} style={styles.muted}>
+                {combatant.snapshot.name}: {combatant.hp.toFixed(1)}/{combatant.snapshot.stats.maxHp} HP · mana {combatant.mana.toFixed(1)}/{combatant.maxMana}
+                {combatant.effects.length > 0 ? ` · efeitos: ${combatant.effects.map((effect) => `${effect.kind} ${effect.remainingSeconds.toFixed(1)}s`).join(', ')}` : ''}
+              </Text>
+            ))}
+          </View>
+        </View>
+        <View style={styles.spellActions}>
+          <LabButton label="Avançar 1 tick" disabled={combatState.outcome !== 'in_progress'} onPress={advanceCombatTick} />
+          <LabButton label="Resolver até o fim" disabled={combatState.outcome !== 'in_progress'} onPress={resolveCombatToEnd} />
+        </View>
+        <Text style={styles.event}>{combatResolutionMessage}</Text>
+        <Text style={styles.label}>LOG DETERMINÍSTICO</Text>
+        <ScrollView style={styles.combatLog} nestedScrollEnabled>
+          {combatEvents.length === 0 ? (
+            <Text style={styles.muted}>Nenhum evento ainda.</Text>
+          ) : (
+            combatEvents.map((event, index) => (
+              <Text key={`${event.type}-${event.tick}-${index}`} style={styles.debugNote}>
+                {formatCombatEvent(event)}
+              </Text>
+            ))
+          )}
+        </ScrollView>
+      </LabSection>
+
+      <LabSection title="05 · Personagem">
         <Text style={styles.helper}>
           Party ativa: {summary.characterCount}/{PARTY_MAX_SIZE}. XP é
           concedido integralmente a todos os personagens ativos.
@@ -382,7 +434,7 @@ export function MechanicsLabScreen() {
         </View>
       </LabSection>
 
-      <LabSection title="05 · Controles de teste">
+      <LabSection title="06 · Controles de teste">
         <Text style={styles.helper}>
           O botão principal imita o caminho futuro: derrotar um monstro gera
           XP através do `packages/core`.
@@ -431,7 +483,7 @@ export function MechanicsLabScreen() {
         </Pressable>
       </LabSection>
 
-      <LabSection title="06 · Atributos">
+      <LabSection title="07 · Atributos">
         <Text style={styles.helper}>
           Level-up libera pontos; a escolha do atributo é manual e permanente.
           Os derivados de combate ainda não estão conectados.
@@ -462,7 +514,7 @@ export function MechanicsLabScreen() {
         ))}
       </LabSection>
 
-      <LabSection title="07 · Equipamento (teste)">
+      <LabSection title="08 · Equipamento (teste)">
         <Text style={styles.helper}>
           Equipamento pertence ao inventário e é movido atomicamente para o
           loadout. Este laboratório usa a mesma transição do jogo.
@@ -503,7 +555,7 @@ export function MechanicsLabScreen() {
         {replacementPreview && <Text style={styles.helper}>Preview da candidata: {replacementPreview.deltas.filter(({ delta }) => delta !== 0).map(({ stat, delta }) => `${String(stat)} ${delta > 0 ? '+' : ''}${delta}`).join(' · ') || 'sem delta'}</Text>}
       </LabSection>
 
-      <LabSection title="08 · Consumível (teste)">
+      <LabSection title="09 · Consumível (teste)">
         <Text style={styles.helper}>
           Usar consome uma unidade e ativa o bônus no personagem selecionado.
           O efeito pode ser removido explicitamente; não há duração automática.
@@ -528,7 +580,7 @@ export function MechanicsLabScreen() {
         />
       </LabSection>
 
-      <LabSection title="09 · Inventário (teste)">
+      <LabSection title="10 · Inventário (teste)">
         <Text style={styles.helper}>
           Capacidade de teste: {inventorySummary.usedSlots}/{inventorySummary.capacity} slots.
           Consumíveis empilham; equipamentos ocupam um slot individual. Cheio,
@@ -582,6 +634,21 @@ function formatBonuses(bonuses: Readonly<Partial<Record<PrimaryAttribute, number
   return Object.entries(bonuses)
     .map(([attribute, amount]) => `${attribute.toUpperCase()} +${amount}`)
     .join(' · ');
+}
+
+function combatOutcomeLabel(outcome: 'in_progress' | 'victory' | 'defeat'): string {
+  return outcome === 'victory' ? 'VITÓRIA' : outcome === 'defeat' ? 'DERROTA' : 'EM ANDAMENTO';
+}
+
+function formatCombatEvent(event: CombatEvent): string {
+  if (event.type === 'attack') {
+    return `tick ${event.tick} · ${event.attackerId} atacou ${event.targetId} · -${event.damage.toFixed(1)} HP${event.critical ? ' · crítico' : ''}`;
+  }
+  if (event.type === 'spell_attempt') {
+    return `tick ${event.tick} · ${event.casterId} · ${event.spellId} · ${event.reason}${event.targetId ? ` → ${event.targetId}` : ''}${event.power === null ? '' : ` · poder ${event.power.toFixed(1)}`}`;
+  }
+  if (event.type === 'combatant_defeated') return `tick ${event.tick} · ${event.combatantId} derrotado`;
+  return `tick ${event.tick} · resultado: ${combatOutcomeLabel(event.outcome)}`;
 }
 
 function LabSection({ title, children }: { title: string; children: ReactNode }) {
@@ -839,6 +906,18 @@ const styles = StyleSheet.create({
     gap: 10,
     marginTop: 12,
     padding: 10,
+  },
+  combatSummary: {
+    flex: 1,
+    gap: 3,
+  },
+  combatLog: {
+    backgroundColor: '#100f12',
+    borderColor: '#2e2930',
+    borderRadius: 5,
+    borderWidth: 1,
+    maxHeight: 220,
+    padding: 8,
   },
   pointsValue: {
     color: '#e6aa67',

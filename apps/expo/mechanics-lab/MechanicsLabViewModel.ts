@@ -22,6 +22,9 @@ import type {
   SpellAutoCastEvent,
   SpellRuntimeState,
   SpellLoadout,
+  CombatEvent,
+  CombatOutcome,
+  CombatState,
 } from '@ossuary/core';
 import {
   addCharacter,
@@ -64,6 +67,10 @@ import {
   DUST_RESOURCE,
   GOLD_RESOURCE,
   xpToNextLevel,
+  advanceCombatTick,
+  createCombatState,
+  resolveCombat,
+  createCombatantFromCharacter,
 } from '@ossuary/core';
 import {
   TEST_CONSUMABLE,
@@ -72,6 +79,9 @@ import {
   TEST_DERIVED_FORMULAS,
   TEST_OSSUARY_UPGRADES,
   TEST_SPELLS,
+  TEST_COMBAT_PRESETS,
+  TEST_COMBAT_RULES,
+  TEST_PARTY_COMBAT_ENEMY,
 } from './lab-fixtures';
 import { equipFromInventory, getCharacterEquipmentStats, getReplacementPreview, rollTestDrop, unequipToInventory } from './lab-equipment-commands';
 
@@ -156,6 +166,14 @@ export interface MechanicsLabViewModel {
   readonly addTestDust: () => void;
   readonly recordTestRunIncome: () => void;
   readonly recordTestRunExpense: () => void;
+  readonly combatState: CombatState;
+  readonly combatEvents: readonly CombatEvent[];
+  readonly combatPreset: 'party' | 'victory' | 'defeat' | 'effects';
+  readonly combatResolutionMessage: string;
+  readonly selectCombatPreset: (preset: 'party' | 'victory' | 'defeat' | 'effects') => void;
+  readonly resetCombat: () => void;
+  readonly advanceCombatTick: () => void;
+  readonly resolveCombatToEnd: () => void;
   readonly reset: () => void;
 }
 
@@ -199,6 +217,10 @@ export function useMechanicsLabViewModel(): MechanicsLabViewModel {
   const [ossuaryEvent, setOssuaryEvent] = useState('Nenhuma transição do Ossuary.');
   const [economy, setEconomy] = useState<EconomyState>(() => createEconomyState());
   const [economyEvent, setEconomyEvent] = useState('Nenhuma transação de economia.');
+  const [combatPreset, setCombatPreset] = useState<'party' | 'victory' | 'defeat' | 'effects'>('victory');
+  const [combatState, setCombatState] = useState<CombatState>(() => createCombatState(TEST_COMBAT_PRESETS.victory, 'lab-combat-seed'));
+  const [combatEvents, setCombatEvents] = useState<readonly CombatEvent[]>([]);
+  const [combatResolutionMessage, setCombatResolutionMessage] = useState('Nenhum tick de combate executado.');
   const dropRoll = useRef(0);
 
   const selectedCharacter = party.characters.find(({ id }) => id === selectedCharacterId) ?? party.characters[0];
@@ -506,6 +528,56 @@ export function useMechanicsLabViewModel(): MechanicsLabViewModel {
     );
   }
 
+  function createSelectedPartyCombatState(): CombatState {
+    const snapshot = createCombatantFromCharacter({
+      character: selectedCharacter,
+      equipment: selectedLoadout,
+      spells: selectedSpellLoadout,
+      spellDefinitions: TEST_SPELLS,
+      itemEffects: activeItemEffects,
+      formulas: TEST_DERIVED_FORMULAS,
+      ossuaryBonuses,
+      side: 'party',
+    });
+    return createCombatState([snapshot, TEST_PARTY_COMBAT_ENEMY], 'lab-party-combat-seed');
+  }
+
+  function createCombatStateForPreset(preset: 'party' | 'victory' | 'defeat' | 'effects'): CombatState {
+    if (preset === 'party') return createSelectedPartyCombatState();
+    return createCombatState(TEST_COMBAT_PRESETS[preset], 'lab-combat-seed');
+  }
+
+  function resetCombat() {
+    setCombatState(createCombatStateForPreset(combatPreset));
+    setCombatEvents([]);
+    setCombatResolutionMessage('Combate reiniciado.');
+  }
+
+  function selectCombatPreset(preset: 'party' | 'victory' | 'defeat' | 'effects') {
+    setCombatPreset(preset);
+    setCombatState(createCombatStateForPreset(preset));
+    setCombatEvents([]);
+    setCombatResolutionMessage(`Preset ${preset === 'party' ? 'da party selecionada' : preset === 'victory' ? 'de vitória' : preset === 'defeat' ? 'de derrota' : 'de efeitos'} carregado.`);
+  }
+
+  function advanceCombatTickCommand() {
+    const result = advanceCombatTick(combatState, TEST_COMBAT_RULES);
+    setCombatState(result.state);
+    setCombatEvents((current) => [...current, ...result.events]);
+    setCombatResolutionMessage(result.state.outcome === 'in_progress'
+      ? `Tick ${result.state.tick} avançado.`
+      : `Combate terminou em ${formatCombatOutcome(result.state.outcome)}.`);
+  }
+
+  function resolveCombatToEnd() {
+    const result = resolveCombat(combatState, TEST_COMBAT_RULES, 200);
+    setCombatState(result.state);
+    setCombatEvents((current) => [...current, ...result.events]);
+    setCombatResolutionMessage(result.completed
+      ? `Combate resolvido em ${formatCombatOutcome(result.state.outcome)}.`
+      : 'Limite de 200 ticks atingido; combate ainda está em andamento.');
+  }
+
   function setSpellHpPercent(amount: number) {
     setSpellHpPercentState(Math.max(0, Math.min(100, Math.round(amount))));
   }
@@ -592,6 +664,10 @@ export function useMechanicsLabViewModel(): MechanicsLabViewModel {
     setOssuaryEvent('Nenhuma transição do Ossuary.');
     setEconomy(createEconomyState());
     setEconomyEvent('Nenhuma transação de economia.');
+    setCombatPreset('victory');
+    setCombatState(createCombatState(TEST_COMBAT_PRESETS.victory, 'lab-combat-seed'));
+    setCombatEvents([]);
+    setCombatResolutionMessage('Nenhum tick de combate executado.');
     setLastEvent('Laboratório reiniciado.');
   }
 
@@ -674,8 +750,20 @@ export function useMechanicsLabViewModel(): MechanicsLabViewModel {
     addTestDust,
     recordTestRunIncome,
     recordTestRunExpense,
+    combatState,
+    combatEvents,
+    combatPreset,
+    combatResolutionMessage,
+    selectCombatPreset,
+    resetCombat,
+    advanceCombatTick: advanceCombatTickCommand,
+    resolveCombatToEnd,
     reset,
   };
+}
+
+function formatCombatOutcome(outcome: CombatOutcome): string {
+  return outcome === 'victory' ? 'vitória' : outcome === 'defeat' ? 'derrota' : 'em andamento';
 }
 
 function candidateSlot(loadout: CharacterLoadout, instanceId: string): EquipmentSlot {
