@@ -22,4 +22,5 @@ export * from "./spells.js";
 export * from "./spell-loadout.js";
 export * from "./spell-runtime.js";
 export * from "./ossuary.js";
+export * from "./economy.js";
 export * from "./equipment/index.js";
