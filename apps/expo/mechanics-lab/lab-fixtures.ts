@@ -1,4 +1,4 @@
-import type { Equipment, EquipmentDropEntry, ItemStack, OssuaryDerivedStat, OssuaryUpgradeDefinition, SpellDefinition } from '@ossuary/core';
+import type { DerivedStatFormulas, Equipment, EquipmentDropEntry, ItemStack, OssuaryUpgradeDefinition, SpellDefinition } from '@ossuary/core';
 import {
   createAttributeBonusEffect,
   createConsumable,
@@ -69,15 +69,16 @@ export const TEST_OSSUARY_UPGRADES: readonly OssuaryUpgradeDefinition[] = [
   },
 ];
 
-export const TEST_OSSUARY_BASE_VALUES: Readonly<Record<OssuaryDerivedStat, number>> = {
-  vigor: 100,
-  damage: 20,
-  penetration: 10,
-  cadence: 1,
-  critical: 5,
-  reach: 1,
-  sustain: 8,
-  mana: 100,
+/** Fórmulas provisórias apenas para tornar a progressão observável no Lab. */
+export const TEST_DERIVED_FORMULAS: DerivedStatFormulas = {
+  vigor: { base: 0, attribute: 'cons', coefficient: 10 },
+  damage: { base: 0, attribute: 'str', coefficient: 2, includeWeaponBaseDamage: true },
+  penetration: { base: 0, attribute: 'str', coefficient: 1 },
+  cadence: { base: 1, attribute: 'dex', coefficient: 0.1 },
+  critical: { base: 0, attribute: 'dex', coefficient: 0.5 },
+  reach: { base: 1, attribute: 'dex', coefficient: 0.1 },
+  sustain: { base: 0, attribute: 'int', coefficient: 1 },
+  mana: { base: 50, attribute: 'int', coefficient: 10 },
 };
 
 export function createTestDropTable(

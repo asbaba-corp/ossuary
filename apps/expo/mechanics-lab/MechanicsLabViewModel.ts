@@ -18,6 +18,7 @@ import type {
   OssuaryUpgradeDefinition,
   OssuaryDerivedStat,
   EconomyState,
+  CharacterDerivedStats,
   SpellAutoCastEvent,
   SpellRuntimeState,
   SpellLoadout,
@@ -52,8 +53,8 @@ import {
   setSpellEnabled,
   unequipSpell,
   addOssuaryBones,
-  applyOssuaryBonuses,
   canUnlockOssuaryUpgrade,
+  calculateCharacterDerivedStats,
   createOssuaryState,
   getOssuaryBonuses,
   recordOssuaryMilestone,
@@ -68,7 +69,7 @@ import {
   TEST_CONSUMABLE,
   TEST_CONSUMABLE_STACK,
   TEST_EQUIPMENT,
-  TEST_OSSUARY_BASE_VALUES,
+  TEST_DERIVED_FORMULAS,
   TEST_OSSUARY_UPGRADES,
   TEST_SPELLS,
 } from './lab-fixtures';
@@ -142,8 +143,7 @@ export interface MechanicsLabViewModel {
   readonly ossuary: OssuaryState;
   readonly ossuaryUpgrades: readonly OssuaryUpgradeDefinition[];
   readonly ossuaryBonuses: Readonly<Record<OssuaryDerivedStat, number>>;
-  readonly ossuaryBaseValues: Readonly<Record<OssuaryDerivedStat, number>>;
-  readonly ossuaryPreview: Readonly<Record<OssuaryDerivedStat, number>>;
+  readonly derivedStats: CharacterDerivedStats;
   readonly ossuaryEvent: string;
   readonly addOssuaryBone: () => void;
   readonly recordOssuaryMilestone: (amount: number) => void;
@@ -229,7 +229,12 @@ export function useMechanicsLabViewModel(): MechanicsLabViewModel {
     ?? createSpellLoadout(2);
   const enabledSpells = getEnabledSpellDefinitions(selectedSpellLoadout, TEST_SPELLS);
   const ossuaryBonuses = getOssuaryBonuses(ossuary, TEST_OSSUARY_UPGRADES);
-  const ossuaryPreview = applyOssuaryBonuses(TEST_OSSUARY_BASE_VALUES, ossuaryBonuses);
+  const derivedStats = calculateCharacterDerivedStats({
+    attributes: effectiveAttributes,
+    weaponBaseDamage: effectiveStats.baseDamage,
+    formulas: TEST_DERIVED_FORMULAS,
+    ossuaryBonuses,
+  });
 
   function applyExperience(amount: number, source: string) {
     const result = gainPartyExperience(party, amount);
@@ -656,8 +661,7 @@ export function useMechanicsLabViewModel(): MechanicsLabViewModel {
     ossuary,
     ossuaryUpgrades: TEST_OSSUARY_UPGRADES,
     ossuaryBonuses,
-    ossuaryBaseValues: TEST_OSSUARY_BASE_VALUES,
-    ossuaryPreview,
+    derivedStats,
     ossuaryEvent,
     addOssuaryBone,
     recordOssuaryMilestone: recordOssuaryMilestoneCommand,

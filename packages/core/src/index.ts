@@ -14,6 +14,7 @@ export type Platform = "ios" | "android" | "web";
 export const SUPPORTED_PLATFORMS: readonly Platform[] = ["ios", "android", "web"];
 
 export * from "./progression/xp.js";
+export * from "./progression/derived.js";
 export * from "./party.js";
 export * from "./equipment.js";
 export * from "./inventory.js";

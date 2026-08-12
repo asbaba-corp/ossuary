@@ -754,9 +754,11 @@ como percentuais sobre derivados (`vigor`, `damage`, `penetration`, `cadence`,
 `critical`, `reach`, `sustain` e `mana`) e são somados por derivado.
 
 O Laboratório possui fixtures artificiais para conceder osso, registrar o
-marco `shadow-runner`, desbloquear upgrades e exibir um preview numérico no
-personagem selecionado. O preview não altera os stats reais: a integração com
-o cálculo efetivo de derivados continua sendo uma etapa posterior.
+marco `shadow-runner`, desbloquear upgrades e exibir um snapshot numérico no
+personagem selecionado. O snapshot combina atributos efetivos, dano-base do
+equipamento e bônus do Ossuary por meio de fórmulas fornecidas pelo chamador.
+As fórmulas do Lab são provisórias e o snapshot ainda não é consumido pelo
+combate.
 
 ---
 

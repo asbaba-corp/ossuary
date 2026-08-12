@@ -101,8 +101,7 @@ export function MechanicsLabScreen() {
     ossuary,
     ossuaryUpgrades,
     ossuaryBonuses,
-    ossuaryBaseValues,
-    ossuaryPreview,
+    derivedStats,
     ossuaryEvent,
     addOssuaryBone,
     recordOssuaryMilestone,
@@ -286,15 +285,15 @@ export function MechanicsLabScreen() {
           );
         })}
         <Text style={styles.label}>PREVIEW NO PERSONAGEM SELECIONADO</Text>
-        <Text style={styles.helper}>Preview artificial; os stats reais ainda não consomem bônus do Ossuary.</Text>
+        <Text style={styles.helper}>Fórmulas provisórias do Lab; este snapshot já combina atributos, equipamento e Ossuary, mas ainda não é combate.</Text>
         {OSSUARY_ROWS.map((row) => (
           <View key={row.key} style={styles.attributeRow}>
             <View style={styles.attributeIdentity}>
               <Text style={styles.attributeLabel}>{row.label}</Text>
-              <Text style={styles.muted}>base {ossuaryBaseValues[row.key]}</Text>
+              <Text style={styles.muted}>base {derivedStats.base[row.key]}</Text>
             </View>
             <Text style={styles.attributeValue}>
-              +{ossuaryBonuses[row.key]}% → {ossuaryPreview[row.key].toFixed(1)}
+              +{ossuaryBonuses[row.key]}% → {derivedStats.effective[row.key].toFixed(1)}
             </Text>
           </View>
         ))}
