@@ -1,6 +1,7 @@
 import {
   EQUIPMENT_SLOTS,
   PARTY_MAX_SIZE,
+  type OssuaryDerivedStat,
   type PrimaryAttribute,
 } from '@ossuary/core';
 import Slider from '@react-native-community/slider';
@@ -23,6 +24,13 @@ const ATTRIBUTE_ROWS: readonly {
   { key: 'str', label: 'STR', name: 'Força' },
   { key: 'dex', label: 'DEX', name: 'Destreza' },
   { key: 'int', label: 'INT', name: 'Inteligência' },
+];
+
+const OSSUARY_ROWS: readonly { readonly key: OssuaryDerivedStat; readonly label: string }[] = [
+  { key: 'penetration', label: 'Penetração' },
+  { key: 'sustain', label: 'Sustento' },
+  { key: 'damage', label: 'Dano' },
+  { key: 'mana', label: 'Mana' },
 ];
 
 export function MechanicsLabScreen() {
@@ -85,6 +93,16 @@ export function MechanicsLabScreen() {
     unequipSpell,
     setSpellEnabled,
     moveSpellPriority,
+    ossuary,
+    ossuaryUpgrades,
+    ossuaryBonuses,
+    ossuaryBaseValues,
+    ossuaryPreview,
+    ossuaryEvent,
+    addOssuaryBone,
+    recordOssuaryMilestone,
+    unlockOssuaryUpgrade,
+    canUnlockOssuaryUpgrade,
     reset,
   } = useMechanicsLabViewModel();
 
@@ -215,7 +233,63 @@ export function MechanicsLabScreen() {
         )}
       </LabSection>
 
-      <LabSection title="02 · Personagem">
+      <LabSection title="02 · Ossuary (teste de conta)">
+        <Text style={styles.helper}>
+          O Ossuary pertence à conta: ossos e marcos são permanentes, não são
+          consumidos e afetam qualquer personagem. As fontes abaixo são
+          artificiais; não há inimigos, drops ou combate neste teste.
+        </Text>
+        <View style={styles.pointsCard}>
+          <Text style={styles.pointsValue}>{ossuary.bones}</Text>
+          <View>
+            <Text style={styles.pointsTitle}>ossos permanentes</Text>
+            <Text style={styles.muted}>marco shadow-runner: {ossuary.milestones['shadow-runner'] ?? 0}</Text>
+          </View>
+        </View>
+        <View style={styles.spellActions}>
+          <LabButton label="Adicionar osso de teste" onPress={addOssuaryBone} />
+          <LabButton label="Marco +1" onPress={() => recordOssuaryMilestone(1)} />
+          <LabButton label="Marco +3" onPress={() => recordOssuaryMilestone(3)} />
+        </View>
+        {ossuaryUpgrades.map((upgrade) => {
+          const unlocked = ossuary.unlockedUpgradeIds.includes(upgrade.id);
+          const available = canUnlockOssuaryUpgrade(upgrade.id);
+          const requirement = upgrade.requirements.map((item) => item.kind === 'bones'
+            ? `${item.amount} osso(s)`
+            : `${item.amount} shadow-runner`).join(' + ');
+          const bonuses = upgrade.bonuses.map((bonus) => `${bonus.stat} +${bonus.percent}%`).join(' · ');
+          return (
+            <View key={upgrade.id} style={styles.equipmentRow}>
+              <View style={styles.equipmentIdentity}>
+                <Text style={styles.equipmentName}>{upgrade.name}</Text>
+                <Text style={styles.muted}>requisito: {requirement} · {bonuses}</Text>
+                <Text style={styles.muted}>{unlocked ? 'desbloqueado permanentemente' : available ? 'disponível' : 'bloqueado'}</Text>
+              </View>
+              <LabButton
+                label={unlocked ? 'Desbloqueado' : 'Desbloquear'}
+                disabled={unlocked || !available}
+                onPress={() => unlockOssuaryUpgrade(upgrade.id)}
+              />
+            </View>
+          );
+        })}
+        <Text style={styles.label}>PREVIEW NO PERSONAGEM SELECIONADO</Text>
+        <Text style={styles.helper}>Preview artificial; os stats reais ainda não consomem bônus do Ossuary.</Text>
+        {OSSUARY_ROWS.map((row) => (
+          <View key={row.key} style={styles.attributeRow}>
+            <View style={styles.attributeIdentity}>
+              <Text style={styles.attributeLabel}>{row.label}</Text>
+              <Text style={styles.muted}>base {ossuaryBaseValues[row.key]}</Text>
+            </View>
+            <Text style={styles.attributeValue}>
+              +{ossuaryBonuses[row.key]}% → {ossuaryPreview[row.key].toFixed(1)}
+            </Text>
+          </View>
+        ))}
+        <Text style={styles.event}>{ossuaryEvent}</Text>
+      </LabSection>
+
+      <LabSection title="03 · Personagem">
         <Text style={styles.helper}>
           Party ativa: {summary.characterCount}/{PARTY_MAX_SIZE}. XP é
           concedido integralmente a todos os personagens ativos.
@@ -263,7 +337,7 @@ export function MechanicsLabScreen() {
         </View>
       </LabSection>
 
-      <LabSection title="03 · Controles de teste">
+      <LabSection title="04 · Controles de teste">
         <Text style={styles.helper}>
           O botão principal imita o caminho futuro: derrotar um monstro gera
           XP através do `packages/core`.
@@ -312,7 +386,7 @@ export function MechanicsLabScreen() {
         </Pressable>
       </LabSection>
 
-      <LabSection title="04 · Atributos">
+      <LabSection title="05 · Atributos">
         <Text style={styles.helper}>
           Level-up libera pontos; a escolha do atributo é manual e permanente.
           Os derivados de combate ainda não estão conectados.
@@ -343,7 +417,7 @@ export function MechanicsLabScreen() {
         ))}
       </LabSection>
 
-      <LabSection title="05 · Equipamento (teste)">
+      <LabSection title="06 · Equipamento (teste)">
         <Text style={styles.helper}>
           Equipamento pertence ao inventário e é movido atomicamente para o
           loadout. Este laboratório usa a mesma transição do jogo.
@@ -384,7 +458,7 @@ export function MechanicsLabScreen() {
         {replacementPreview && <Text style={styles.helper}>Preview da candidata: {replacementPreview.deltas.filter(({ delta }) => delta !== 0).map(({ stat, delta }) => `${String(stat)} ${delta > 0 ? '+' : ''}${delta}`).join(' · ') || 'sem delta'}</Text>}
       </LabSection>
 
-      <LabSection title="06 · Consumível (teste)">
+      <LabSection title="07 · Consumível (teste)">
         <Text style={styles.helper}>
           Usar consome uma unidade e ativa o bônus no personagem selecionado.
           O efeito pode ser removido explicitamente; não há duração automática.
@@ -409,7 +483,7 @@ export function MechanicsLabScreen() {
         />
       </LabSection>
 
-      <LabSection title="07 · Inventário (teste)">
+      <LabSection title="08 · Inventário (teste)">
         <Text style={styles.helper}>
           Capacidade de teste: {inventorySummary.usedSlots}/{inventorySummary.capacity} slots.
           Consumíveis empilham; equipamentos ocupam um slot individual. Cheio,

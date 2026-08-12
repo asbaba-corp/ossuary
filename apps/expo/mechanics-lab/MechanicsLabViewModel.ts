@@ -14,6 +14,9 @@ import type {
   Party,
   PartySummary,
   PrimaryAttribute,
+  OssuaryState,
+  OssuaryUpgradeDefinition,
+  OssuaryDerivedStat,
   SpellAutoCastEvent,
   SpellRuntimeState,
   SpellLoadout,
@@ -47,9 +50,23 @@ import {
   moveSpellPriority,
   setSpellEnabled,
   unequipSpell,
+  addOssuaryBones,
+  applyOssuaryBonuses,
+  canUnlockOssuaryUpgrade,
+  createOssuaryState,
+  getOssuaryBonuses,
+  recordOssuaryMilestone,
+  unlockOssuaryUpgrade,
   xpToNextLevel,
 } from '@ossuary/core';
-import { TEST_CONSUMABLE, TEST_CONSUMABLE_STACK, TEST_EQUIPMENT, TEST_SPELLS } from './lab-fixtures';
+import {
+  TEST_CONSUMABLE,
+  TEST_CONSUMABLE_STACK,
+  TEST_EQUIPMENT,
+  TEST_OSSUARY_BASE_VALUES,
+  TEST_OSSUARY_UPGRADES,
+  TEST_SPELLS,
+} from './lab-fixtures';
 import { equipFromInventory, getCharacterEquipmentStats, getReplacementPreview, rollTestDrop, unequipToInventory } from './lab-equipment-commands';
 
 const MONSTER_XP = 15;
@@ -117,6 +134,16 @@ export interface MechanicsLabViewModel {
   readonly unequipSpell: (spellId: string) => void;
   readonly setSpellEnabled: (spellId: string, enabled: boolean) => void;
   readonly moveSpellPriority: (spellId: string, direction: 'up' | 'down') => void;
+  readonly ossuary: OssuaryState;
+  readonly ossuaryUpgrades: readonly OssuaryUpgradeDefinition[];
+  readonly ossuaryBonuses: Readonly<Record<OssuaryDerivedStat, number>>;
+  readonly ossuaryBaseValues: Readonly<Record<OssuaryDerivedStat, number>>;
+  readonly ossuaryPreview: Readonly<Record<OssuaryDerivedStat, number>>;
+  readonly ossuaryEvent: string;
+  readonly addOssuaryBone: () => void;
+  readonly recordOssuaryMilestone: (amount: number) => void;
+  readonly unlockOssuaryUpgrade: (upgradeId: string) => void;
+  readonly canUnlockOssuaryUpgrade: (upgradeId: string) => boolean;
   readonly reset: () => void;
 }
 
@@ -156,6 +183,8 @@ export function useMechanicsLabViewModel(): MechanicsLabViewModel {
   const [spellAttempt, setSpellAttempt] = useState<ReturnType<typeof resolveSpellAttempt> | null>(null);
   const [spellRuntime, setSpellRuntime] = useState<SpellRuntimeState>(() => createSpellRuntimeState(100, 50));
   const [autoCastEvents, setAutoCastEvents] = useState<readonly SpellAutoCastEvent[]>([]);
+  const [ossuary, setOssuary] = useState<OssuaryState>(() => createOssuaryState());
+  const [ossuaryEvent, setOssuaryEvent] = useState('Nenhuma transição do Ossuary.');
   const dropRoll = useRef(0);
 
   const selectedCharacter = party.characters.find(({ id }) => id === selectedCharacterId) ?? party.characters[0];
@@ -185,6 +214,8 @@ export function useMechanicsLabViewModel(): MechanicsLabViewModel {
   const selectedSpellLoadout = spellLoadouts.find(({ characterId }) => characterId === selectedCharacter.id)?.loadout
     ?? createSpellLoadout(2);
   const enabledSpells = getEnabledSpellDefinitions(selectedSpellLoadout, TEST_SPELLS);
+  const ossuaryBonuses = getOssuaryBonuses(ossuary, TEST_OSSUARY_UPGRADES);
+  const ossuaryPreview = applyOssuaryBonuses(TEST_OSSUARY_BASE_VALUES, ossuaryBonuses);
 
   function applyExperience(amount: number, source: string) {
     const result = gainPartyExperience(party, amount);
@@ -378,6 +409,36 @@ export function useMechanicsLabViewModel(): MechanicsLabViewModel {
     }
   }
 
+  function addOssuaryBone() {
+    setOssuary((current) => addOssuaryBones(current, 1));
+    setOssuaryEvent('Osso de teste adicionado; ossos não são consumidos por upgrades.');
+  }
+
+  function recordOssuaryMilestoneCommand(amount: number) {
+    try {
+      setOssuary((current) => recordOssuaryMilestone(current, 'shadow-runner', amount));
+      setOssuaryEvent(`Marco shadow-runner +${amount} registrado.`);
+    } catch (error) {
+      setOssuaryEvent(error instanceof Error ? error.message : 'Não foi possível registrar o marco.');
+    }
+  }
+
+  function unlockOssuaryUpgradeCommand(upgradeId: string) {
+    const upgrade = TEST_OSSUARY_UPGRADES.find(({ id }) => id === upgradeId);
+    if (!upgrade) return;
+    try {
+      setOssuary((current) => unlockOssuaryUpgrade(current, upgrade));
+      setOssuaryEvent(`${upgrade.name} desbloqueado permanentemente.`);
+    } catch (error) {
+      setOssuaryEvent(error instanceof Error ? error.message : 'Não foi possível desbloquear o upgrade.');
+    }
+  }
+
+  function canUnlockOssuaryUpgradeCommand(upgradeId: string): boolean {
+    const upgrade = TEST_OSSUARY_UPGRADES.find(({ id }) => id === upgradeId);
+    return upgrade ? canUnlockOssuaryUpgrade(ossuary, upgrade) : false;
+  }
+
   function setSpellHpPercent(amount: number) {
     setSpellHpPercentState(Math.max(0, Math.min(100, Math.round(amount))));
   }
@@ -460,6 +521,8 @@ export function useMechanicsLabViewModel(): MechanicsLabViewModel {
     setSpellAttempt(null);
     setSpellRuntime(createSpellRuntimeState(100, 50));
     setAutoCastEvents([]);
+    setOssuary(createOssuaryState());
+    setOssuaryEvent('Nenhuma transição do Ossuary.');
     setLastEvent('Laboratório reiniciado.');
   }
 
@@ -526,6 +589,16 @@ export function useMechanicsLabViewModel(): MechanicsLabViewModel {
     unequipSpell: unequipSpellCommand,
     setSpellEnabled: setSpellEnabledCommand,
     moveSpellPriority: moveSpellPriorityCommand,
+    ossuary,
+    ossuaryUpgrades: TEST_OSSUARY_UPGRADES,
+    ossuaryBonuses,
+    ossuaryBaseValues: TEST_OSSUARY_BASE_VALUES,
+    ossuaryPreview,
+    ossuaryEvent,
+    addOssuaryBone,
+    recordOssuaryMilestone: recordOssuaryMilestoneCommand,
+    unlockOssuaryUpgrade: unlockOssuaryUpgradeCommand,
+    canUnlockOssuaryUpgrade: canUnlockOssuaryUpgradeCommand,
     reset,
   };
 }

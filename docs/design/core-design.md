@@ -731,6 +731,20 @@ Osso amplifica em vez de substituir: 200% de Penetração acumulada ainda exige 
 
 O Ossuary é **acumulativo e não gastável**. Não é loadout, não tem escolha excludente, não tem respec. É o único sistema do jogo sem sumidouro — e é assim que ele carrega o Pilar Um sozinho. Todo o resto pode ser gasto, drenado e reconfigurado; o ossuário só cresce.
 
+### 6.6 Domínio implementado
+
+O core possui um `OssuaryState` de conta com ossos, progresso de marcos por
+chave e IDs de upgrades desbloqueados. Requisitos de upgrade podem exigir
+ossos acumulados ou uma contagem mínima de marco; nenhum requisito consome
+ossos e cada upgrade só pode ser desbloqueado uma vez. Os bônus são definidos
+como percentuais sobre derivados (`vigor`, `damage`, `penetration`, `cadence`,
+`critical`, `reach`, `sustain` e `mana`) e são somados por derivado.
+
+O Laboratório possui fixtures artificiais para conceder osso, registrar o
+marco `shadow-runner`, desbloquear upgrades e exibir um preview numérico no
+personagem selecionado. O preview não altera os stats reais: a integração com
+o cálculo efetivo de derivados continua sendo uma etapa posterior.
+
 ---
 
 ## 7. Mapa de mundos
