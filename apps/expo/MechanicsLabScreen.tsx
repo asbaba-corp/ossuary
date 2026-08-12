@@ -33,6 +33,11 @@ const OSSUARY_ROWS: readonly { readonly key: OssuaryDerivedStat; readonly label:
   { key: 'mana', label: 'Mana' },
 ];
 
+const ECONOMY_ROWS = [
+  { key: 'gold', label: 'Ouro' },
+  { key: 'dust', label: 'Poeira' },
+] as const;
+
 export function MechanicsLabScreen() {
   const {
     party,
@@ -103,6 +108,13 @@ export function MechanicsLabScreen() {
     recordOssuaryMilestone,
     unlockOssuaryUpgrade,
     canUnlockOssuaryUpgrade,
+    economy,
+    economyEvent,
+    addTestGold,
+    spendTestGold,
+    addTestDust,
+    recordTestRunIncome,
+    recordTestRunExpense,
     reset,
   } = useMechanicsLabViewModel();
 
@@ -289,7 +301,41 @@ export function MechanicsLabScreen() {
         <Text style={styles.event}>{ossuaryEvent}</Text>
       </LabSection>
 
-      <LabSection title="03 · Personagem">
+      <LabSection title="03 · Economia (teste)">
+        <Text style={styles.helper}>
+          Conta e run são saldos diferentes. Débitos da conta exigem fundos;
+          despesas da run podem deixar o saldo líquido negativo. As operações
+          abaixo são fixtures e não representam loot ou loja.
+        </Text>
+        {ECONOMY_ROWS.map((row) => (
+          <View key={row.key} style={styles.attributeRow}>
+            <View style={styles.attributeIdentity}>
+              <Text style={styles.attributeLabel}>{row.label}</Text>
+              <Text style={styles.muted}>conta</Text>
+            </View>
+            <Text style={styles.attributeValue}>{economy.account[row.key] ?? 0}</Text>
+          </View>
+        ))}
+        <View style={styles.spellActions}>
+          <LabButton label="Conta +100 ouro" onPress={addTestGold} />
+          <LabButton label="Conta -25 ouro" onPress={spendTestGold} />
+          <LabButton label="Conta +1 poeira" onPress={addTestDust} />
+        </View>
+        <View style={styles.pointsCard}>
+          <View>
+            <Text style={styles.pointsTitle}>Saldo da run · ouro</Text>
+            <Text style={styles.muted}>receita {economy.runIncome.gold ?? 0} · despesa {economy.runExpenses.gold ?? 0}</Text>
+          </View>
+          <Text style={styles.pointsValue}>{(economy.runIncome.gold ?? 0) - (economy.runExpenses.gold ?? 0)}</Text>
+        </View>
+        <View style={styles.spellActions}>
+          <LabButton label="Run +100 ouro" onPress={recordTestRunIncome} />
+          <LabButton label="Run -125 ouro" onPress={recordTestRunExpense} />
+        </View>
+        <Text style={styles.event}>{economyEvent}</Text>
+      </LabSection>
+
+      <LabSection title="04 · Personagem">
         <Text style={styles.helper}>
           Party ativa: {summary.characterCount}/{PARTY_MAX_SIZE}. XP é
           concedido integralmente a todos os personagens ativos.
@@ -337,7 +383,7 @@ export function MechanicsLabScreen() {
         </View>
       </LabSection>
 
-      <LabSection title="04 · Controles de teste">
+      <LabSection title="05 · Controles de teste">
         <Text style={styles.helper}>
           O botão principal imita o caminho futuro: derrotar um monstro gera
           XP através do `packages/core`.
@@ -386,7 +432,7 @@ export function MechanicsLabScreen() {
         </Pressable>
       </LabSection>
 
-      <LabSection title="05 · Atributos">
+      <LabSection title="06 · Atributos">
         <Text style={styles.helper}>
           Level-up libera pontos; a escolha do atributo é manual e permanente.
           Os derivados de combate ainda não estão conectados.
@@ -417,7 +463,7 @@ export function MechanicsLabScreen() {
         ))}
       </LabSection>
 
-      <LabSection title="06 · Equipamento (teste)">
+      <LabSection title="07 · Equipamento (teste)">
         <Text style={styles.helper}>
           Equipamento pertence ao inventário e é movido atomicamente para o
           loadout. Este laboratório usa a mesma transição do jogo.
@@ -458,7 +504,7 @@ export function MechanicsLabScreen() {
         {replacementPreview && <Text style={styles.helper}>Preview da candidata: {replacementPreview.deltas.filter(({ delta }) => delta !== 0).map(({ stat, delta }) => `${String(stat)} ${delta > 0 ? '+' : ''}${delta}`).join(' · ') || 'sem delta'}</Text>}
       </LabSection>
 
-      <LabSection title="07 · Consumível (teste)">
+      <LabSection title="08 · Consumível (teste)">
         <Text style={styles.helper}>
           Usar consome uma unidade e ativa o bônus no personagem selecionado.
           O efeito pode ser removido explicitamente; não há duração automática.
@@ -483,7 +529,7 @@ export function MechanicsLabScreen() {
         />
       </LabSection>
 
-      <LabSection title="08 · Inventário (teste)">
+      <LabSection title="09 · Inventário (teste)">
         <Text style={styles.helper}>
           Capacidade de teste: {inventorySummary.usedSlots}/{inventorySummary.capacity} slots.
           Consumíveis empilham; equipamentos ocupam um slot individual. Cheio,

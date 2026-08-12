@@ -683,7 +683,20 @@ E o custo do slot deve escalar forte. O slot 2 precisa ser alcançável ainda no
 
 **Regra que atravessa tudo:** ouro compra *acesso, manutenção e conveniência* — nunca poder direto. Poder vem de nível, equipamento e osso. Quebrar essa regra transforma o jogo em pay-to-win no momento em que ouro virar comprável com dinheiro real.
 
-### 5.6 A curva sem prestige
+### 5.6 Domínio de recursos implementado
+
+O core possui um `EconomyState` que separa saldos permanentes da conta dos
+acumuladores de receita e despesa da run. Recursos são identificados por
+`resourceId`; ouro, poeira, material e preço de guardião têm IDs de
+conveniência, mas o domínio não conhece suas origens ou destinos.
+
+Transações declaram escopo, recurso, direção, valor e motivo. Débito da conta
+exige saldo suficiente; despesa da run pode deixar o saldo líquido negativo.
+Lotes são validados de forma atômica e retornam eventos auditáveis sem manter
+um log dentro do estado. O Lab possui operações artificiais de conta e run
+para validar essas regras, sem loja, loot ou poções.
+
+### 5.7 A curva sem prestige
 
 Sem reset, os números crescem monotonicamente para sempre. A curva é projetada para **anos, não para um ciclo**.
 

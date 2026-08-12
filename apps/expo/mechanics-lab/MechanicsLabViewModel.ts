@@ -17,6 +17,7 @@ import type {
   OssuaryState,
   OssuaryUpgradeDefinition,
   OssuaryDerivedStat,
+  EconomyState,
   SpellAutoCastEvent,
   SpellRuntimeState,
   SpellLoadout,
@@ -57,6 +58,10 @@ import {
   getOssuaryBonuses,
   recordOssuaryMilestone,
   unlockOssuaryUpgrade,
+  applyEconomyTransaction,
+  createEconomyState,
+  DUST_RESOURCE,
+  GOLD_RESOURCE,
   xpToNextLevel,
 } from '@ossuary/core';
 import {
@@ -144,6 +149,13 @@ export interface MechanicsLabViewModel {
   readonly recordOssuaryMilestone: (amount: number) => void;
   readonly unlockOssuaryUpgrade: (upgradeId: string) => void;
   readonly canUnlockOssuaryUpgrade: (upgradeId: string) => boolean;
+  readonly economy: EconomyState;
+  readonly economyEvent: string;
+  readonly addTestGold: () => void;
+  readonly spendTestGold: () => void;
+  readonly addTestDust: () => void;
+  readonly recordTestRunIncome: () => void;
+  readonly recordTestRunExpense: () => void;
   readonly reset: () => void;
 }
 
@@ -185,6 +197,8 @@ export function useMechanicsLabViewModel(): MechanicsLabViewModel {
   const [autoCastEvents, setAutoCastEvents] = useState<readonly SpellAutoCastEvent[]>([]);
   const [ossuary, setOssuary] = useState<OssuaryState>(() => createOssuaryState());
   const [ossuaryEvent, setOssuaryEvent] = useState('Nenhuma transição do Ossuary.');
+  const [economy, setEconomy] = useState<EconomyState>(() => createEconomyState());
+  const [economyEvent, setEconomyEvent] = useState('Nenhuma transação de economia.');
   const dropRoll = useRef(0);
 
   const selectedCharacter = party.characters.find(({ id }) => id === selectedCharacterId) ?? party.characters[0];
@@ -439,6 +453,54 @@ export function useMechanicsLabViewModel(): MechanicsLabViewModel {
     return upgrade ? canUnlockOssuaryUpgrade(ossuary, upgrade) : false;
   }
 
+  function runEconomyTransaction(
+    transaction: Parameters<typeof applyEconomyTransaction>[1],
+    message: string,
+  ) {
+    try {
+      const result = applyEconomyTransaction(economy, transaction);
+      setEconomy(result.state);
+      setEconomyEvent(`${message} · saldo ${result.event.balanceAfter} · run ${result.event.runBalanceAfter}`);
+    } catch (error) {
+      setEconomyEvent(error instanceof Error ? error.message : 'Não foi possível executar a transação.');
+    }
+  }
+
+  function addTestGold() {
+    runEconomyTransaction(
+      { scope: 'account', resourceId: GOLD_RESOURCE, direction: 'credit', amount: 100, reason: 'fixture: ouro de teste' },
+      'Conta +100 ouro',
+    );
+  }
+
+  function spendTestGold() {
+    runEconomyTransaction(
+      { scope: 'account', resourceId: GOLD_RESOURCE, direction: 'debit', amount: 25, reason: 'fixture: gasto de teste' },
+      'Conta -25 ouro',
+    );
+  }
+
+  function addTestDust() {
+    runEconomyTransaction(
+      { scope: 'account', resourceId: DUST_RESOURCE, direction: 'credit', amount: 1, reason: 'fixture: poeira de teste' },
+      'Conta +1 poeira',
+    );
+  }
+
+  function recordTestRunIncome() {
+    runEconomyTransaction(
+      { scope: 'run', resourceId: GOLD_RESOURCE, direction: 'credit', amount: 100, reason: 'fixture: receita da run' },
+      'Run +100 ouro',
+    );
+  }
+
+  function recordTestRunExpense() {
+    runEconomyTransaction(
+      { scope: 'run', resourceId: GOLD_RESOURCE, direction: 'debit', amount: 125, reason: 'fixture: despesa da run' },
+      'Run -125 ouro',
+    );
+  }
+
   function setSpellHpPercent(amount: number) {
     setSpellHpPercentState(Math.max(0, Math.min(100, Math.round(amount))));
   }
@@ -523,6 +585,8 @@ export function useMechanicsLabViewModel(): MechanicsLabViewModel {
     setAutoCastEvents([]);
     setOssuary(createOssuaryState());
     setOssuaryEvent('Nenhuma transição do Ossuary.');
+    setEconomy(createEconomyState());
+    setEconomyEvent('Nenhuma transação de economia.');
     setLastEvent('Laboratório reiniciado.');
   }
 
@@ -599,6 +663,13 @@ export function useMechanicsLabViewModel(): MechanicsLabViewModel {
     recordOssuaryMilestone: recordOssuaryMilestoneCommand,
     unlockOssuaryUpgrade: unlockOssuaryUpgradeCommand,
     canUnlockOssuaryUpgrade: canUnlockOssuaryUpgradeCommand,
+    economy,
+    economyEvent,
+    addTestGold,
+    spendTestGold,
+    addTestDust,
+    recordTestRunIncome,
+    recordTestRunExpense,
     reset,
   };
 }
