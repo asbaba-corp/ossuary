@@ -191,6 +191,12 @@ Com R4, dois aparelhos podem jogar offline ao mesmo tempo. Regra simples e defen
 
 `version: number` em todo save, cadeia de migrações `v(n) → v(n+1)`. Com contas no servidor, você ganha uma vantagem: pode migrar em lote, do lado do servidor, sem esperar o jogador abrir o app. Mas a migração precisa existir de qualquer forma.
 
+O primeiro corte vertical implementa `SerializedSave` v1 no `packages/core`,
+com validação antes de desserializar. O core oferece `MemorySaveStore`; o app
+usa `ExpoSaveStore`, com `localStorage` no web e AsyncStorage no mobile. A
+sincronização remota e o schema de banco permanecem planejados para a etapa de
+contas; o ambiente dev atual persiste apenas localmente.
+
 ---
 
 ## 6. A consequência de não ter prestige

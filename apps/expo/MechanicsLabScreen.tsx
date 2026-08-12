@@ -14,7 +14,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import { useMechanicsLabViewModel } from './mechanics-lab/MechanicsLabViewModel';
+import { useMechanicsLabViewModel, type LabTab } from './mechanics-lab/MechanicsLabViewModel';
 
 const ATTRIBUTE_ROWS: readonly {
   readonly key: PrimaryAttribute;
@@ -41,6 +41,15 @@ const ECONOMY_ROWS = [
 
 export function MechanicsLabScreen() {
   const {
+    activeTab,
+    selectTab,
+    gameState,
+    gameStateEvent,
+    gameStateLog,
+    startGameRun,
+    tickGameRun,
+    resolveGameRun,
+    resetGameRun,
     party,
     partyCharacters,
     summary,
@@ -151,6 +160,63 @@ export function MechanicsLabScreen() {
         </Text>
       </View>
 
+      <View style={styles.tabBar}>
+        {([
+          ['run', 'Run / GameState'],
+          ['character', 'Personagem'],
+          ['systems', 'Sistemas'],
+          ['combat', 'Combate'],
+        ] as const).map(([tab, label]) => (
+          <Pressable
+            key={tab}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: activeTab === tab }}
+            onPress={() => selectTab(tab as LabTab)}
+            style={[styles.tab, activeTab === tab && styles.tabActive]}
+          >
+            <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>{label}</Text>
+          </Pressable>
+        ))}
+      </View>
+
+      {activeTab === 'run' && (
+        <LabSection title="Run / GameState">
+          <Text style={styles.helper}>
+            Este é o caminho mais próximo do jogo real: iniciar uma run, aplicar
+            ticks de caminhada/combate e observar recompensas, checkpoint e
+            desbloqueios. Cada clique avança 1 segundo com seed fixa.
+          </Text>
+          <View style={styles.runSummary}>
+            <View><Text style={styles.label}>STATUS</Text><Text style={styles.runValue}>{gameState.run?.status ?? 'sem run'}</Text></View>
+            <View><Text style={styles.label}>FASE</Text><Text style={styles.runValue}>{gameState.run?.phaseId ?? gameState.world.selectedFarmPhaseId}</Text></View>
+            <View><Text style={styles.label}>WAVE</Text><Text style={styles.runValue}>{gameState.run ? gameState.run.waveIndex + 1 : '—'}</Text></View>
+          </View>
+          <View style={styles.runSummary}>
+            <View><Text style={styles.label}>OURO</Text><Text style={styles.runValue}>{gameState.economy.account.gold ?? 0}</Text></View>
+            <View><Text style={styles.label}>FASES ABERTAS</Text><Text style={styles.runValue}>{gameState.world.unlockedPhaseIds.length}</Text></View>
+            <View><Text style={styles.label}>RECOMPENSAS</Text><Text style={styles.runValue}>{gameState.run?.checkpoint.appliedRewardIds.length ?? 0}</Text></View>
+          </View>
+          <View style={styles.spellActions}>
+            <LabButton
+              label={gameState.run && gameState.run.status !== 'completed' ? 'Continuar run' : 'Iniciar run'}
+              onPress={gameState.run && gameState.run.status !== 'completed' ? tickGameRun : startGameRun}
+            />
+            <LabButton label="Avançar 1s" onPress={tickGameRun} disabled={!gameState.run || gameState.run.status === 'completed'} />
+            <LabButton label="Resolver run" onPress={resolveGameRun} disabled={!gameState.run || gameState.run.status === 'completed'} />
+            <LabButton label="Reiniciar run" onPress={resetGameRun} />
+          </View>
+          <Text style={styles.event}>{gameStateEvent}</Text>
+          <Text style={styles.label}>LOG DOS TICKS</Text>
+          <ScrollView style={styles.gameLog} nestedScrollEnabled>
+            {gameStateLog.length === 0 ? <Text style={styles.muted}>Nenhum tick executado.</Text> : gameStateLog.map((entry, index) => (
+              <Text key={`${entry}-${index}`} style={styles.debugNote}>{entry}</Text>
+            ))}
+          </ScrollView>
+          <Text style={styles.debugNote}>Teste recomendado: iniciar → avançar ticks → observar walking, combat, victory e recompensas no log.</Text>
+        </LabSection>
+      )}
+
+      {activeTab === 'systems' && <>
       <LabSection title="01 · Spells (teste isolado)">
         <Text style={styles.helper}>
           Este painel testa apenas a mecânica pura de auto-cast: gatilho, mana,
@@ -343,7 +409,9 @@ export function MechanicsLabScreen() {
         </View>
         <Text style={styles.event}>{economyEvent}</Text>
       </LabSection>
+      </>}
 
+      {activeTab === 'combat' && <>
       <LabSection title="04 · Combate (teste isolado)">
         <Text style={styles.helper}>
           Este painel executa somente o domínio determinístico de combate físico.
@@ -386,7 +454,9 @@ export function MechanicsLabScreen() {
           )}
         </ScrollView>
       </LabSection>
+      </>}
 
+      {activeTab === 'character' && <>
       <LabSection title="05 · Personagem">
         <Text style={styles.helper}>
           Party ativa: {summary.characterCount}/{PARTY_MAX_SIZE}. XP é
@@ -628,6 +698,7 @@ export function MechanicsLabScreen() {
           </View>
         ))}
       </LabSection>
+      </>}
     </ScrollView>
   );
 }
@@ -746,6 +817,50 @@ const styles = StyleSheet.create({
     color: '#b9a891',
     fontSize: 12,
     lineHeight: 18,
+  },
+  tabBar: {
+    backgroundColor: '#17151a',
+    borderColor: '#2e2930',
+    borderRadius: 8,
+    borderWidth: 1,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    padding: 6,
+  },
+  tab: {
+    borderRadius: 5,
+    flexGrow: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+  },
+  tabActive: {
+    backgroundColor: '#2b3b29',
+  },
+  tabText: {
+    color: '#766b61',
+    fontSize: 11,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  tabTextActive: {
+    color: '#c4d9a8',
+  },
+  runSummary: {
+    backgroundColor: '#211d16',
+    borderColor: '#45351f',
+    borderRadius: 6,
+    borderWidth: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+    padding: 10,
+  },
+  runValue: {
+    color: '#e6aa67',
+    fontSize: 13,
+    fontWeight: '800',
+    marginTop: 4,
   },
   section: {
     backgroundColor: '#17151a',
@@ -919,6 +1034,14 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     borderWidth: 1,
     maxHeight: 220,
+    padding: 8,
+  },
+  gameLog: {
+    backgroundColor: '#100f12',
+    borderColor: '#2e2930',
+    borderRadius: 5,
+    borderWidth: 1,
+    maxHeight: 180,
     padding: 8,
   },
   pointsValue: {

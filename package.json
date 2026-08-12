@@ -7,7 +7,7 @@
     "typecheck": "pnpm -r typecheck",
     "build:core": "pnpm --filter @ossuary/core build",
     "build:web": "pnpm --filter @ossuary/app exec expo export --platform web",
-    "web": "pnpm --filter @ossuary/app web"
+    "web": "bash scripts/dev-web.sh"
   },
   "devDependencies": {
     "typescript": "^5.6.3"
