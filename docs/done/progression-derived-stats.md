@@ -15,7 +15,8 @@
 ## Limites preservados
 
 - As fórmulas usadas no Lab são fixtures provisórias, não balanceamento final.
-- O snapshot ainda não é consumido por `resolveCombat`.
+- O snapshot passou a ser consumido pelo adaptador de combate; as fórmulas do
+  Lab continuam provisórias.
 - Não foram adicionados inimigos, loot, loop idle, save ou conteúdo concreto.
 
 ## Verificação executada

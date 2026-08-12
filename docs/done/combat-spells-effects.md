@@ -2,8 +2,8 @@
 
 ## Entregue
 
-- Combatentes podem carregar loadout, definições, mana inicial/máxima e dados
-  de escala de spells.
+- Combatentes carregam loadout, mana inicial/máxima e dados de escala; as
+  definições são resolvidas por `CombatContentContext`.
 - Cada tick avança cooldowns, avalia autocast pela prioridade e registra
   tentativas, falhas por mana/cooldown e casts executados.
 - Spells de dano afetam o alvo vivo estável e podem encerrar o combate.

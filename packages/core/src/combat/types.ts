@@ -1,4 +1,4 @@
-import type { SpellAttemptReason, SpellDefinition } from "../spells.js";
+import type { SpellAttemptReason } from "../spells.js";
 import type { SpellLoadout } from "../spell-loadout.js";
 
 export type CombatSide = "party" | "enemy";
@@ -25,7 +25,6 @@ export interface CombatantSnapshot {
 
 export interface CombatSpellSetup {
   readonly loadout: SpellLoadout;
-  readonly definitions: readonly SpellDefinition[];
   readonly maxMana: number;
   readonly initialMana?: number;
   readonly int: number;

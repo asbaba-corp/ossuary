@@ -1,5 +1,6 @@
 import { resolveAutoCastOpportunity } from "../spell-runtime.js";
 import { calculateCombatDamage } from "./damage.js";
+import { resolveCombatSpell, type CombatContentContext } from "./content.js";
 import type {
   CombatEvent,
   CombatResolution,
@@ -30,6 +31,7 @@ export function createCombatState(
 export function advanceCombatTick(
   state: CombatState,
   rules: CombatRules,
+  content: CombatContentContext,
 ): CombatTickResult {
   assertRules(rules);
   if (state.outcome !== "in_progress") return { state, events: [] };
@@ -47,7 +49,7 @@ export function advanceCombatTick(
     let attacker = findCombatant(combatants, originalAttacker.snapshot.id);
     if (attacker.hp <= 0) continue;
 
-    const spellResult = castAvailableSpell(attacker, combatants, state.seed, tick, rules);
+    const spellResult = castAvailableSpell(attacker, combatants, state.seed, tick, rules, content);
     combatants = spellResult.combatants;
     events.push(...spellResult.events);
     attacker = findCombatant(combatants, attacker.snapshot.id);
@@ -113,12 +115,13 @@ export function resolveCombat(
   initialState: CombatState,
   rules: CombatRules,
   maxTicks: number,
+  content: CombatContentContext,
 ): CombatResolution {
   if (!Number.isInteger(maxTicks) || maxTicks < 0) throw new RangeError("maxTicks deve ser inteiro não negativo");
   let state = initialState;
   const events: CombatEvent[] = [];
   for (let index = 0; index < maxTicks && state.outcome === "in_progress"; index += 1) {
-    const result = advanceCombatTick(state, rules);
+    const result = advanceCombatTick(state, rules, content);
     state = result.state;
     events.push(...result.events);
   }
@@ -131,6 +134,7 @@ function castAvailableSpell(
   seed: number | string,
   tick: number,
   rules: CombatRules,
+  content: CombatContentContext,
 ): { readonly combatants: CombatantState[]; readonly events: readonly CombatEvent[] } {
   const setup = attacker.snapshot.spells;
   if (!setup) return { combatants: [...combatants], events: [] };
@@ -140,7 +144,8 @@ function castAvailableSpell(
     maxMana: attacker.maxMana,
     cooldowns: attacker.spellCooldowns,
   };
-  const result = resolveAutoCastOpportunity(setup.loadout, setup.definitions, runtime, {
+  const definitions = setup.loadout.entries.map(({ spellId }) => resolveCombatSpell(content, spellId));
+  const result = resolveAutoCastOpportunity(setup.loadout, definitions, runtime, {
     hpPercent: attacker.hp / attacker.snapshot.stats.maxHp * 100,
     enemyCount: combatants.filter((candidate) => candidate.hp > 0 && candidate.snapshot.side !== attacker.snapshot.side).length,
     int: setup.int,
@@ -156,7 +161,7 @@ function castAvailableSpell(
     casterId: attacker.snapshot.id,
     spellId,
     reason: attempt.reason,
-    effect: attempt.reason === "fired" ? setup.definitions.find((definition) => definition.id === spellId)?.effect.kind ?? null : null,
+    effect: attempt.reason === "fired" ? definitions.find((definition) => definition.id === spellId)?.effect.kind ?? null : null,
     targetId: null,
     power: attempt.power,
     manaAfter: attempt.manaAfter,
@@ -165,7 +170,7 @@ function castAvailableSpell(
   const fired = result.events.find(({ result: attempt }) => attempt.reason === "fired");
   if (!fired) return { combatants: nextCombatants, events };
 
-  const definition = setup.definitions.find((candidate) => candidate.id === fired.spellId);
+  const definition = definitions.find((candidate) => candidate.id === fired.spellId);
   if (!definition) return { combatants: nextCombatants, events };
   const target = findLivingTarget(nextCombatants, attacker);
   if (definition.effect.kind === "damage" && target && fired.result.power !== null) {

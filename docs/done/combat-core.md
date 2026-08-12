@@ -8,13 +8,15 @@
 - Resolução limitada por quantidade máxima de ticks, com `victory` e `defeat`.
 - Mana, cooldown e autocast por prioridade de loadout.
 - Spells de dano, proteção temporária e controle temporário.
+- Conteúdo de spells é fornecido por contexto explícito; snapshots carregam
+  somente configuração e valores derivados.
 - Painel de teste no Lab com presets artificiais de vitória e derrota, avanço
   manual, resolução completa, HP, mana, efeitos, tempo, resultado e log.
 
 ## Fora deste milestone
 
-Ondas, loot, recompensas, recuo, game loop, bestiário, persistência e
-integração de party real continuam fora do núcleo.
+Ondas, loot, recompensas, recuo, game loop, bestiário e persistência continuam
+fora do núcleo.
 
 ## Verificação
 

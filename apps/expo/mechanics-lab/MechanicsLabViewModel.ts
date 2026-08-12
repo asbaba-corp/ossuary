@@ -13,6 +13,7 @@ import type {
   ItemStack,
   Party,
   PartySummary,
+  RosterState,
   PrimaryAttribute,
   OssuaryState,
   OssuaryUpgradeDefinition,
@@ -36,8 +37,11 @@ import {
   createItemEffectState,
   createItemStack,
   createParty,
+  createRoster,
   findItemStack,
   gainPartyExperience,
+  createCombatantsFromParty,
+  createCombatContentContext,
   getEffectiveCharacterAttributes,
   getPartySummary,
   getInventorySummary,
@@ -70,7 +74,6 @@ import {
   advanceCombatTick,
   createCombatState,
   resolveCombat,
-  createCombatantFromCharacter,
 } from '@ossuary/core';
 import {
   TEST_CONSUMABLE,
@@ -81,7 +84,7 @@ import {
   TEST_SPELLS,
   TEST_COMBAT_PRESETS,
   TEST_COMBAT_RULES,
-  TEST_PARTY_COMBAT_ENEMY,
+  TEST_PARTY_COMBAT_ENEMIES,
 } from './lab-fixtures';
 import { equipFromInventory, getCharacterEquipmentStats, getReplacementPreview, rollTestDrop, unequipToInventory } from './lab-equipment-commands';
 
@@ -91,10 +94,11 @@ const MAX_TEST_XP = 500;
 
 export interface MechanicsLabViewModel {
   readonly party: Party;
+  readonly partyCharacters: readonly ReturnType<typeof createCharacter>[];
   readonly loadouts: readonly CharacterLoadout[];
   readonly summary: PartySummary;
   readonly selectedCharacterId: string;
-  readonly selectedCharacter: Party['characters'][number];
+  readonly selectedCharacter: ReturnType<typeof createCharacter>;
   readonly selectedLoadout: CharacterLoadout;
   readonly effectiveAttributes: CharacterAttributes;
   readonly effectiveStats: EffectiveCharacterStats;
@@ -185,13 +189,9 @@ export interface MechanicsLabViewModel {
  * `useState` nem chama regras do core diretamente.
  */
 export function useMechanicsLabViewModel(): MechanicsLabViewModel {
+  const initialCharacter = createCharacter('character-1', 'Sem-Nome');
+  const [roster, setRoster] = useState<RosterState>(() => createRoster(initialCharacter));
   const [party, setParty] = useState<Party>(() => createParty());
-  const [loadouts, setLoadouts] = useState<readonly CharacterLoadout[]>(() => [
-    createCharacterLoadout('character-1'),
-  ]);
-  const [spellLoadouts, setSpellLoadouts] = useState<readonly { characterId: string; loadout: SpellLoadout }[]>(() => [
-    { characterId: 'character-1', loadout: createSpellLoadout(2) },
-  ]);
   const [testConsumable, setTestConsumable] = useState<ItemStack>(() =>
     TEST_CONSUMABLE_STACK,
   );
@@ -223,8 +223,9 @@ export function useMechanicsLabViewModel(): MechanicsLabViewModel {
   const [combatResolutionMessage, setCombatResolutionMessage] = useState('Nenhum tick de combate executado.');
   const dropRoll = useRef(0);
 
-  const selectedCharacter = party.characters.find(({ id }) => id === selectedCharacterId) ?? party.characters[0];
-  const selectedLoadout = loadouts.find(({ characterId }) => characterId === selectedCharacter.id) ?? createCharacterLoadout(selectedCharacter.id);
+  const selectedCharacter = roster.characters.find(({ id }) => id === selectedCharacterId && party.characterIds.includes(id)) ?? roster.characters[0];
+  const partyCharacters = party.characterIds.map((id) => roster.characters.find((character) => character.id === id)).filter((character): character is ReturnType<typeof createCharacter> => character !== undefined);
+  const selectedLoadout = roster.equipmentLoadouts[selectedCharacter.id] ?? createCharacterLoadout(selectedCharacter.id);
   const effectiveAttributes = getEffectiveCharacterAttributes(
     selectedCharacter,
     selectedLoadout,
@@ -241,14 +242,13 @@ export function useMechanicsLabViewModel(): MechanicsLabViewModel {
         activeItemEffects,
       )
     : null;
-  const summary = getPartySummary(party);
+  const summary = getPartySummary(roster, party);
   const inventorySummary = getInventorySummary(inventory);
   const nextLevelXp = xpToNextLevel(selectedCharacter.progress.level);
   const xpPercent = Math.min(100, (selectedCharacter.progress.xp / nextLevelXp) * 100);
   const selectedSpell = TEST_SPELLS.find(({ id }) => id === selectedSpellId) ?? TEST_SPELLS[0];
   const availableSpellIds = TEST_SPELLS.map(({ id }) => id);
-  const selectedSpellLoadout = spellLoadouts.find(({ characterId }) => characterId === selectedCharacter.id)?.loadout
-    ?? createSpellLoadout(2);
+  const selectedSpellLoadout = roster.spellLoadouts[selectedCharacter.id] ?? createSpellLoadout(2);
   const enabledSpells = getEnabledSpellDefinitions(selectedSpellLoadout, TEST_SPELLS);
   const ossuaryBonuses = getOssuaryBonuses(ossuary, TEST_OSSUARY_UPGRADES);
   const derivedStats = calculateCharacterDerivedStats({
@@ -259,8 +259,9 @@ export function useMechanicsLabViewModel(): MechanicsLabViewModel {
   });
 
   function applyExperience(amount: number, source: string) {
-    const result = gainPartyExperience(party, amount);
+    const result = gainPartyExperience(roster, party, amount);
     setParty(result.party);
+    setRoster(result.roster);
     const levelsGained = result.levelsGainedByCharacter[selectedCharacterId];
     setLastEvent(
       levelsGained > 0
@@ -285,19 +286,19 @@ export function useMechanicsLabViewModel(): MechanicsLabViewModel {
 
   function allocate(attribute: PrimaryAttribute) {
     if (selectedCharacter.progress.unspentAttributePoints === 0) return;
-    setParty(allocatePartyAttributePoint(party, selectedCharacterId, attribute));
+    setRoster(allocatePartyAttributePoint(roster, party, selectedCharacterId, attribute));
     setLastEvent(`Ponto distribuído · ${attribute.toUpperCase()} +1`);
   }
 
   function selectCharacter(id: string) {
-    if (party.characters.some((character) => character.id === id)) setSelectedCharacterId(id);
+    if (party.characterIds.includes(id)) setSelectedCharacterId(id);
   }
 
   function recruitCharacter() {
-    const id = `character-${party.characters.length + 1}`;
-    setParty(addCharacter(party, createCharacter(id, `Personagem ${party.characters.length + 1}`)));
-    setLoadouts((current) => [...current, createCharacterLoadout(id)]);
-    setSpellLoadouts((current) => [...current, { characterId: id, loadout: createSpellLoadout(2) }]);
+    const id = `character-${roster.characters.length + 1}`;
+    const result = addCharacter(roster, party, createCharacter(id, `Personagem ${roster.characters.length + 1}`));
+    setRoster(result.roster);
+    setParty(result.party);
     setSelectedCharacterId(id);
     setLastEvent('Novo personagem recrutado no nível 1.');
   }
@@ -311,7 +312,7 @@ export function useMechanicsLabViewModel(): MechanicsLabViewModel {
         : addItem(inventory, createItemStack(equipment, 1));
       const result = equipFromInventory(inventoryWithCandidate, selectedLoadout, instanceId);
       setInventory(result.inventory);
-      setLoadouts((current) => current.map((loadout) => loadout.characterId === selectedCharacter.id ? result.loadout : loadout));
+      setRoster((current) => ({ ...current, equipmentLoadouts: { ...current.equipmentLoadouts, [selectedCharacter.id]: result.loadout } }));
       setLastEvent(`${result.loadout.equipped[result.loadout.equipped[candidateSlot(result.loadout, instanceId)]?.slot ?? 'weapon']?.name ?? 'Equipamento'} equipado em ${selectedCharacter.name}.`);
     } catch (error) {
       setLastEvent(error instanceof Error ? error.message : 'Não foi possível equipar o equipamento.');
@@ -322,7 +323,7 @@ export function useMechanicsLabViewModel(): MechanicsLabViewModel {
     try {
       const result = unequipToInventory(inventory, selectedLoadout, slot);
       setInventory(result.inventory);
-      setLoadouts((current) => current.map((loadout) => loadout.characterId === selectedCharacter.id ? result.loadout : loadout));
+      setRoster((current) => ({ ...current, equipmentLoadouts: { ...current.equipmentLoadouts, [selectedCharacter.id]: result.loadout } }));
       setLastEvent(`Slot ${slot} liberado em ${selectedCharacter.name}.`);
     } catch (error) {
       setLastEvent(error instanceof Error ? error.message : 'Não foi possível desequipar.');
@@ -400,9 +401,7 @@ export function useMechanicsLabViewModel(): MechanicsLabViewModel {
   }
 
   function updateSelectedSpellLoadout(update: (loadout: SpellLoadout) => SpellLoadout, event: string) {
-    setSpellLoadouts((current) => current.map((entry) => entry.characterId === selectedCharacter.id
-      ? { ...entry, loadout: update(entry.loadout) }
-      : entry));
+    setRoster((current) => ({ ...current, spellLoadouts: { ...current.spellLoadouts, [selectedCharacter.id]: update(current.spellLoadouts[selectedCharacter.id] ?? createSpellLoadout(2)) } }));
     setSpellConfigEvent(event);
   }
 
@@ -529,17 +528,13 @@ export function useMechanicsLabViewModel(): MechanicsLabViewModel {
   }
 
   function createSelectedPartyCombatState(): CombatState {
-    const snapshot = createCombatantFromCharacter({
-      character: selectedCharacter,
-      equipment: selectedLoadout,
-      spells: selectedSpellLoadout,
-      spellDefinitions: TEST_SPELLS,
+    const snapshots = createCombatantsFromParty(roster, party, {
+      side: 'party',
       itemEffects: activeItemEffects,
       formulas: TEST_DERIVED_FORMULAS,
       ossuaryBonuses,
-      side: 'party',
     });
-    return createCombatState([snapshot, TEST_PARTY_COMBAT_ENEMY], 'lab-party-combat-seed');
+    return createCombatState([...snapshots, ...TEST_PARTY_COMBAT_ENEMIES], 'lab-party-combat-seed');
   }
 
   function createCombatStateForPreset(preset: 'party' | 'victory' | 'defeat' | 'effects'): CombatState {
@@ -561,7 +556,7 @@ export function useMechanicsLabViewModel(): MechanicsLabViewModel {
   }
 
   function advanceCombatTickCommand() {
-    const result = advanceCombatTick(combatState, TEST_COMBAT_RULES);
+    const result = advanceCombatTick(combatState, TEST_COMBAT_RULES, createCombatContentContext(TEST_SPELLS));
     setCombatState(result.state);
     setCombatEvents((current) => [...current, ...result.events]);
     setCombatResolutionMessage(result.state.outcome === 'in_progress'
@@ -570,7 +565,7 @@ export function useMechanicsLabViewModel(): MechanicsLabViewModel {
   }
 
   function resolveCombatToEnd() {
-    const result = resolveCombat(combatState, TEST_COMBAT_RULES, 200);
+    const result = resolveCombat(combatState, TEST_COMBAT_RULES, 200, createCombatContentContext(TEST_SPELLS));
     setCombatState(result.state);
     setCombatEvents((current) => [...current, ...result.events]);
     setCombatResolutionMessage(result.completed
@@ -642,9 +637,8 @@ export function useMechanicsLabViewModel(): MechanicsLabViewModel {
   }
 
   function reset() {
+    setRoster(createRoster(createCharacter('character-1', 'Sem-Nome')));
     setParty(createParty());
-    setLoadouts([createCharacterLoadout('character-1')]);
-    setSpellLoadouts([{ characterId: 'character-1', loadout: createSpellLoadout(2) }]);
     setTestConsumable(TEST_CONSUMABLE_STACK);
     setInventory(createInventory(4));
     setActiveItemEffects(createItemEffectState());
@@ -673,7 +667,8 @@ export function useMechanicsLabViewModel(): MechanicsLabViewModel {
 
   return {
     party,
-    loadouts,
+    partyCharacters,
+    loadouts: Object.values(roster.equipmentLoadouts),
     summary,
     selectedCharacterId,
     selectedCharacter,
