@@ -1,4 +1,4 @@
-import type { Equipment, EquipmentDropEntry, ItemStack, SpellDefinition } from '@ossuary/core';
+import type { Equipment, EquipmentDropEntry, ItemStack, OssuaryDerivedStat, OssuaryUpgradeDefinition, SpellDefinition } from '@ossuary/core';
 import {
   createAttributeBonusEffect,
   createConsumable,
@@ -53,6 +53,32 @@ export const TEST_CONSUMABLE = createConsumable(
 );
 
 export const TEST_CONSUMABLE_STACK: ItemStack = createItemStack(TEST_CONSUMABLE, 2);
+
+export const TEST_OSSUARY_UPGRADES: readonly OssuaryUpgradeDefinition[] = [
+  {
+    id: 'lab-first-bone',
+    name: 'Fragmento do Vestíbulo',
+    requirements: [{ kind: 'bones', amount: 1 }],
+    bonuses: [{ stat: 'penetration', percent: 8 }],
+  },
+  {
+    id: 'lab-shadow-runner-milestone',
+    name: 'Marca dos Corredores',
+    requirements: [{ kind: 'milestone', key: 'shadow-runner', amount: 3 }],
+    bonuses: [{ stat: 'sustain', percent: 5 }],
+  },
+];
+
+export const TEST_OSSUARY_BASE_VALUES: Readonly<Record<OssuaryDerivedStat, number>> = {
+  vigor: 100,
+  damage: 20,
+  penetration: 10,
+  cadence: 1,
+  critical: 5,
+  reach: 1,
+  sustain: 8,
+  mana: 100,
+};
 
 export function createTestDropTable(
   commonWeight: number,
