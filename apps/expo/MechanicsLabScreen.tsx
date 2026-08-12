@@ -42,6 +42,7 @@ const ECONOMY_ROWS = [
 export function MechanicsLabScreen() {
   const {
     party,
+    partyCharacters,
     summary,
     selectedCharacterId,
     selectedCharacter,
@@ -294,7 +295,7 @@ export function MechanicsLabScreen() {
           );
         })}
         <Text style={styles.label}>PREVIEW NO PERSONAGEM SELECIONADO</Text>
-        <Text style={styles.helper}>Fórmulas provisórias do Lab; este snapshot já combina atributos, equipamento e Ossuary, mas ainda não é combate.</Text>
+        <Text style={styles.helper}>Fórmulas provisórias do Lab; este snapshot combina atributos, equipamento e Ossuary e alimenta o combate de inspeção.</Text>
         {OSSUARY_ROWS.map((row) => (
           <View key={row.key} style={styles.attributeRow}>
             <View style={styles.attributeIdentity}>
@@ -392,7 +393,7 @@ export function MechanicsLabScreen() {
           concedido integralmente a todos os personagens ativos.
         </Text>
         <View style={styles.roster}>
-          {party.characters.map((character) => (
+          {partyCharacters.map((character) => (
             <Pressable
               key={character.id}
               onPress={() => selectCharacter(character.id)}
@@ -403,7 +404,7 @@ export function MechanicsLabScreen() {
             </Pressable>
           ))}
         </View>
-        {party.characters.length < 4 && (
+        {partyCharacters.length < 4 && (
           <LabButton label="Recrutar personagem nível 1" onPress={recruitCharacter} />
         )}
         <View style={styles.characterHeader}>
@@ -486,7 +487,8 @@ export function MechanicsLabScreen() {
       <LabSection title="07 · Atributos">
         <Text style={styles.helper}>
           Level-up libera pontos; a escolha do atributo é manual e permanente.
-          Os derivados de combate ainda não estão conectados.
+          Os derivados alimentam os snapshots do combate; as fórmulas exibidas
+          continuam sendo fixtures de inspeção.
         </Text>
         {ATTRIBUTE_ROWS.map((row) => (
           <View key={row.key} style={styles.attributeRow}>

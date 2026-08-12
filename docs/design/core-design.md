@@ -138,26 +138,25 @@ Toda aleatoriedade vem de PRNG semeado. Nenhum `Math.random()` no core, nunca.
 
 `resolveCombat` recebe `Party`, não `GameState` — é o ponto onde a normalização de stats da arena entra depois sem reescrita (plano técnico §7.5). No PVP, a assinatura é `resolveCombat(party, enemyParty, seed)`: **a mesma função, com uma party do outro lado**.
 
-**Implementação incremental atual:** o primeiro núcleo recebe snapshots de
-combatentes artificiais, em vez de `Party` e `Wave`. Isso mantém o domínio
-testável antes de existirem bestiário e conteúdo concreto; o adaptador que
-converterá progressão/equipamento em snapshots fica para a integração do loop.
-O motor já é tick-based, sem `Math.random()`, produz log determinístico e
-expõe `victory` ou `defeat`. Derrota é apenas um resultado do combate neste
+**Implementação incremental atual:** o núcleo recebe snapshots derivados e
+continua independente de `Wave` e do `GameState`. A `Party` persistente guarda
+IDs ordenados; `RosterState` resolve cada personagem com seus loadouts e
+`createCombatantsFromParty` gera um snapshot por membro ativo, preservando a
+ordem. O motor já é tick-based, sem `Math.random()`, produz log determinístico
+e expõe `victory` ou `defeat`. Derrota é apenas um resultado do combate neste
 nível; a regra de recuo e qualquer consequência persistente pertencem ao loop
 do jogo, ainda não implementado.
 
-O snapshot pode carregar um loadout de spells, definições, mana e atributos de
-escala. Nesse caso, o próprio tick avalia o autocast pela prioridade do
-loadout. Spells de dano, proteção e controle produzem eventos e efeitos
-temporários; o loop futuro apenas conectará esses ticks a caminhada, waves,
-loot, recompensas e recuo.
+O snapshot carrega a configuração do loadout, mana e atributos de escala, mas
+não carrega definições completas de spells. O tick recebe um
+`CombatContentContext` imutável e resolve as definições por ID. Spells de dano,
+proteção e controle produzem eventos e efeitos temporários; o loop futuro
+apenas conectará esses ticks a caminhada, waves, loot, recompensas e recuo.
 
-No Lab, `createCombatantFromCharacter` é o adaptador que compõe o personagem
-selecionado com equipamento, loadout de spells, efeitos de itens, fórmulas de
-atributos e bônus do Ossuary antes de iniciar o combate. O runtime de mana,
-cooldowns e efeitos continua pertencendo exclusivamente à instância daquele
-combate.
+No Lab, o adaptador compõe todos os personagens ativos com equipamento, loadout
+de spells, efeitos de itens, fórmulas de atributos e bônus do Ossuary antes de
+iniciar o combate. O runtime de mana, cooldowns e efeitos continua pertencendo
+exclusivamente à instância daquele combate.
 
 ### 4.2 A party
 
@@ -455,7 +454,7 @@ precisam aparecer como eventos resolvíveis pelo combate.
 As quatro camadas são deliberadamente separadas:
 
 1. **Definição da spell:** conteúdo imutável, compartilhável entre cliente,
-   servidor e simulador.
+   servidor e simulador, fornecido ao motor pelo `CombatContentContext`.
 2. **Configuração do auto-cast:** escolha do jogador para uma spell disponível,
    com `enabled` e ordem/prioridade de tentativa. Ela não reescreve custo,
    escala ou efeito da definição. A quantidade de spells e os slots continuam
@@ -463,9 +462,8 @@ As quatro camadas são deliberadamente separadas:
 3. **Estado runtime:** mana atual, cooldown restante, efeitos temporários
    ativos e contadores necessários para a simulação. É estado derivado da
    execução e não conteúdo persistente da spell.
-4. **Resolução de combate:** o futuro `resolveCombat` avalia contexto,
-   consome recursos e aplica o payload. Esta especificação não implementa
-   `resolveCombat`.
+4. **Resolução de combate:** `advanceCombatTick` e `resolveCombat` avaliam o
+   contexto explícito, consomem recursos e aplicam o payload.
 
 Em cada oportunidade de avaliação, a ordem é: configuração habilitada,
 gatilho satisfeito, cooldown zerado e mana atual maior ou igual ao custo. Só
@@ -525,15 +523,14 @@ O domínio recebe a lista de IDs disponíveis do chamador e valida
 disponibilidade, capacidade e duplicatas. A quantidade definitiva de slots e a
 forma de aquisição continuam sendo decisões de conteúdo/progressão. No Lab,
 duas vagas são usadas apenas para exercitar o limite com as três fixtures
-existentes. O Lab também permite alterar a prioridade e isolar o loadout de
-cada personagem, mas continua sem executar combate.
+existentes. O Lab também permite alterar a prioridade e isola o loadout de cada
+personagem, inclusive quando a party completa entra no combate.
 
-O motor pré-combate de auto-cast avalia as entradas habilitadas na ordem do
-loadout. Em cada oportunidade, registra as tentativas bloqueadas e para no
-primeiro disparo; esse disparo consome mana e reinicia apenas o cooldown da
-spell escolhida. O estado runtime mantém mana, mana máxima e cooldowns por ID,
-e pode ser avançado por uma duração explícita. O motor não aplica o payload da
-spell: ele retorna eventos para o futuro `resolveCombat`.
+O motor de auto-cast avalia as entradas habilitadas na ordem do loadout. Em
+cada oportunidade, registra as tentativas bloqueadas e para no primeiro
+disparo; esse disparo consome mana e reinicia apenas o cooldown da spell
+escolhida. O estado runtime mantém mana, mana máxima e cooldowns por ID, e a
+resolução aplica o payload e retorna eventos reproduzíveis.
 
 ### 4.7 Fórmula
 
@@ -778,8 +775,8 @@ O Laboratório possui fixtures artificiais para conceder osso, registrar o
 marco `shadow-runner`, desbloquear upgrades e exibir um snapshot numérico no
 personagem selecionado. O snapshot combina atributos efetivos, dano-base do
 equipamento e bônus do Ossuary por meio de fórmulas fornecidas pelo chamador.
-As fórmulas do Lab são provisórias e o snapshot ainda não é consumido pelo
-combate.
+As fórmulas do Lab são provisórias; o snapshot é consumido pelo combate, mas os
+números finais de balanceamento continuam fora desta etapa.
 
 ---
 

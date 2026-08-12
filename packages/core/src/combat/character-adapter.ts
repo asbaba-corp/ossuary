@@ -1,8 +1,8 @@
 import type { Character } from "../character.js";
+import { resolvePartyBuilds, type Party, type RosterState } from "../party.js";
 import { getEffectiveCharacterAttributes, getEffectiveCharacterStats, type CharacterLoadout, type ItemEffectState } from "../equipment/legacy.js";
 import { calculateCharacterDerivedStats, type CharacterDerivedStats, type DerivedStatFormulas } from "../progression/derived.js";
 import type { OssuaryDerivedStat } from "../ossuary.js";
-import type { SpellDefinition } from "../spells.js";
 import type { SpellLoadout } from "../spell-loadout.js";
 import type { CombatSide, CombatantSnapshot } from "./types.js";
 
@@ -10,7 +10,6 @@ export interface CharacterCombatBuild {
   readonly character: Character;
   readonly equipment: CharacterLoadout;
   readonly spells: SpellLoadout;
-  readonly spellDefinitions: readonly SpellDefinition[];
   readonly itemEffects: ItemEffectState;
   readonly formulas: DerivedStatFormulas;
   readonly ossuaryBonuses: Readonly<Record<OssuaryDerivedStat, number>>;
@@ -49,7 +48,6 @@ export function createCombatantFromCharacter(build: CharacterCombatBuild): Chara
     },
     spells: {
       loadout: build.spells,
-      definitions: build.spellDefinitions,
       maxMana,
       initialMana: maxMana,
       int: attributes.int,
@@ -57,4 +55,27 @@ export function createCombatantFromCharacter(build: CharacterCombatBuild): Chara
     },
     derivedStats,
   };
+}
+
+export interface PartyCombatBuildOptions {
+  readonly side: CombatSide;
+  readonly itemEffects: ItemEffectState;
+  readonly formulas: DerivedStatFormulas;
+  readonly ossuaryBonuses: Readonly<Record<OssuaryDerivedStat, number>>;
+}
+
+export function createCombatantsFromParty(
+  roster: RosterState,
+  party: Party,
+  options: PartyCombatBuildOptions,
+): readonly CharacterCombatSnapshot[] {
+  return resolvePartyBuilds(roster, party).map(({ character, equipment, spells }) => createCombatantFromCharacter({
+    character,
+    equipment,
+    spells,
+    itemEffects: options.itemEffects,
+    formulas: options.formulas,
+    ossuaryBonuses: options.ossuaryBonuses,
+    side: options.side,
+  }));
 }

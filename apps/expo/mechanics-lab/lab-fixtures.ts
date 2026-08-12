@@ -139,12 +139,16 @@ export const TEST_PARTY_COMBAT_ENEMY: CombatantSnapshot = {
   stats: { maxHp: 10, damage: 1, defense: 0, penetration: 0, attacksPerSecond: 1, criticalChancePercent: 0, criticalMultiplier: 2, sustainPercent: 0 },
 };
 
+export const TEST_PARTY_COMBAT_ENEMIES: readonly CombatantSnapshot[] = [
+  TEST_PARTY_COMBAT_ENEMY,
+  { ...TEST_PARTY_COMBAT_ENEMY, id: 'lab-party-target-b', name: 'Alvo secundário da party' },
+];
+
 function createTestCombatSpellSetup(spellIds: readonly string[], maxMana: number) {
   let loadout = createSpellLoadout(spellIds.length);
   for (const spellId of spellIds) loadout = equipSpell(loadout, TEST_SPELLS.map(({ id }) => id), spellId);
   return {
     loadout,
-    definitions: TEST_SPELLS,
     maxMana,
     initialMana: maxMana,
     int: 5,

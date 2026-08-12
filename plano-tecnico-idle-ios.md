@@ -80,6 +80,12 @@ deserialize(blob: SaveBlob): GameState
 
 `resolveCombat` precisa ser **determinístico e semeado**. Mesmo seed + mesmas entradas = mesmo resultado, no cliente e no servidor. É isso que permite mostrar a batalha animada no cliente enquanto o servidor já sabe o resultado — sem divergência.
 
+O estado persistente separa `Party`, que contém apenas IDs ordenados, de um
+`RosterState`, que localiza personagens, loadouts de equipamento e loadouts de
+spells. O combate recebe builds resolvidos e um `CombatContentContext`
+imutável; snapshots não duplicam definições de conteúdo e o runtime não
+carrega progressão, inventário, economia ou referências de UI.
+
 **Isso implica:** nada de `Math.random()` dentro do core. Um PRNG semeado (xorshift, mulberry32) explícito, passado como parâmetro. Um `Math.random()` esquecido no combate é o tipo de bug que só aparece em produção, de forma intermitente, e leva dias para achar.
 
 ### 3.1 ViewModel obrigatório no cliente Expo
