@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type {
   CharacterAttributes,
   CharacterLoadout,
@@ -26,6 +26,8 @@ import type {
   CombatEvent,
   CombatOutcome,
   CombatState,
+  GameState,
+  GameEvent,
 } from '@ossuary/core';
 import {
   addCharacter,
@@ -74,6 +76,12 @@ import {
   advanceCombatTick,
   createCombatState,
   resolveCombat,
+  applyGameAction,
+  createInitialGameState,
+  tickGameState,
+  addFixtureStartingItems,
+  VERTICAL_FIXTURE_CONTENT,
+  GameSession,
 } from '@ossuary/core';
 import {
   TEST_CONSUMABLE,
@@ -87,12 +95,23 @@ import {
   TEST_PARTY_COMBAT_ENEMIES,
 } from './lab-fixtures';
 import { equipFromInventory, getCharacterEquipmentStats, getReplacementPreview, rollTestDrop, unequipToInventory } from './lab-equipment-commands';
+import { ExpoSaveStore } from '../storage';
 
 const MONSTER_XP = 15;
 const MIN_TEST_XP = 0;
 const MAX_TEST_XP = 500;
 
 export interface MechanicsLabViewModel {
+  readonly activeTab: LabTab;
+  readonly selectTab: (tab: LabTab) => void;
+  readonly gameState: GameState;
+  readonly gameStateEvent: string;
+  readonly gameStateLog: readonly string[];
+  readonly gameStateReady: boolean;
+  readonly startGameRun: () => void;
+  readonly tickGameRun: () => void;
+  readonly resolveGameRun: () => void;
+  readonly resetGameRun: () => void;
   readonly party: Party;
   readonly partyCharacters: readonly ReturnType<typeof createCharacter>[];
   readonly loadouts: readonly CharacterLoadout[];
@@ -181,6 +200,8 @@ export interface MechanicsLabViewModel {
   readonly reset: () => void;
 }
 
+export type LabTab = 'run' | 'character' | 'systems' | 'combat';
+
 /**
  * ViewModel do laboratório.
  *
@@ -221,7 +242,119 @@ export function useMechanicsLabViewModel(): MechanicsLabViewModel {
   const [combatState, setCombatState] = useState<CombatState>(() => createCombatState(TEST_COMBAT_PRESETS.victory, 'lab-combat-seed'));
   const [combatEvents, setCombatEvents] = useState<readonly CombatEvent[]>([]);
   const [combatResolutionMessage, setCombatResolutionMessage] = useState('Nenhum tick de combate executado.');
+  const [activeTab, setActiveTab] = useState<LabTab>('run');
+  const [gameState, setGameState] = useState<GameState>(() =>
+    addFixtureStartingItems(createInitialGameState(VERTICAL_FIXTURE_CONTENT, 'lab-device')),
+  );
+  const [gameStateEvent, setGameStateEvent] = useState('Nenhuma run iniciada.');
+  const [gameStateLog, setGameStateLog] = useState<readonly string[]>([]);
+  const [gameStateReady, setGameStateReady] = useState(false);
+  const saveStore = useRef(new ExpoSaveStore());
+  const sessionRef = useRef<GameSession | null>(null);
   const dropRoll = useRef(0);
+
+  function createLabSession(): GameSession {
+    return new GameSession({
+      saveStore: saveStore.current,
+      clock: { nowMs: () => Date.now() },
+      content: VERTICAL_FIXTURE_CONTENT,
+      deviceId: 'lab-device',
+      createInitialState: (content, deviceId) => addFixtureStartingItems(
+        createInitialGameState(content, deviceId),
+      ),
+    });
+  }
+
+  useEffect(() => {
+    const session = createLabSession();
+    sessionRef.current = session;
+    void session.load().then((loaded) => {
+      setGameState(loaded);
+      setGameStateReady(true);
+      setGameStateEvent(loaded.metadata.seq > 0
+        ? loaded.run && loaded.run.status !== 'completed'
+          ? 'Save carregado · há uma run em andamento; continue pelos ticks.'
+          : 'Save local carregado.'
+        : 'Novo save local criado.');
+    }).catch((error: unknown) => {
+      setGameStateReady(true);
+      setGameStateEvent(error instanceof Error ? `Falha ao carregar save: ${error.message}` : 'Falha ao carregar save local.');
+    });
+  }, []);
+
+  function startGameRun() {
+    const session = sessionRef.current;
+    if (!session || !gameStateReady) {
+      setGameStateEvent('Aguardando o save local carregar.');
+      return;
+    }
+    try {
+      void session.action({ type: 'start_run', seed: 'lab-run-seed' }).then((events) => {
+        setGameState(session.state);
+        const transition = events;
+        const message = 'Run iniciada com seed fixa: lab-run-seed.';
+        setGameStateEvent(message);
+        appendGameLog([message, ...transition.map((event) => formatGameEvent(event)).filter((event): event is string => event !== null)]);
+      }).catch((error: unknown) => setGameStateEvent(error instanceof Error ? error.message : 'Não foi possível iniciar a run.'));
+    } catch (error) {
+      setGameStateEvent(error instanceof Error ? error.message : 'Não foi possível iniciar a run.');
+    }
+  }
+
+  function tickGameRun() {
+    const session = sessionRef.current;
+    if (!session || !gameStateReady) {
+      setGameStateEvent('Aguardando o save local carregar.');
+      return;
+    }
+    try {
+      void session.tick(1000).then((events) => {
+        setGameState(session.state);
+        const lastEvent = events[events.length - 1];
+        const message = formatGameEvent(lastEvent) ?? 'Tick de 1 segundo aplicado.';
+        setGameStateEvent(message);
+        appendGameLog([`tick +1s · ${message}`, ...events.slice(0, -1).map((event) => formatGameEvent(event)).filter((event): event is string => event !== null)]);
+      }).catch((error: unknown) => setGameStateEvent(error instanceof Error ? error.message : 'Não foi possível avançar a run.'));
+    } catch (error) {
+      setGameStateEvent(error instanceof Error ? error.message : 'Não foi possível avançar a run.');
+    }
+  }
+
+  function resolveGameRun() {
+    const session = sessionRef.current;
+    if (!session || !gameStateReady) {
+      setGameStateEvent('Aguardando o save local carregar.');
+      return;
+    }
+    if (!session.state.run) {
+      setGameStateEvent('Inicie a run antes de resolvê-la.');
+      return;
+    }
+    try {
+      void session.tick(VERTICAL_FIXTURE_CONTENT.runRules.offlineCapMs).then((events) => {
+        setGameState(session.state);
+        const message = `Run resolvida até o limite offline · ${events.length} eventos · status ${session.state.run?.status}.`;
+        setGameStateEvent(message);
+        appendGameLog([message, ...events.map((event) => formatGameEvent(event)).filter((event): event is string => event !== null)]);
+      }).catch((error: unknown) => setGameStateEvent(error instanceof Error ? error.message : 'Não foi possível resolver a run.'));
+    } catch (error) {
+      setGameStateEvent(error instanceof Error ? error.message : 'Não foi possível resolver a run.');
+    }
+  }
+
+  function resetGameRun() {
+    const session = sessionRef.current;
+    if (!session) return;
+    void session.reset().then((loaded) => {
+      setGameState(loaded);
+      setGameStateEvent('Save local apagado; run reiniciada.');
+      setGameStateLog([]);
+    }).catch((error: unknown) => setGameStateEvent(error instanceof Error ? error.message : 'Não foi possível reiniciar o save.'));
+  }
+
+  function appendGameLog(messages: readonly string[]) {
+    setGameStateLog((current) => [...messages, ...current].filter((message): message is string => Boolean(message)).slice(0, 40));
+  }
 
   const selectedCharacter = roster.characters.find(({ id }) => id === selectedCharacterId && party.characterIds.includes(id)) ?? roster.characters[0];
   const partyCharacters = party.characterIds.map((id) => roster.characters.find((character) => character.id === id)).filter((character): character is ReturnType<typeof createCharacter> => character !== undefined);
@@ -663,9 +796,21 @@ export function useMechanicsLabViewModel(): MechanicsLabViewModel {
     setCombatEvents([]);
     setCombatResolutionMessage('Nenhum tick de combate executado.');
     setLastEvent('Laboratório reiniciado.');
+    resetGameRun();
+    setActiveTab('run');
   }
 
   return {
+    activeTab,
+    selectTab: setActiveTab,
+    gameState,
+    gameStateEvent,
+    gameStateLog,
+    gameStateReady,
+    startGameRun,
+    tickGameRun,
+    resolveGameRun,
+    resetGameRun,
     party,
     partyCharacters,
     loadouts: Object.values(roster.equipmentLoadouts),
@@ -759,6 +904,18 @@ export function useMechanicsLabViewModel(): MechanicsLabViewModel {
 
 function formatCombatOutcome(outcome: CombatOutcome): string {
   return outcome === 'victory' ? 'vitória' : outcome === 'defeat' ? 'derrota' : 'em andamento';
+}
+
+function formatGameEvent(event: GameEvent | undefined): string | null {
+  if (!event) return null;
+  if (event.type === 'combat') return `Combate · ${event.event.type} · tick ${event.event.tick}`;
+  if (event.type === 'run_started') return `Run iniciada · fase ${event.phaseId}`;
+  if (event.type === 'wave_started') return `Wave ${Number(event.waveIndex) + 1} entrou em combate.`;
+  if (event.type === 'wave_victory') return `Wave ${Number(event.waveIndex) + 1} vencida · recompensa aplicada.`;
+  if (event.type === 'phase_unlocked') return `Fase desbloqueada: ${event.phaseId}.`;
+  if (event.type === 'run_defeat') return 'Derrota: a run recuou para a fase anterior.';
+  if (event.type === 'run_retreat') return 'Run recuada manualmente.';
+  return 'Checkpoint salvo.';
 }
 
 function candidateSlot(loadout: CharacterLoadout, instanceId: string): EquipmentSlot {
