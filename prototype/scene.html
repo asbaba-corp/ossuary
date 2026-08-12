@@ -511,6 +511,21 @@
         walk:   { file: "Walk.png",     frames: 8, fps: 10 },
         attack: { file: "Attack 1.png", frames: 5, fps: 13, loop: false }
       }
+    },
+    /* Ignavo: silhueta sem rosto nem roupa, que é a descrição do bestiário —
+       vultos nus, sem traço de rosto. A folha nasce virada para a direita e
+       o mob encara o jogador pela esquerda, então `drawSheet` espelha. */
+    ignavo: {
+      base: "../sprites/Free-Urban-Zombie-Sprite-Sheet-Pixel-Art-Pack/Zombie_5",
+      frame: 128, scale: 1.05, footY: 128, faces: "right",
+      anims: {
+        idle:   { file: "Idle.png",   frames: 6,  fps: 6 },
+        walk:   { file: "Walk.png",   frames: 10, fps: 12 },
+        // 4/8 = 0,5s, cabe na cadência de golpe do mob (atkCd 1,15s)
+        attack: { file: "Attack.png", frames: 4,  fps: 8,  loop: false },
+        hurt:   { file: "Hurt.png",   frames: 4,  fps: 14, loop: false },
+        dead:   { file: "Dead.png",   frames: 5,  fps: 11, loop: false }
+      }
     }
   };
 
@@ -532,9 +547,14 @@
     return a.loop === false ? Math.min(i, a.frames - 1) : i % a.frames;
   }
 
-  function drawSheet(set, animName, t, cx, footScreenY, flip) {
+  /* `olhandoEsquerda` é a direção DESEJADA em cena, não o espelhamento: cada
+     folha declara em `faces` para que lado ela nasce virada, e o espelho sai
+     da diferença entre as duas. Assim um pack novo entra trocando um campo,
+     sem editar PNG — espelhar arquivo duplicaria asset e sairia do controle. */
+  function drawSheet(set, animName, t, cx, footScreenY, olhandoEsquerda) {
     const a = set.anims[animName];
     if (!a || !a.img.complete || !a.img.naturalWidth) return false;
+    const flip = set.faces === "left" ? !olhandoEsquerda : olhandoEsquerda;
     const F = set.frame, s = set.scale, dw = F * s;
     const dx = Math.round(cx - dw / 2);
     const dy = Math.round(footScreenY - set.footY * s);
@@ -1162,7 +1182,8 @@
       S.mobs.push({
         x: S.cam + W + 30 + i * 46,
         slot: S.hero.x + 96 + i * 40,
-        hp, hpMax: hp, atkCd: 0.6 + rng() * 0.7, hurt: 0, dead: 0, frame: 0, y0: 249
+        hp, hpMax: hp, atkCd: 0.6 + rng() * 0.7, hurt: 0, dead: 0, frame: 0, y0: 249,
+        anim: "walk", animT: rng() * 0.6
       });
     }
   }
@@ -1284,6 +1305,7 @@
           m.atkCd -= DT;
           if (m.atkCd <= 0) {
             m.atkCd = 1.15;
+            m.anim = "attack"; m.animT = 0;
             const raw = 2 + ((rng() * 3) | 0) + s.wave * 0.32;
             const dmg = Math.max(1, Math.round(raw));
             h.hp = Math.max(0, h.hp - dmg); h.hurt = 0.14;
@@ -1315,6 +1337,21 @@
     if (h.anim !== "attack" || atkDone) {
       const want = (s.phase === PHASE.WALK || s.phase === PHASE.RETREAT) ? "walk" : "idle";
       if (h.anim !== want) { h.anim = want; h.animT = 0; }
+    }
+
+    /* animação dos mobs, mesma prioridade do herói: morte manda em tudo, o
+       golpe roda até fechar, o dano dá um tranco curto e, no resto, andar
+       ou parar decide. Sem isso o mob ficaria preso num quadro só.          */
+    for (const m of s.mobs) {
+      m.animT += DT;
+      const A = SPRITES.ignavo.anims;
+      const rodando = (nome) => m.anim === nome && m.animT < A[nome].frames / A[nome].fps;
+      let quer;
+      if (m.dead) quer = "dead";
+      else if (rodando("attack")) quer = "attack";
+      else if (m.hurt > 0) quer = "hurt";
+      else quer = m.x > m.slot ? "walk" : "idle";
+      if (quer !== m.anim) { m.anim = quer; m.animT = 0; }
     }
 
     // limpeza / timers
@@ -1457,11 +1494,18 @@
       // sombra
       ctx.fillStyle = "rgba(0,0,0,0.4)";
       ctx.fillRect(sx + 8, GROUND - 3, 40, 4);
-      drawSprite(ctx, MOB, MOB_PAL, sx, sy, MS, true);
-      if (m.hurt > 0) {
-        ctx.globalAlpha = 0.55 * (m.hurt / 0.16);
-        drawSprite(ctx, MOB, { k:"#2a1414", n:"#8e4038", N:"#a04c40", p:"#5c2a26", P:"#71332c" }, sx, sy, MS, true);
-        ctx.globalAlpha = m.dead > 0 ? Math.max(0, m.dead / 0.45) : 1;
+      /* O mob avança contra o jogador, então sempre olha para a esquerda.
+         Sem a pasta `sprites/` o carregamento falha e a arte procedural
+         assume — nunca remova esse fallback.                               */
+      const usouFolha = SPRITES.ignavo.ready &&
+        drawSheet(SPRITES.ignavo, m.anim, m.animT, sx + 28, GROUND, true);
+      if (!usouFolha) {
+        drawSprite(ctx, MOB, MOB_PAL, sx, sy, MS, true);
+        if (m.hurt > 0) {
+          ctx.globalAlpha = 0.55 * (m.hurt / 0.16);
+          drawSprite(ctx, MOB, { k:"#2a1414", n:"#8e4038", N:"#a04c40", p:"#5c2a26", P:"#71332c" }, sx, sy, MS, true);
+          ctx.globalAlpha = m.dead > 0 ? Math.max(0, m.dead / 0.45) : 1;
+        }
       }
       // barra de vida
       if (!m.dead && m.hp < m.hpMax) {
