@@ -1590,7 +1590,7 @@
      mesmo alvo (dano, spell, ouro, poeira), e escritos na mesma altura viram
      um borrão ilegível. Cada novo pop sobe acima dos que ainda estão vivos
      por perto. */
-  function pop(x, y, text, color) {
+  function pop(x, y, text, color, life = 0.85) {
     let tries = 0;
     let collide = true;
     while (collide && tries++ < 6) {
@@ -1601,7 +1601,7 @@
         }
       }
     }
-    S.pops.push({ x, y, text, color, life: 0.85 });
+    S.pops.push({ x, y, text, color, life });
   }
 
   /* ---------- simulação ---------- */
@@ -1622,16 +1622,16 @@
   const MOB_IMPACT = impactTime(SPRITES.ignavo, "attack");
 
   /* ---- morte do herói: queda, breu, retorno ----
-     Timing pensado para ser rápido mas com peso: por volta de 1,9s do fim ao
+     Timing pensado para ser rápido mas com peso: por volta de 2,5s do fim ao
      fim, curto o bastante para não travar o ritmo idle, longo o bastante para
-     o jogador perceber que algo aconteceu.
+     o jogador ler "a carne cede" e a frase temática antes de tudo passar.
 
      O breu não é só estética — é o corte que esconde o reposicionamento. O
      recuo (posição, vida, onda) é aplicado por baixo do preto total, então a
      câmera pode saltar sem ninguém ver o salto. */
   const animDuration = (set, anim) => { const a = set.anims[anim]; return a.frames / a.fps; };
-  const DEATH_FALL_T = animDuration(SPRITES.hero, "dead") + 0.15;   // colapso + instante de espera
-  const DEATH_VOID_T = 0.55;                                        // breu com a mensagem
+  const DEATH_FALL_T = animDuration(SPRITES.hero, "dead") + 0.45;   // colapso + tempo de ler "a carne cede" antes do breu cobrir
+  const DEATH_VOID_T = 0.85;                                        // breu com a mensagem — tempo de leitura da frase
   const DEATH_RISE_T = 0.55;                                        // cena e herói reaparecem juntos
 
   /* Dez variações, para a mesma frase não cansar em runs longas. Giram em
@@ -1699,7 +1699,8 @@
       // escolhida uma vez aqui, não a cada quadro — senão trocaria de frase piscando
       s.deathMsg = DEATH_MESSAGES[s.deathMsgIdx % DEATH_MESSAGES.length];
       s.deathMsgIdx++;
-      pop(h.x + 24, h.y0 - 34, "a carne cede", POP.aviso);
+      // vida maior que o pop padrão: o breu que sobe por cima já cobre o resto, sem precisar apressar o texto
+      pop(h.x + 24, h.y0 - 34, "a carne cede", POP.aviso, 1.3);
     }
 
     if (s.phase === PHASE.DEATH_FALL) {
