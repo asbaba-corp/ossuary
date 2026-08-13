@@ -24,6 +24,33 @@ o arquivo mexido. "Ataques agora acertam no quadro do golpe" vale mais que
 
 ---
 
+## 0.06 — Morte do herói: queda, breu e retorno
+PR #45 · 2026-08-13 · @thipintop
+
+### Changed
+- Ao esgotar HP sem poção, o herói deixa de andar de costas pela tela. Agora
+  ele cai — sprite `Dead.png` do Knight, sem repetir — enquanto os inimigos
+  param de atacar e ficam parados olhando (eles só golpeiam durante o
+  combate; ao sair dele, simplesmente congelam no lugar).
+- A cena esmaece para o breu total junto do colapso. É por baixo do preto que
+  o recuo é aplicado — posição, vida, onda — então a câmera pode saltar sem
+  ninguém ver o salto.
+- No breu, uma ilustração (dança da morte, arte original do dono do jogo) e
+  uma mensagem centralizada, uma das dez que giram em ordem a cada morte —
+  "A carne cede. O osso permanece." é a primeira. Sem a imagem, um crânio
+  procedural com olhos em brasa assume — mesma regra de sempre: nunca perder
+  o fallback.
+- A cena e o herói reaparecem juntos, o herói entrando gradualmente em
+  transparência até visibilidade total, e o jogo retoma o andar sozinho — sem
+  qualquer clique do jogador.
+- Sequência automática, do início ao fim: ~1,9s, rápida o bastante para não
+  travar o ritmo idle, longa o bastante para ter peso.
+
+A regra por trás continua a mesma de sempre (core-design §3.3): a party não
+morre de verdade, recua para a última fase limpa. Só a apresentação mudou.
+
+---
+
 ## 0.05 — Loot: itens caem, entram na mochila e se equipam
 PR #44 · 2026-08-13 · @thipintop
 
