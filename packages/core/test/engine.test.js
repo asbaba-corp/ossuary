@@ -130,15 +130,28 @@ test("estado resolvido não avança mais", () => {
 });
 
 test("resolveCombat respeita o teto de ticks e sinaliza quando não completou", () => {
-  // alvo imortal: defesa igual ao defenseConstant zera o dano
+  // alvo com vida alta demais para cair dentro do teto — e não imortal:
+  // desde o piso de mitigação, nenhuma defesa zera o dano
   const estado = createCombatState(
-    [heroi(), inimigo("e1", { defense: 100, attacksPerSecond: 0 })],
+    [heroi(), inimigo("e1", { maxHp: 100000, attacksPerSecond: 0 })],
     "seed",
   );
   const r = resolveCombat(estado, REGRAS, 20, SEM_MAGIA);
   assert.equal(r.completed, false);
   assert.equal(r.state.outcome, "in_progress");
   assert.equal(r.state.tick, 20);
+});
+
+/* O motivo de o piso existir: antes dele, defesa alta travava a batalha para
+   sempre. Este caso prova que agora ela resolve, ainda que devagar. */
+test("defesa altíssima atrasa mas não impede a vitória", () => {
+  const estado = createCombatState(
+    [heroi({ damage: 100 }), inimigo("e1", { maxHp: 20, defense: 500, attacksPerSecond: 0 })],
+    "seed",
+  );
+  const r = resolveCombat(estado, REGRAS, 2000, SEM_MAGIA);
+  assert.equal(r.completed, true);
+  assert.equal(r.state.outcome, "victory");
 });
 
 test("resolveCombat termina sozinho quando há vencedor", () => {
