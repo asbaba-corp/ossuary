@@ -108,7 +108,16 @@
   .hud-stat .cap {
     color: #6b5a44; font-size: 9px; letter-spacing: 0.14em;
     text-transform: uppercase; line-height: 1.2; align-self: start;
+    display: flex; align-items: baseline; gap: 6px; white-space: nowrap;
   }
+  /* gasto de poção: âmbar apagado, não vermelho — é despesa, não dano */
+  .cap .spend {
+    font-style: normal; font-size: 10px; letter-spacing: 0.06em;
+    color: #b98a3c; font-variant-numeric: tabular-nums;
+    animation: spendIn .14s ease-out;
+  }
+  @keyframes spendIn { from { opacity: 0; transform: translateY(-3px); } }
+  @media (prefers-reduced-motion: reduce) { .cap .spend { animation: none; } }
 
   /* ---- Session Analyzer ---- */
   .analyzer { border: 1px solid #241b14; border-top: none; }
@@ -369,7 +378,8 @@
         <ellipse cx="12" cy="12.6" rx="8" ry="3.3"/>
         <ellipse cx="12" cy="7.6"  rx="8" ry="3.3"/>
       </svg>
-      <span class="v" id="gold">0</span><span class="cap">gold</span>
+      <span class="v" id="gold">0</span>
+      <span class="cap">gold<i class="spend" id="goldSpend" hidden></i></span>
     </div>
 
     <div class="hud-icons">
@@ -1316,7 +1326,7 @@
       hero: { x: 120, hp: 1, hpMax: 1, mp: 1, mpMax: 1, atkCd: 0, swing: false, hurt: 0, frame: 0, y0: 234, anim: "idle", animT: 0 },
       mobs: [], pops: [], motes: [],
       cam: 0, wave: 1, nextWaveX: 520,
-      gold: 150, loot: 0, supply: 0, dust: 0, kills: 0, retreats: 0, hold: 0,
+      gold: 150, loot: 0, supply: 0, spend: { n: 0, life: 0 }, dust: 0, kills: 0, retreats: 0, hold: 0,
       retreatTo: 0,
 
       // personagem
@@ -1424,8 +1434,6 @@
     dano:   "#ff5a48",   // dano físico no monstro
     crit:   "#ffb648",   // crítico
     ouro:   "#f0c04a",   // ouro que caiu
-    cura:   "#7fa86b",   // poção de vida
-    mana:   "#5f92b5",   // poção de mana
     sofre:  "#ff8a7a",   // dano recebido pelo herói
     aviso:  "#c9a44a",   // avisos (sem ouro, recuando)
     nivel:  "#d9c9a8"    // subiu de nível
@@ -1453,6 +1461,7 @@
   const DT = 1 / 60;
   // duração do clarão de acerto; longa o bastante para o olho pegar
   const HURT_T = 0.22;
+  const SPEND_T = 1.4;          // quanto o gasto de ouro fica visível no HUD
   const DEAD_T = 0.45;          // desvanecer do corpo após o abate
 
   /* Momento do impacto dentro de cada animação de golpe, em segundos.
@@ -1471,22 +1480,30 @@
 
     /* poção automática: só sai se o ouro cobrir o custo inteiro.
        Nunca negativa — com 100 de ouro dá para duas de 50, e ponto. */
-    const quaff = (kind, cur, max, apply, col) => {
+    const quaff = (kind, cur, max, apply) => {
       const cfg = s.pot[kind];
       if (!cfg.on || cur >= max * cfg.at || cur <= 0 && kind === "hp") return;
       const p = potionById(kind, cfg.id);
       if (s.gold >= p.cost) {
         s.gold -= p.cost; s.supply += p.cost;
         apply(p.heal);
-        pop(h.x + 24, h.y0 - (kind === "hp" ? 22 : 34), p.name.split(" ")[0] + " −" + p.cost, col);
+        /* O gasto aparece embaixo do ouro, não sobre o herói. Um "−50"
+           vermelho no meio do combate lia como dano recebido; ali embaixo,
+           ao lado do saldo que acabou de cair, lê como o que é: despesa. */
+        s.spend.n += p.cost;
+        s.spend.life = SPEND_T;
       } else if (!s.warned) {
         s.warned = true;
         pop(h.x + 24, h.y0 - 30, "sem ouro p/ poção", POP.aviso);
       }
     };
     if (h.hp > 0) {
-      quaff("hp", h.hp, h.hpMax, v => { h.hp = Math.min(h.hpMax, h.hp + v); }, "#b4534b");
-      quaff("mp", h.mp, h.mpMax, v => { h.mp = Math.min(h.mpMax, h.mp + v); }, "#5f92b5");
+      quaff("hp", h.hp, h.hpMax, v => { h.hp = Math.min(h.hpMax, h.hp + v); });
+      quaff("mp", h.mp, h.mpMax, v => { h.mp = Math.min(h.mpMax, h.mp + v); });
+    }
+    if (s.spend.life > 0) {
+      s.spend.life -= DT;
+      if (s.spend.life <= 0) s.spend.n = 0;
     }
 
     // sem poção e sem HP → recua para fase mais rasa, não morre (§3.3)
@@ -1883,7 +1900,8 @@
   const $wave = el("wave"), $gold = el("gold"), $worldPhase = el("worldPhase"),
         $phase = el("phase"), $loot = el("loot"),
         $supply = el("supply"), $balance = el("balance"), $dust = el("dust"),
-        $retreats = el("retreats"), $afford = el("afford"), $sessTime = el("sessTime");
+        $retreats = el("retreats"), $afford = el("afford"), $sessTime = el("sessTime"),
+        $goldSpend = el("goldSpend");
 
   /* Tempo de sessão. Usa o relógio da simulação, não o do mundo: com pausa e
      velocidade 3× o relógio de parede mentiria sobre quanto jogo de fato
@@ -1925,6 +1943,9 @@
     // a onda mostra a posição dentro da fase, que é como o jogo a organiza
     $wave.textContent = p.ondaNaFase + " / " + p.total;
     $gold.textContent = s.gold;
+    // o ouro já cai em tempo real; isto só nomeia o quanto acabou de sair
+    if (s.spend.n > 0) { $goldSpend.hidden = false; $goldSpend.textContent = "−" + s.spend.n; }
+    else $goldSpend.hidden = true;
     $sessTime.textContent = mmss(s.t);
     $phase.textContent = s.phase;
     $loot.textContent = "+" + s.loot;
