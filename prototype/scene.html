@@ -91,6 +91,43 @@
   /* ---- party fixa, entre o palco e as abas ---- */
   .party-bar { padding: 14px 16px; }
 
+  /* ---- estatísticas do HUD: ícone, número e legenda embaixo ---- */
+  .hud-stat {
+    display: grid; grid-template-columns: auto auto; align-items: center;
+    column-gap: 7px; row-gap: 0;
+  }
+  .hud-stat .ico {
+    grid-row: 1 / 3; width: 18px; height: 18px;
+    fill: none; stroke: #7a6850; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round;
+  }
+  .hud-stat .ico.coins { fill: #d6a83c; stroke: #8a6a1e; stroke-width: 1.1; }
+  .hud-stat .v {
+    color: var(--bone-b); font-size: 13px; line-height: 1.05;
+    font-variant-numeric: tabular-nums; align-self: end;
+  }
+  .hud-stat .cap {
+    color: #6b5a44; font-size: 9px; letter-spacing: 0.14em;
+    text-transform: uppercase; line-height: 1.2; align-self: start;
+  }
+
+  /* ---- Session Analyzer ---- */
+  .analyzer { border: 1px solid #241b14; border-top: none; }
+  .analyzer h2 {
+    margin: 0; padding: 9px 14px; background: #1b140e;
+    border-bottom: 1px solid #241b14;
+    font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase;
+    color: #8a7558; font-weight: 600;
+  }
+  .analyzer .ledger { border: none; border-top: none; }
+  .n.withbtn { display: flex; align-items: center; gap: 8px; }
+  .potbtn {
+    display: inline-flex; padding: 3px; cursor: pointer; line-height: 0;
+    background: #241b14; border: 1px solid #3f2f20; color: #b4534b;
+  }
+  .potbtn svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+  .potbtn:hover { color: #d96a5c; border-color: #6b4a26; background: #2a1f14; }
+  .potbtn:focus-visible { outline: 2px solid var(--flame); outline-offset: 2px; }
+
   /* ---- ícones do HUD ---- */
   .hud-icons { display: flex; gap: 6px; margin-left: 6px; }
   .hicon {
@@ -310,10 +347,30 @@
   </header>
 
   <div class="hud">
-    <div class="hud-item"><span class="lbl">Fase</span><span class="val" id="worldPhase">1 / 10</span></div>
-    <div class="hud-item"><span class="lbl">Onda</span><span class="val" id="wave">1</span></div>
-    <div class="hud-item"><span class="lbl">Ouro</span><span class="val" id="gold">0</span></div>
-    <div class="hud-item"><span class="lbl">Abates</span><span class="val" id="kills">0</span></div>
+    <div class="hud-stat">
+      <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M20.5 14.2A8.5 8.5 0 0 1 9.8 3.5a8.5 8.5 0 1 0 10.7 10.7Z"/>
+      </svg>
+      <span class="v" id="worldPhase">1 / 10</span><span class="cap">night</span>
+    </div>
+
+    <div class="hud-stat">
+      <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M2 8.5c2.2-2.2 4.3-2.2 6.5 0s4.3 2.2 6.5 0 4.3-2.2 6.5 0"/>
+        <path d="M2 14c2.2-2.2 4.3-2.2 6.5 0s4.3 2.2 6.5 0 4.3-2.2 6.5 0"/>
+        <path d="M2 19.5c2.2-2.2 4.3-2.2 6.5 0s4.3 2.2 6.5 0 4.3-2.2 6.5 0"/>
+      </svg>
+      <span class="v" id="wave">1</span><span class="cap">wave</span>
+    </div>
+
+    <div class="hud-stat">
+      <svg class="ico coins" viewBox="0 0 24 24" aria-hidden="true">
+        <ellipse cx="12" cy="17.6" rx="8" ry="3.3"/>
+        <ellipse cx="12" cy="12.6" rx="8" ry="3.3"/>
+        <ellipse cx="12" cy="7.6"  rx="8" ry="3.3"/>
+      </svg>
+      <span class="v" id="gold">0</span><span class="cap">gold</span>
+    </div>
 
     <div class="hud-icons">
       <button class="hicon" id="openInv" aria-haspopup="dialog" title="Inventário (I)">
@@ -411,7 +468,7 @@
       </div>
       <div class="pot-col">
         <h3>Poção de mana</h3>
-        <label class="sw"><input type="checkbox" id="potMpOn" checked> <span>Usar automaticamente</span></label>
+        <label class="sw"><input type="checkbox" id="potMpOn"> <span>Usar automaticamente</span></label>
         <div class="pot-list" id="potMpList"></div>
         <p class="hint" id="potMpAff"></p>
       </div>
@@ -462,14 +519,29 @@
    </section>
   </div>
 
-  <div class="ledger">
-    <div class="cell"><span class="lbl">Loot</span><span class="n pos" id="loot">+0</span></div>
-    <div class="cell"><span class="lbl">Gasto em poções</span><span class="n neg" id="supply">0</span></div>
-    <div class="cell"><span class="lbl">Saldo da run</span><span class="n" id="balance">0</span></div>
-    <div class="cell"><span class="lbl">Poções disponíveis</span><span class="n" id="afford">0</span></div>
-    <div class="cell"><span class="lbl">Poeira</span><span class="n" id="dust">0</span></div>
-    <div class="cell"><span class="lbl">Recuos</span><span class="n" id="retreats">0</span></div>
-  </div>
+  <section class="analyzer">
+    <h2>Session Analyzer</h2>
+    <div class="ledger">
+      <div class="cell"><span class="lbl">Session time</span><span class="n" id="sessTime">0:00</span></div>
+      <div class="cell"><span class="lbl">Balance</span><span class="n" id="balance">0</span></div>
+      <div class="cell"><span class="lbl">Waste</span><span class="n neg" id="supply">0</span></div>
+      <div class="cell"><span class="lbl">Loot</span><span class="n pos" id="loot">+0</span></div>
+      <div class="cell">
+        <span class="lbl">Potions available</span>
+        <span class="n withbtn">
+          <span id="afford">0</span>
+          <button class="potbtn" id="openPotShort" aria-haspopup="dialog" title="Abrir poções">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M9.5 2.5h5"/><path d="M10.5 2.5v5.2L5.9 16a3.4 3.4 0 0 0 3 5.1h6.2a3.4 3.4 0 0 0 3-5.1l-4.6-8.3V2.5"/>
+              <path d="M7.2 14.4h9.6"/>
+            </svg>
+          </button>
+        </span>
+      </div>
+      <div class="cell"><span class="lbl">Poeira</span><span class="n" id="dust">0</span></div>
+      <div class="cell"><span class="lbl">Damnations</span><span class="n" id="retreats">0</span></div>
+    </div>
+  </section>
 
   <div class="controls">
     <button id="pause" aria-pressed="false">Pausar</button>
@@ -534,7 +606,7 @@
       anims: {
         idle:   { file: "Idle.png",     frames: 4, fps: 6 },
         walk:   { file: "Walk.png",     frames: 8, fps: 10 },
-        attack: { file: "Attack 1.png", frames: 5, fps: 13, loop: false }
+        attack: { file: "Attack 1.png", frames: 5, fps: 15, loop: false, impact: 4 }
       }
     },
     /* Ignavo: silhueta sem rosto nem roupa, que é a descrição do bestiário —
@@ -547,7 +619,7 @@
         idle:   { file: "Idle.png",   frames: 6,  fps: 6 },
         walk:   { file: "Walk.png",   frames: 10, fps: 12 },
         // 4/8 = 0,5s, cabe na cadência de golpe do mob (atkCd 1,15s)
-        attack: { file: "Attack.png", frames: 4,  fps: 8,  loop: false },
+        attack: { file: "Attack.png", frames: 4,  fps: 8,  loop: false, impact: 2 },
         hurt:   { file: "Hurt.png",   frames: 4,  fps: 14, loop: false },
         dead:   { file: "Dead.png",   frames: 5,  fps: 11, loop: false }
       }
@@ -1241,7 +1313,7 @@
     rng = mulberry32(20260811);
     S = {
       t: 0, phase: PHASE.WALK, phaseT: 0,
-      hero: { x: 120, hp: 1, hpMax: 1, mp: 1, mpMax: 1, atkCd: 0, spellCd: 0, hurt: 0, frame: 0, y0: 234, anim: "idle", animT: 0 },
+      hero: { x: 120, hp: 1, hpMax: 1, mp: 1, mpMax: 1, atkCd: 0, swing: false, hurt: 0, frame: 0, y0: 234, anim: "idle", animT: 0 },
       mobs: [], pops: [], motes: [],
       cam: 0, wave: 1, nextWaveX: 520,
       gold: 150, loot: 0, supply: 0, dust: 0, kills: 0, retreats: 0, hold: 0,
@@ -1253,7 +1325,8 @@
       // poções: liga/desliga e escolha por tipo
       pot: {
         hp: { on: true, id: "hp1", at: 0.45 },
-        mp: { on: true, id: "mp1", at: 0.35 }
+        // sem magia implementada, nada gasta mana — nasce desligada
+        mp: { on: false, id: "mp1", at: 0.35 }
       },
 
       inv: new Array(INV_SIZE).fill(null),
@@ -1275,8 +1348,7 @@
       crit:   Math.min(0.6, 0.03 + c.dex * 0.008),
       alc:    1 + Math.floor((c.dex + c.int) / 14),
       sust:   c.int * 0.006,                 // fração do dano devolvida
-      mana:   18 + c.int * 9,
-      spell:  10 + c.int * 2.4
+      mana:   18 + c.int * 9
     };
   }
 
@@ -1323,7 +1395,8 @@
       [fila[i], fila[j]] = [fila[j], fila[i]];
     }
 
-    const base = Math.round(26 * Math.pow(1.11, S.wave - 1));
+    // escala da main: 1,085 substituiu 1,11 quando a spell saiu e o DPS caiu
+    const base = Math.round(26 * Math.pow(1.085, S.wave - 1));
     // a fila aperta conforme cresce, para caber na cena sem sair do quadro
     const passo = Math.min(40, 430 / fila.length);
 
@@ -1336,6 +1409,7 @@
         slot: S.hero.x + 96 + i * passo,
         hp, hpMax: hp,
         atkCd: (0.6 + rng() * 0.7) / e.cadencia,
+        swing: false,          // golpe em curso: o dano sai no quadro de impacto
         hurt: 0, dead: 0, frame: 0, y0: 249,
         anim: "walk", animT: rng() * 0.6
       });
@@ -1349,7 +1423,6 @@
   const POP = {
     dano:   "#ff5a48",   // dano físico no monstro
     crit:   "#ffb648",   // crítico
-    spell:  "#6ec6ff",   // dano de spell
     ouro:   "#f0c04a",   // ouro que caiu
     cura:   "#7fa86b",   // poção de vida
     mana:   "#5f92b5",   // poção de mana
@@ -1380,6 +1453,17 @@
   const DT = 1 / 60;
   // duração do clarão de acerto; longa o bastante para o olho pegar
   const HURT_T = 0.22;
+  const DEAD_T = 0.45;          // desvanecer do corpo após o abate
+
+  /* Momento do impacto dentro de cada animação de golpe, em segundos.
+     Derivado do próprio config do sprite: mexer em `fps` ou `impact` reajusta
+     o dano junto, sem chance de a animação e o golpe saírem de sincronia. */
+  const impactTime = (set, anim) => {
+    const a = set.anims[anim];
+    return (a.impact ?? 0) / a.fps;
+  };
+  const ATK_IMPACT = impactTime(SPRITES.hero, "attack");
+  const MOB_IMPACT = impactTime(SPRITES.ignavo, "attack");
 
   function step() {
     const s = S, h = s.hero;
@@ -1448,7 +1532,8 @@
       if (alive.length === 0) { s.phase = PHASE.CLEAR; s.phaseT = 0; }
       else {
         const kill = (tgt) => {
-          tgt.dead = 0.45; s.kills++;
+          tgt.dead = DEAD_T; s.kills++;
+          tgt.hurt = HURT_T * 1.6;      // o golpe que mata pisca mais tempo
           const g = 14 + s.wave * 3 + ((rng() * 9) | 0);
           s.gold += g; s.loot += g;
           gainXP(9 + ((rng() * 6) | 0));
@@ -1459,14 +1544,26 @@
           if (rng() < 0.015) s.dust++;
         };
 
-        // golpe físico — Cadência define o ritmo, Alcance quantos pega
+        /* Turno de auto attack, no modelo do Tibia: o intervalo é fixo e corre
+           sozinho. Ao virar o turno, o golpe *começa*; o dano só sai no quadro
+           de impacto da animação, quando a lâmina de fato chega à frente.
+           Antes o dano saía junto com o primeiro quadro, com o cavaleiro ainda
+           em guarda — daí a sensação de que o pisca do inimigo não batia com
+           o golpe. O relógio do turno não espera o impacto: ele já recomeça,
+           então a cadência continua sendo o que a Cadência diz. */
         h.atkCd -= DT;
-        if (h.atkCd <= 0) {
+        if (h.atkCd <= 0 && !h.swing) {
           h.atkCd = 1 / d.cad;
+          h.swing = true;
           h.anim = "attack"; h.animT = 0;
+        }
+
+        if (h.swing && h.animT >= ATK_IMPACT) {
+          h.swing = false;
           const crit = rng() < d.crit;
-          const targets = alive.slice(0, d.alc);
-          for (const tgt of targets) {
+          for (const tgt of alive.slice(0, d.alc)) {
+            // da main: entre o turno e o impacto o alvo pode ter morrido
+            if (tgt.dead) continue;
             /* A couraça do Encalhado corta o golpe: é a parede do círculo, e
                a saída dela é penetração, não mais dano bruto. Aqui é um corte
                fixo porque o protótipo ainda não modela penetração. */
@@ -1479,32 +1576,22 @@
           }
         }
 
-        /* spell de auto-cast: consome mana, dispara sozinha (§4.6).
-           É o que faz a poção de mana ter função em vez de ser enfeite. */
-        h.spellCd -= DT;
-        const SPELL_MANA = 16;
-        if (h.spellCd <= 0 && h.mp >= SPELL_MANA && alive.length >= 2) {
-          h.spellCd = 3.4; h.mp -= SPELL_MANA;
-          for (const tgt of alive.slice(0, 3)) {
-            if (tgt.dead) continue;
-            const dmg = Math.max(1, Math.round(d.spell * (0.9 + rng() * 0.25)));
-            tgt.hp -= dmg; tgt.hurt = HURT_T;
-            pop(tgt.x + 20, tgt.y0 - 26, "spell " + dmg, POP.spell);
-            if (tgt.hp <= 0) kill(tgt);
-          }
-        }
-
         // mobs atacam
         for (const m of alive) {
           if (m.dead) continue;
           const e = ESPECIES[m.especie];
           m.atkCd -= DT;
-          if (m.atkCd <= 0) {
+          if (m.atkCd <= 0 && !m.swing) {
             /* Cada espécie tem ritmo e peso de golpe próprios. O Moscardo bate
                quase três vezes mais rápido por metade do dano; o Encalhado
                quase não fere — ele custa tempo, não vida. */
             m.atkCd = 1.15 / e.cadencia;
+            m.swing = true;
             m.anim = "attack"; m.animT = 0;
+          }
+          // o dano sai no quadro de impacto, não no primeiro da animação
+          if (m.swing && m.animT >= MOB_IMPACT) {
+            m.swing = false;
             const raw = (2 + ((rng() * 3) | 0) + s.wave * 0.32) * e.dano;
             const dmg = Math.max(1, Math.round(raw));
             h.hp = Math.max(0, h.hp - dmg); h.hurt = 0.14;
@@ -1693,7 +1780,7 @@
     for (const m of s.mobs) {
       m.y0 = GROUND - MOB.length * MS;
       const sx = Math.round(m.x - cam), sy = m.y0;
-      ctx.globalAlpha = m.dead > 0 ? Math.max(0, m.dead / 0.45) : 1;
+      ctx.globalAlpha = m.dead > 0 ? Math.max(0, m.dead / DEAD_T) : 1;
       /* O mob avança contra o jogador, então sempre olha para a esquerda.
          Sem a pasta `sprites/` o carregamento falha e a arte procedural
          assume — nunca remova esse fallback.                               */
@@ -1706,14 +1793,25 @@
       }
 
       /* Quem levou o golpe pisca de branco. O combate é single target e sem
-         isso não dá para saber qual dos cinco está sendo atingido. */
-      if (m.hurt > 0 && !m.dead) {
-        const a = 0.75 * (m.hurt / HURT_T);
+         isso não dá para saber qual dos cinco está sendo atingido.
+
+         O golpe que mata pisca também. Antes uma guarda `!m.dead` pulava esse
+         caso, e o abate — o momento que mais pede peso — era o único sem
+         retorno. O clarão do golpe fatal é mais forte e mais longo, e some
+         acompanhando o desvanecer do corpo para não flutuar sozinho. */
+      if (m.hurt > 0) {
+        const morrendo = m.dead > 0;
+        const fade = morrendo ? Math.max(0, m.dead / DEAD_T) : 1;
+        // clamp explícito: no golpe fatal `hurt` passa de HURT_T de propósito,
+        // e sem isto o alpha só não estoura por conta do clamp do Canvas
+        const forca = Math.min(1, m.hurt / HURT_T);
+        const a = (morrendo ? 0.95 : 0.75) * forca * fade;
         if (!usouFolha ||
             !drawSheetTint(folhaMob, m.anim, m.animT, sx + 28, GROUND, true, a, "#ffffff")) {
           ctx.globalAlpha = a;
+          // paleta branca por espécie (#39), com o fade do abate da main
           drawSprite(ctx, e.rows, e.palBranca, sx, sy, MS, true);
-          ctx.globalAlpha = m.dead > 0 ? Math.max(0, m.dead / 0.45) : 1;
+          ctx.globalAlpha = morrendo ? fade : 1;
         }
       }
       // barra de vida
@@ -1783,9 +1881,18 @@
   /* ---------- HUD ---------- */
   const el = id => document.getElementById(id);
   const $wave = el("wave"), $gold = el("gold"), $worldPhase = el("worldPhase"),
-        $kills = el("kills"), $phase = el("phase"), $loot = el("loot"),
+        $phase = el("phase"), $loot = el("loot"),
         $supply = el("supply"), $balance = el("balance"), $dust = el("dust"),
-        $retreats = el("retreats"), $afford = el("afford");
+        $retreats = el("retreats"), $afford = el("afford"), $sessTime = el("sessTime");
+
+  /* Tempo de sessão. Usa o relógio da simulação, não o do mundo: com pausa e
+     velocidade 3× o relógio de parede mentiria sobre quanto jogo de fato
+     passou, e é o jogo que produziu os números ao lado. */
+  function mmss(seg) {
+    const s = Math.floor(seg), h = (s / 3600) | 0, m = ((s % 3600) / 60) | 0, r = s % 60;
+    const dois = n => String(n).padStart(2, "0");
+    return h > 0 ? h + ":" + dois(m) + ":" + dois(r) : m + ":" + dois(r);
+  }
 
   /* Ondas por fase do Mundo 0, iguais às de `packages/core/src/world-0.ts`.
      A simulação daqui conta ondas sem parar; a fase sai dessa contagem, para
@@ -1818,7 +1925,7 @@
     // a onda mostra a posição dentro da fase, que é como o jogo a organiza
     $wave.textContent = p.ondaNaFase + " / " + p.total;
     $gold.textContent = s.gold;
-    $kills.textContent = s.kills;
+    $sessTime.textContent = mmss(s.t);
     $phase.textContent = s.phase;
     $loot.textContent = "+" + s.loot;
     $supply.textContent = s.supply;
@@ -1865,6 +1972,15 @@
   }
 
   el("openInv").onclick = () => (openModal === "inv" ? closeModal() : setTab("inv"));
+
+  /* O ícone ao lado de "Potions available" abre o inventário já com o painel
+     de poções aberto: o número diz quantas cabem no bolso, e o passo seguinte
+     natural é escolher qual delas. */
+  el("openPotShort").onclick = () => {
+    setTab("inv");
+    $potPanel.hidden = false;
+    $btnPot.setAttribute("aria-pressed", "true");
+  };
   el("openStats").onclick = () => (openModal === "stats" ? closeModal() : setTab("stats"));
 
   /* O card do personagem abre os atributos. É onde o aviso de pontos a
@@ -2010,8 +2126,7 @@
     ["Crítico", d => (d.crit * 100).toFixed(1) + "%"],
     ["Alcance", d => d.alc + (d.alc > 1 ? " alvos" : " alvo")],
     ["Sustento", d => (d.sust * 100).toFixed(1) + "%"],
-    ["Mana", d => Math.round(d.mana)],
-    ["Dano de spell", d => d.spell.toFixed(1)]
+    ["Mana", d => Math.round(d.mana)]
   ];
   const $derList = el("derList");
   const derRows = DER.map(([name]) => {

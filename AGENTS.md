@@ -115,12 +115,55 @@ What to check each time:
 | `plano-tecnico-idle-ios.md` | Stack, architecture, sync, PVP, monetization decisions |
 | `docs/done/<slug>.md` | What was actually delivered, and how it differed from the plan |
 | `AGENTS.md` | New commands, new conventions, new constraints |
+| `changelogs.md` | The version entry for this PR (see *Changelog*) |
 | Open PR body | The change, under `Added` / `Changed` / `Fixed` |
 
 Two rules that carry most of the value:
 
 - **A resolved open question moves out of the open list** and into the resolved table, with the decision recorded. An open question that was silently answered in code is the most expensive kind of stale doc.
 - **When implementation contradicts a doc, the doc is wrong until proven otherwise** — but say so explicitly instead of quietly editing it. The user decides whether the code or the doc was the mistake.
+
+## Changelog — obrigatório
+
+**Every PR is a new changelog version. No exceptions.** With several devs merging all day, this is what keeps the history readable — and it is the only record of *why* something changed once the diff stops being fresh in anyone's memory.
+
+### 1. Find your number
+
+The version comes from **the last PR merged into `main`** — read its changelog and increment. There is expected to be one; if there genuinely is not, say so instead of inventing a number.
+
+```bash
+rtk proxy gh pr list --state merged --limit 5 --json number,title,mergedAt \
+  --jq '.[] | "#\(.number) \(.title)"'
+rtk proxy gh pr view <última> --json body --jq .body | head -20
+```
+
+Increment the last digit: `0.07` → `0.08`. Check `changelogs.md` too — if a number is already taken, someone merged while you were working, so take the next free one.
+
+### 2. Write it in the PR body
+
+The changelog **lives in the PR description**, under the version heading, and mirrors what goes into `changelogs.md`:
+
+```
+## 0.08 — Título curto
+
+### Added / Changed / Fixed / Removed
+- ...
+```
+
+Write the effect, not the file touched. "Ataques agora acertam no quadro do golpe" beats "altera `resolveCombat`".
+
+### 3. Prefix every commit with the number
+
+```
+0.08 ataques agora acertam no quadro do golpe
+0.08 corrige o clarão do golpe fatal
+```
+
+A commit whose message does not start with its version is incomplete. It is what lets `git log --oneline` be read as a changelog without opening a single PR.
+
+### 4. Add the entry to `changelogs.md`
+
+Same content as the PR body, newest at the top, with the PR number, date and author.
 
 ## Pull requests
 
