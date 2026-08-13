@@ -690,16 +690,6 @@
     }
   }
 
-  /* Ilustração da tela de morte: peça única, não spritesheet — sem fatia de
-     quadro, só escala para caber mantendo a proporção. Arte original do
-     dono do jogo, sem restrição de licença de terceiro. Mesma regra do
-     resto: sem a pasta `sprites/`, o carregamento falha e o crânio
-     procedural assume — nunca perde o fallback. */
-  const DEATH_ART = { img: new Image(), ready: false };
-  DEATH_ART.img.onload = () => { DEATH_ART.ready = true; };
-  DEATH_ART.img.onerror = () => { DEATH_ART.ready = false; };
-  DEATH_ART.img.src = "../sprites/images/death_screen_image.png";
-
   /* Clarão sobre o sprite: recorta o quadro num canvas auxiliar, pinta por
      cima com `source-atop` (só onde há pixel opaco) e compõe com alpha.
      Serve para o feedback de acerto funcionar também com spritesheet — antes
@@ -1661,15 +1651,6 @@
     "Você recua. O osso, não."
   ];
 
-  /* Crânio procedural para a tela de morte: reaproveita o mesmo desenhador
-     usado na parede de ossos (boneSkull), então nenhum asset novo entra —
-     zero risco de licença. Tom mais claro que o da parede (aquele é fundo,
-     este é a peça central) e olhos em brasa, no tema flame/ember do resto
-     do jogo. */
-  const DEATH_SKULL_TONE = { lit: "#e8d9c2", mid: "#8f7a63", dim: "#241c17" };
-  const DEATH_ART_Y = H * 0.34;    // âncora vertical comum: imagem real ou crânio caem no mesmo lugar
-  const DEATH_ART_MAX_H = 140;     // altura máxima da ilustração; a largura segue a proporção do arquivo
-
   function step() {
     const s = S, h = s.hero;
     s.t += DT; s.phaseT += DT;
@@ -2142,21 +2123,10 @@
         ctx.save();
         ctx.globalAlpha = msgA;
 
-        /* Emblema acima da frase, como nas lápides. Ilustração real quando
-           carrega; sem a pasta `sprites/`, o crânio procedural assume — a
-           mesma regra de sempre, nunca perder o fallback. */
-        if (DEATH_ART.ready) {
-          const iw = DEATH_ART.img.naturalWidth, ih = DEATH_ART.img.naturalHeight;
-          const dh = DEATH_ART_MAX_H, dw = dh * (iw / ih);
-          ctx.drawImage(DEATH_ART.img, W / 2 - dw / 2, DEATH_ART_Y - dh / 2, dw, dh);
-        } else {
-          boneSkull(ctx, W / 2, DEATH_ART_Y, 46, DEATH_SKULL_TONE, true, 0, 0);
-        }
-
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         ctx.font = '600 16px ui-monospace, "SF Mono", Menlo, Consolas, monospace';
-        const msgY = H * 0.64;
+        const msgY = H * 0.5;
         ctx.fillStyle = P.blood;
         ctx.fillText(s.deathMsg, W / 2 + 1, msgY + 1);
         ctx.fillStyle = P.flame;
