@@ -67,20 +67,33 @@ export const TEST_OSSUARY_UPGRADES: readonly OssuaryUpgradeDefinition[] = [
     id: 'lab-shadow-runner-milestone',
     name: 'Marca dos Corredores',
     requirements: [{ kind: 'milestone', key: 'shadow-runner', amount: 3 }],
-    bonuses: [{ stat: 'sustain', percent: 5 }],
+    // era `sustain`, que agora nasce sempre em zero: um bônus percentual
+    // sobre zero não move nada, e o Lab existe para tornar o efeito visível
+    bonuses: [{ stat: 'critical', percent: 20 }],
   },
 ];
 
-/** Fórmulas provisórias apenas para tornar a progressão observável no Lab. */
+/**
+ * Fórmulas do Lab, alinhadas com o papel decidido para cada atributo:
+ *   STR dano e penetração · CONS vida · DEX cadência e crítico · INT mana e mágico
+ *
+ * `sustain` e `reach` ficam sem atributo de propósito. Roubo de vida não é
+ * build do jogador — o stat existe para o inimigo, como o dreno da Gorja. E
+ * alcance vem de arma, não de ponto.
+ *
+ * A mana segue mais generosa que a do jogo para as magias serem observáveis
+ * no laboratório sem esperar regeneração.
+ */
 export const TEST_DERIVED_FORMULAS: DerivedStatFormulas = {
   vigor: { base: 0, attribute: 'cons', coefficient: 10 },
   damage: { base: 0, attribute: 'str', coefficient: 2, includeWeaponBaseDamage: true },
   penetration: { base: 0, attribute: 'str', coefficient: 1 },
   cadence: { base: 1, attribute: 'dex', coefficient: 0.1 },
-  critical: { base: 0, attribute: 'dex', coefficient: 0.5 },
-  reach: { base: 1, attribute: 'dex', coefficient: 0.1 },
-  sustain: { base: 0, attribute: 'int', coefficient: 1 },
+  critical: { base: 0, attribute: 'dex', coefficient: 1 },
+  reach: { base: 1, attribute: null, coefficient: 0 },
+  sustain: { base: 0, attribute: null, coefficient: 0 },
   mana: { base: 50, attribute: 'int', coefficient: 10 },
+  spellDamage: { base: 0, attribute: 'int', coefficient: 3 },
 };
 
 /** Combates artificiais: validam o domínio sem bestiário, waves ou loot. */

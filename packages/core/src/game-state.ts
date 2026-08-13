@@ -1,6 +1,6 @@
 import { addItem, createInventory, removeItem, type Inventory } from "./inventory.js";
 import { applyEconomyTransaction, createEconomyState, GOLD_RESOURCE, type EconomyState } from "./economy.js";
-import { createOssuaryState, type OssuaryState } from "./ossuary.js";
+import { createOssuaryState, OSSUARY_DERIVED_STATS, type OssuaryState } from "./ossuary.js";
 import { createRoster, createParty, gainPartyExperience, type Party, type RosterState } from "./party.js";
 import { createCombatantsFromParty } from "./combat/character-adapter.js";
 import { createCombatState, advanceCombatTick, type CombatState, type CombatEvent } from "./combat/index.js";
@@ -104,7 +104,7 @@ function retreat(state: GameState, content: GameContentContext, reason: string):
 
 function findWaveForRun(state: GameState, content: GameContentContext) { const phase = findPhase(content, state.run!.phaseId); const id = phase.waveIds[state.run!.waveIndex]; if (!id) throw new RangeError("índice de wave inválido"); return findWave(content, id); }
 function createCombatantsForWave(state: GameState, content: GameContentContext, enemyIds: readonly string[], seed: number | string, waveIndex: number) {
-  const party = createCombatantsFromParty(state.roster, state.party, { side: "party", itemEffects: { activeEffects: [] }, formulas: content.derivedStatFormulas, ossuaryBonuses: Object.fromEntries(["vigor", "damage", "penetration", "cadence", "critical", "reach", "sustain", "mana"].map((id) => [id, 0])) as never });
+  const party = createCombatantsFromParty(state.roster, state.party, { side: "party", itemEffects: { activeEffects: [] }, formulas: content.derivedStatFormulas, ossuaryBonuses: Object.fromEntries(OSSUARY_DERIVED_STATS.map((id) => [id, 0])) as never });
   const enemies = enemyIds.map((id, index) => { const enemy = content.enemies.find((candidate) => candidate.id === id); if (!enemy) throw new RangeError(`enemy ausente: ${id}`); return { id: `${id}:${waveIndex}:${index}`, name: enemy.name, side: "enemy" as const, stats: enemy.stats }; });
   return [...party, ...enemies];
 }

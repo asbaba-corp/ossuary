@@ -51,7 +51,8 @@ export function createCombatantFromCharacter(build: CharacterCombatBuild): Chara
       maxMana,
       initialMana: maxMana,
       int: attributes.int,
-      spellDamagePercent: Math.max(0, equipmentStats.spellDamagePercent),
+      // INT entra pelo derivado; o equipamento soma por cima
+      spellDamagePercent: Math.max(0, effective.spellDamage + equipmentStats.spellDamagePercent),
     },
     derivedStats,
   };
