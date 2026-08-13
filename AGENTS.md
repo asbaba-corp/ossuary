@@ -162,6 +162,10 @@ Use only the headings you need. Keep the description in sync as you push more co
 
 ### A merged branch is deleted — always
 
+**Standing authorization: deleting a merged branch needs no permission.** It is the one exception to "never send anything to GitHub without asking" — the owner granted it once, for all future merges, precisely so nobody has to stop and ask each time. Do it as routine, local and remote, and just report it.
+
+The exception is narrow and does not stretch: it covers branches **fully merged into `main`** and nothing else. An unmerged branch, or one you are unsure about, still needs an explicit go-ahead.
+
 **The merge is not finished while the branch still exists.** Delete it locally and on the remote, immediately after merging:
 
 ```bash
@@ -180,6 +184,12 @@ rtk proxy git branch -r --merged origin/main | grep -v 'origin/main$'
 ```
 
 Anything that lists there is merged and should be gone. Use `-d`, never `-D`: if git refuses, the branch has commits that never reached `main` and deleting it would lose them.
+
+For the remote, confirm each one is empty relative to `main` before deleting — `push --delete` has no `-d` safety net:
+
+```bash
+rtk proxy git rev-list --count origin/main..origin/<branch>   # tem que ser 0
+```
 
 ## Commands
 
