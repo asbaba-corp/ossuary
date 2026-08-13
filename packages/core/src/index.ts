@@ -27,6 +27,7 @@ export * from "./ossuary.js";
 export * from "./economy.js";
 export * from "./combat/index.js";
 export * from "./equipment/index.js";
+export * from "./auto-equip.js";
 export * from "./game-content.js";
 export * from "./game-state.js";
 export * from "./save.js";

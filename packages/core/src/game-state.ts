@@ -1,6 +1,7 @@
 import { addItem, createInventory, removeItem, type Inventory } from "./inventory.js";
 import { applyEconomyTransaction, createEconomyState, GOLD_RESOURCE, type EconomyState } from "./economy.js";
 import { createOssuaryState, OSSUARY_DERIVED_STATS, type OssuaryState } from "./ossuary.js";
+import { autoEquipEmptySlots } from "./auto-equip.js";
 import { createRoster, createParty, gainPartyExperience, type Party, type RosterState } from "./party.js";
 import { createCombatantsFromParty } from "./combat/character-adapter.js";
 import { createCombatState, advanceCombatTick, type CombatState, type CombatEvent } from "./combat/index.js";
@@ -76,10 +77,18 @@ function resolveVictory(state: GameState, content: GameContentContext, events: G
   const run = state.run!; const wave = findWaveForRun(state, content); const rewardId = `${run.phaseId}:${run.waveIndex}`;
   if (run.checkpoint.appliedRewardIds.includes(rewardId)) return state;
   const experience = gainPartyExperience(state.roster, state.party, wave.xpReward);
+  let roster = experience.roster;
   let economy = applyEconomyTransaction(state.economy, { scope: "account", resourceId: GOLD_RESOURCE, direction: "credit", amount: wave.goldReward, reason: `wave:${wave.id}` }).state;
   let inventory = state.inventory;
   const table = content.dropTables.find((candidate) => candidate.id === wave.dropTableId)!;
   inventory = addItem(inventory, { item: createEquipmentFromDropTable(`${rewardId}:${Math.floor(deterministicUnit(run.seed, rewardId) * 1e9)}`, `${String(run.seed)}:${rewardId}`, table.entries), quantity: 1 });
+  /* Slot vazio é vestido na hora. Sem isso o drop garantido da fase 3 fica
+     parado na mochila e o jogador entra na fase 4 sem o alcance que ela
+     pressupõe — num jogo idle, contar com ele abrindo o inventário é apostar
+     contra a própria proposta. Slot ocupado nunca é tocado. */
+  const autoEquip = autoEquipEmptySlots(roster, state.party, inventory);
+  roster = autoEquip.roster;
+  inventory = autoEquip.inventory;
   if (wave.consumableRuleId) {
     const rule = content.consumables.find((candidate) => candidate.id === wave.consumableRuleId);
     if (rule) { inventory = removeItem(inventory, rule.itemId, rule.quantity); economy = applyEconomyTransaction(economy, { scope: "account", resourceId: GOLD_RESOURCE, direction: "debit", amount: rule.goldCost, reason: `consumable:${rule.id}` }).state; }
@@ -90,8 +99,8 @@ function resolveVictory(state: GameState, content: GameContentContext, events: G
   if (last && phase.nextPhaseId && !unlocked.includes(phase.nextPhaseId)) { unlocked.push(phase.nextPhaseId); eventsToAdd.push({ type: "phase_unlocked", phaseId: phase.nextPhaseId }); }
   events.push(...eventsToAdd);
   const checkpoint = makeCheckpoint(run.checkpoint.sequence + 1, run.waveIndex, [...run.checkpoint.appliedRewardIds, rewardId]);
-  if (last) return { ...state, roster: experience.roster, inventory, economy, world: { ...state.world, clearedPhaseIds: cleared, unlockedPhaseIds: unlocked }, run: { ...run, status: "completed", combat: null, checkpoint }, metadata: { ...state.metadata, pendingSync: true } };
-  return { ...state, roster: experience.roster, inventory, economy, world: { ...state.world, clearedPhaseIds: cleared, unlockedPhaseIds: unlocked }, run: { ...run, status: "walking", waveIndex: run.waveIndex + 1, distanceToWave: content.runRules.walkingMs, combat: null, checkpoint }, metadata: { ...state.metadata, pendingSync: true } };
+  if (last) return { ...state, roster, inventory, economy, world: { ...state.world, clearedPhaseIds: cleared, unlockedPhaseIds: unlocked }, run: { ...run, status: "completed", combat: null, checkpoint }, metadata: { ...state.metadata, pendingSync: true } };
+  return { ...state, roster, inventory, economy, world: { ...state.world, clearedPhaseIds: cleared, unlockedPhaseIds: unlocked }, run: { ...run, status: "walking", waveIndex: run.waveIndex + 1, distanceToWave: content.runRules.walkingMs, combat: null, checkpoint }, metadata: { ...state.metadata, pendingSync: true } };
 }
 
 function retreat(state: GameState, content: GameContentContext, reason: string): GameTransition {
