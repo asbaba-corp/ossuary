@@ -24,6 +24,20 @@ o arquivo mexido. "Ataques agora acertam no quadro do golpe" vale mais que
 
 ---
 
+## 0.07 — Dev Mode no protótipo
+PR #46 · 2026-08-13 · @thipintop
+
+### Added
+- Botão "Dev Mode" na barra de controles do protótipo, ao lado de
+  "Reiniciar". Abre um painel com comandos para simular situações em tempo
+  real sem depender de sorte na simulação: forçar a morte do herói (útil
+  para testar o ciclo de queda/breu/retorno sem esperar HP zerar sozinho),
+  curar totalmente e pular direto para a próxima fase.
+- O painel expande e recolhe com transição suave, e fica inerte (fora do
+  foco/tab) quando fechado.
+
+---
+
 ## 0.06 — Morte do herói: queda, breu e retorno
 PR #45 · 2026-08-13 · @thipintop
 

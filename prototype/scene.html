@@ -349,6 +349,25 @@
   button:focus-visible { outline: 2px solid var(--flame); outline-offset: 2px; }
   button[aria-pressed="true"] { color: var(--flame); border-color: #6b4a26; }
 
+  /* ---- dev mode ---- */
+  #devMode { margin-left: auto; }
+  #devMode[aria-pressed="true"] { color: var(--flame); border-color: #6b4a26; }
+  .devpanel {
+    display: flex; flex-wrap: wrap; gap: 8px;
+    background: #16100c; border: 1px solid transparent;
+    width: 100%; order: 99;
+    max-height: 0; opacity: 0; overflow: hidden; padding: 0 12px;
+    transition: max-height 0.22s ease, opacity 0.18s ease, padding 0.22s ease, border-color 0.22s ease;
+  }
+  .devpanel.open {
+    max-height: 120px; opacity: 1; padding: 12px; border-color: #2c2118;
+  }
+  @media (prefers-reduced-motion: reduce) { .devpanel { transition: none; } }
+  .devpanel button {
+    background: #1d1610; border-color: #2c2118;
+  }
+  .devpanel button:hover { border-color: #6b4a26; color: var(--flame); }
+
   .note {
     color: #5d4d3a;
     font-size: 11.5px;
@@ -570,6 +589,13 @@
     <button id="pause" aria-pressed="false">Pausar</button>
     <button id="speed" aria-pressed="false">Velocidade 1×</button>
     <button id="reset">Reiniciar</button>
+    <button id="devMode" aria-pressed="false" aria-expanded="false">Dev Mode</button>
+
+    <div class="devpanel" id="devPanel">
+      <button id="devKill">Forçar morte</button>
+      <button id="devHeal">Curar totalmente</button>
+      <button id="devNextWave">Pular para próxima fase</button>
+    </div>
   </div>
 
 </div>
@@ -2556,6 +2582,28 @@
     reset();
     el("potHpOn").checked = true; el("potMpOn").checked = true;
     markUI();
+  };
+
+  /* ---------- dev mode ---------- */
+  const $devMode = el("devMode"), $devPanel = el("devPanel");
+  $devPanel.inert = true;
+  $devMode.onclick = () => {
+    const open = !$devPanel.classList.contains("open");
+    $devPanel.classList.toggle("open", open);
+    $devPanel.inert = !open;
+    $devMode.setAttribute("aria-pressed", String(open));
+    $devMode.setAttribute("aria-expanded", String(open));
+  };
+  el("devKill").onclick = () => { S.hero.hp = 0; };
+  el("devHeal").onclick = () => { S.hero.hp = S.hero.hpMax; S.hero.mp = S.hero.mpMax; };
+  el("devNextWave").onclick = () => {
+    const emMorte = S.phase === PHASE.DEATH_FALL || S.phase === PHASE.DEATH_VOID || S.phase === PHASE.DEATH_RISE;
+    if (emMorte) return;
+    S.mobs.length = 0;
+    S.hold = 0;
+    S.wave++;
+    S.nextWaveX = S.hero.x + 620;
+    S.phase = PHASE.WALK; S.phaseT = 0;
   };
 })();
 </script>
