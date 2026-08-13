@@ -1,7 +1,7 @@
 # Bestiário do Mundo 0
 
 Expõe ao jogador as criaturas do Vestíbulo, até então descritas apenas em
-`world_1_vestibule.md` — um doc de design que o jogador nunca vê.
+`world_0_vestibule.md` — um doc de design que o jogador nunca vê.
 
 ## Entregue
 
@@ -17,7 +17,7 @@ papéis qualitativamente e a simulação usa uma fórmula única para todos os m
 (`2 + rng*3 + onda*0.32`, cadência 1,15 s). Os números foram derivados dos papéis
 e estão marcados como ilustrativos na própria UI, seguindo a convenção já usada
 em "arte placeholder" e "preços ilustrativos". Foram registrados também em
-`world_1_vestibule.md` para que doc e código não divirjam.
+`world_0_vestibule.md` para que doc e código não divirjam.
 
 **Figuras são procedurais.** Só o Ignavo tinha sprite. Moscardo, Gorja,
 Encalhado, Marcado e Caronte ganharam arte pixelada nova (14×17, mesmo estilo e
