@@ -21,6 +21,29 @@ o arquivo mexido. "Ataques agora acertam no quadro do golpe" vale mais que
 
 ---
 
+## 0.05 — Loot: itens caem, entram na mochila e se equipam
+PR #43 · 2026-08-13 · @thipintop
+
+### Added
+- Cada onda limpa solta uma peça. A tabela é por fase, e nas fases 3 e 7 o
+  drop é **garantido**: a Foice e a Ceifa são o que dá alcance, e as fases
+  seguintes contam com elas.
+- Peça que cai em slot vazio é **vestida na hora**. Slot ocupado nunca é
+  substituído — num jogo idle, esperar o jogador abrir a mochila é apostar
+  contra a proposta, mas desfazer escolha dele é pior.
+- A mochila mostra o que guardou, com a inicial na cor da raridade, e uma
+  faixa de equipados diz de onde vem cada ganho.
+- O drop aparece em cena: nome do item na cor da raridade, e "equipado"
+  quando entra direto.
+
+### Changed
+- Dano e vigor passam a somar o que está vestido.
+- **Alcance vem só de arma.** Antes saía de DEX e INT, e subia sozinho; agora
+  é a Foice da fase 3 que o dobra, o que faz dela um marco em vez de um
+  número que muda sem motivo visível.
+
+---
+
 ## 0.04 — Ondas compostas por espécie
 PR #39 · 2026-08-13 · @thipintop
 
