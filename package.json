@@ -5,6 +5,7 @@
   "packageManager": "pnpm@11.21.0",
   "scripts": {
     "typecheck": "pnpm -r typecheck",
+    "test": "pnpm --filter @ossuary/core test",
     "build:core": "pnpm --filter @ossuary/core build",
     "build:web": "pnpm --filter @ossuary/app exec expo export --platform web",
     "web": "bash scripts/dev-web.sh"

@@ -45,13 +45,16 @@ export function createCombatantFromCharacter(build: CharacterCombatBuild): Chara
       criticalChancePercent: Math.min(100, Math.max(0, effective.critical + equipmentStats.criticalChancePercent)),
       criticalMultiplier: 2,
       sustainPercent: Math.max(0, effective.sustain + equipmentStats.lifestealPercent),
+      // o derivado dá a base (1) e a arma soma alvos por cima
+      reach: Math.max(1, Math.floor(effective.reach + equipmentStats.reachBonus)),
     },
     spells: {
       loadout: build.spells,
       maxMana,
       initialMana: maxMana,
       int: attributes.int,
-      spellDamagePercent: Math.max(0, equipmentStats.spellDamagePercent),
+      // INT entra pelo derivado; o equipamento soma por cima
+      spellDamagePercent: Math.max(0, effective.spellDamage + equipmentStats.spellDamagePercent),
     },
     derivedStats,
   };

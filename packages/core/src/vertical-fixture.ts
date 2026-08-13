@@ -2,8 +2,31 @@ import { createConsumable, createEquipment, createItemStack, type EquipmentDropE
 import type { DerivedStatFormulas } from "./progression/derived.js";
 import type { GameContentContext } from "./game-content.js";
 
+/**
+ * Papel de cada atributo, fechado com o dono do jogo:
+ *   STR  dano e penetração — o primário do Mundo 0
+ *   CONS vida
+ *   DEX  cadência e crítico
+ *   INT  mana e dano mágico
+ *
+ * `sustain` fica sem atributo de propósito: nenhum ponto do jogador concede
+ * roubo de vida. O campo continua existindo porque é ele que define a Gorja,
+ * que cura o que causa de dano.
+ *
+ * `reach` sai de arma, não de atributo, e por isso tem base 1 e coeficiente 0.
+ */
 const formulas: DerivedStatFormulas = {
-  vigor: { base: 0, attribute: "cons", coefficient: 10 }, damage: { base: 0, attribute: "str", coefficient: 2 }, penetration: { base: 0, attribute: "str", coefficient: 1 }, cadence: { base: 1, attribute: "dex", coefficient: 0.1 }, critical: { base: 0, attribute: "dex", coefficient: 0 }, reach: { base: 1, attribute: "dex", coefficient: 0 }, sustain: { base: 0, attribute: "int", coefficient: 0 }, mana: { base: 30, attribute: "int", coefficient: 2 },
+  vigor:       { base: 0,  attribute: "cons", coefficient: 10 },
+  // `includeWeaponBaseDamage` faltava: o dano da arma era passado ao cálculo
+  // e descartado, então nenhuma arma alterava o dano em combate
+  damage:      { base: 0,  attribute: "str",  coefficient: 2, includeWeaponBaseDamage: true },
+  penetration: { base: 0,  attribute: "str",  coefficient: 1 },
+  cadence:     { base: 1,  attribute: "dex",  coefficient: 0.1 },
+  critical:    { base: 0,  attribute: "dex",  coefficient: 1 },
+  reach:       { base: 1,  attribute: null,   coefficient: 0 },
+  sustain:     { base: 0,  attribute: null,   coefficient: 0 },
+  mana:        { base: 30, attribute: "int",  coefficient: 2 },
+  spellDamage: { base: 0,  attribute: "int",  coefficient: 3 },
 };
 const sword = createEquipment("fixture-sword", "Lâmina do teste", "weapon", {}, { instanceId: "fixture-sword", stats: { baseDamage: 3 } });
 export const VERTICAL_FIXTURE_CONSUMABLE = createConsumable("fixture-potion", "Poção de teste");

@@ -7,7 +7,7 @@ Idle game for iOS. No prestige, with PVP and cross-device sync — the client is
 Reference documents:
 - `docs/design/core-design.md` — pillars, core loop, party, combat, economy, Ossuary, world map
 - `plano-tecnico-idle-ios.md` — stack, architecture, sync, PVP, monetization
-- `world_1_vestibule.md` — World 0 (the Vestibule) design
+- `world_0_vestibule.md` — World 0 (the Vestibule) design
 
 Design docs are written in Portuguese; that is intentional. Keep them in Portuguese.
 
@@ -115,12 +115,55 @@ What to check each time:
 | `plano-tecnico-idle-ios.md` | Stack, architecture, sync, PVP, monetization decisions |
 | `docs/done/<slug>.md` | What was actually delivered, and how it differed from the plan |
 | `AGENTS.md` | New commands, new conventions, new constraints |
+| `changelogs.md` | The version entry for this PR (see *Changelog*) |
 | Open PR body | The change, under `Added` / `Changed` / `Fixed` |
 
 Two rules that carry most of the value:
 
 - **A resolved open question moves out of the open list** and into the resolved table, with the decision recorded. An open question that was silently answered in code is the most expensive kind of stale doc.
 - **When implementation contradicts a doc, the doc is wrong until proven otherwise** — but say so explicitly instead of quietly editing it. The user decides whether the code or the doc was the mistake.
+
+## Changelog — obrigatório
+
+**Every PR is a new changelog version. No exceptions.** With several devs merging all day, this is what keeps the history readable — and it is the only record of *why* something changed once the diff stops being fresh in anyone's memory.
+
+### 1. Find your number
+
+The version comes from **the last PR merged into `main`** — read its changelog and increment. There is expected to be one; if there genuinely is not, say so instead of inventing a number.
+
+```bash
+rtk proxy gh pr list --state merged --limit 5 --json number,title,mergedAt \
+  --jq '.[] | "#\(.number) \(.title)"'
+rtk proxy gh pr view <última> --json body --jq .body | head -20
+```
+
+Increment the last digit: `0.07` → `0.08`. Check `changelogs.md` too — if a number is already taken, someone merged while you were working, so take the next free one.
+
+### 2. Write it in the PR body
+
+The changelog **lives in the PR description**, under the version heading, and mirrors what goes into `changelogs.md`:
+
+```
+## 0.08 — Título curto
+
+### Added / Changed / Fixed / Removed
+- ...
+```
+
+Write the effect, not the file touched. "Ataques agora acertam no quadro do golpe" beats "altera `resolveCombat`".
+
+### 3. Prefix every commit with the number
+
+```
+0.08 ataques agora acertam no quadro do golpe
+0.08 corrige o clarão do golpe fatal
+```
+
+A commit whose message does not start with its version is incomplete. It is what lets `git log --oneline` be read as a changelog without opening a single PR.
+
+### 4. Add the entry to `changelogs.md`
+
+Same content as the PR body, newest at the top, with the PR number, date and author.
 
 ## Pull requests
 
@@ -162,6 +205,10 @@ Use only the headings you need. Keep the description in sync as you push more co
 
 ### A merged branch is deleted — always
 
+**Standing authorization: deleting a merged branch needs no permission.** It is the one exception to "never send anything to GitHub without asking" — the owner granted it once, for all future merges, precisely so nobody has to stop and ask each time. Do it as routine, local and remote, and just report it.
+
+The exception is narrow and does not stretch: it covers branches **fully merged into `main`** and nothing else. An unmerged branch, or one you are unsure about, still needs an explicit go-ahead.
+
 **The merge is not finished while the branch still exists.** Delete it locally and on the remote, immediately after merging:
 
 ```bash
@@ -180,6 +227,12 @@ rtk proxy git branch -r --merged origin/main | grep -v 'origin/main$'
 ```
 
 Anything that lists there is merged and should be gone. Use `-d`, never `-D`: if git refuses, the branch has commits that never reached `main` and deleting it would lose them.
+
+For the remote, confirm each one is empty relative to `main` before deleting — `push --delete` has no `-d` safety net:
+
+```bash
+rtk proxy git rev-list --count origin/main..origin/<branch>   # tem que ser 0
+```
 
 ## Commands
 

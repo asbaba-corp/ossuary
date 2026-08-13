@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   verify:
-    name: Typecheck and web build
+    name: Typecheck, test and web build
     runs-on: ubuntu-latest
 
     steps:
@@ -41,6 +41,9 @@ jobs:
 
       - name: Typecheck all workspaces
         run: pnpm typecheck
+
+      - name: Test shared core
+        run: pnpm test
 
       - name: Export web app
         run: pnpm build:web

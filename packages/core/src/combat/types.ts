@@ -13,6 +13,13 @@ export interface CombatantStats {
   readonly criticalChancePercent: number;
   readonly criticalMultiplier: number;
   readonly sustainPercent: number;
+  /**
+   * Quantos alvos o golpe atinge. Ausente ou 1 é o comportamento de sempre.
+   * Sem isso, multidão é intratável: matando um por vez, o dano recebido cresce
+   * com N(N+1)/2 — enquanto o primeiro morre todos batem, enquanto o segundo
+   * morre N-1 batem.
+   */
+  readonly reach?: number;
 }
 
 export interface CombatantSnapshot {
@@ -52,6 +59,11 @@ export interface CombatantState {
 export interface CombatRules {
   readonly tickSeconds: number;
   readonly defenseConstant: number;
+  /**
+   * Fração mínima do dano que sempre passa, entre 0 e 1. Impede que defesa
+   * alta zere o dano e deixe o combate sem saída. Ausente usa 5%.
+   */
+  readonly minimumMitigation?: number;
   readonly protectionReductionPercent?: number;
   readonly controlCadenceMultiplier?: number;
 }

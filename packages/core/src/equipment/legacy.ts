@@ -34,6 +34,12 @@ export interface EquipmentStats {
   readonly manaStealPercent: number;
   readonly armorPenetrationPercent: number;
   readonly attackSpeedPercent: number;
+  /**
+   * Alvos adicionais atingidos por golpe. Zero é o normal — um alvo por vez.
+   * Vem da arma e não de atributo: é o que responde à multidão, e a escada de
+   * raridade do Mundo 0 usa isso para abrir a fase 3.
+   */
+  readonly reachBonus: number;
 }
 
 export type EquipmentAttributeRollPools = Readonly<
@@ -646,9 +652,10 @@ const EQUIPMENT_ATTRIBUTES: readonly PrimaryAttribute[] = ["cons", "str", "dex",
 const EQUIPMENT_STAT_KEYS: readonly (keyof EquipmentStats)[] = [
   "baseDamage", "baseDefense", "defensePercent", "physicalDamagePercent", "spellDamagePercent",
   "criticalChancePercent", "lifestealPercent", "manaStealPercent", "armorPenetrationPercent", "attackSpeedPercent",
+  "reachBonus",
 ];
 const DEFAULT_EQUIPMENT_STATS: EquipmentStats = {
   baseDamage: 0, baseDefense: 0, defensePercent: 0, physicalDamagePercent: 0,
   spellDamagePercent: 0, criticalChancePercent: 0, lifestealPercent: 0, manaStealPercent: 0,
-  armorPenetrationPercent: 0, attackSpeedPercent: 0,
+  armorPenetrationPercent: 0, attackSpeedPercent: 0, reachBonus: 0,
 };

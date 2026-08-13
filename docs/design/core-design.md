@@ -7,7 +7,7 @@
 
 Documentos irmãos:
 - `plano-tecnico-idle-ios.md` — stack, sync, integridade, PVP, monetização
-- `world_1_vestibule.md` — design completo do Mundo 0, o Vestíbulo
+- `world_0_vestibule.md` — design completo do Mundo 0, o Vestíbulo
 
 ---
 
@@ -561,7 +561,7 @@ Cada mundo termina num guardião com estrutura de duas fases:
 1. **A Recusa** — combate que exige tudo que o bestiário do mundo ensinou.
 2. **O Preço** — vencer não basta. O guardião cobra um recurso farmado de um inimigo de elite específico daquele mundo.
 
-Caronte é o protótipo: você o vence e ele estende a mão pedindo Óbolos (`world_1_vestibule.md`). Isso ensina o Pilar Quatro na primeira hora de jogo e cria o padrão reutilizável — **todo mundo termina num sumidouro com nome próprio.**
+Caronte é o protótipo: você o vence e ele estende a mão pedindo Óbolos (`world_0_vestibule.md`). Isso ensina o Pilar Quatro na primeira hora de jogo e cria o padrão reutilizável — **todo mundo termina num sumidouro com nome próprio.**
 
 ---
 

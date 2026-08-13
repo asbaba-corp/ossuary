@@ -12,6 +12,9 @@ const formulas: DerivedStatFormulas = {
   reach: { base: 1, attribute: "dex", coefficient: 0.07 },
   sustain: { base: 0, attribute: "int", coefficient: 0.6 },
   mana: { base: 18, attribute: "int", coefficient: 9 },
+  // exigido desde que a main acrescentou spellDamage às fórmulas derivadas;
+  // mesmo coeficiente do world-0, para os dois conteúdos não divergirem
+  spellDamage: { base: 0, attribute: "int", coefficient: 3 },
 };
 
 const sword = createEquipment("vestibule-sword", "Lâmina do Vestíbulo", "weapon", { str: 1 }, { rarity: "common", instanceId: "vestibule-sword", stats: { baseDamage: 2 } });
