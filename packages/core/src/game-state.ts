@@ -92,7 +92,25 @@ function resolveVictory(state: GameState, content: GameContentContext, events: G
   economy = applyEconomyTransaction(economy, { scope: "run", resourceId: GOLD_RESOURCE, direction: "credit", amount: wave.goldReward, reason: `wave:${wave.id}` }).state;
   let inventory = state.inventory;
   const table = content.dropTables.find((candidate) => candidate.id === wave.dropTableId)!;
-  inventory = addItem(inventory, { item: createEquipmentFromDropTable(`${rewardId}:${Math.floor(deterministicUnit(run.seed, rewardId) * 1e9)}`, `${String(run.seed)}:${rewardId}`, table.entries), quantity: 1 });
+  /* Cada drop é um item físico distinto, mesmo saindo da mesma wave com a
+     mesma seed. O id antigo era phaseId:waveIndex:hash(seed) — determinístico —,
+     então farmar a mesma fase de novo gerava a mesma instância e o inventário
+     recusava com "equipment instance is already in inventory", derrubando o
+     tick. Num jogo idle, cujo loop inteiro é repetir a fase de melhor saldo,
+     isso quebra a proposta.
+
+     Nem a sequência do checkpoint resolve: ela reinicia a cada run, então duas
+     passagens pela mesma fase voltam a colidir. A unicidade é conferida contra
+     o que está de fato na mochila, que é a única fonte que sabe o que já existe.
+     O sorteio da peça segue determinístico: só a identidade muda. */
+  const idBase = `${rewardId}:${Math.floor(deterministicUnit(run.seed, rewardId) * 1e9)}`;
+  let instanciaId = idBase;
+  // só equipamento tem instanceId; consumível empilha por id e não entra aqui
+  const jaExiste = (id: string) => inventory.items.some(({ item }) => item.kind === "equipment" && item.instanceId === id);
+  for (let n = 1; jaExiste(instanciaId); n++) {
+    instanciaId = `${idBase}#${n}`;
+  }
+  inventory = addItem(inventory, { item: createEquipmentFromDropTable(instanciaId, `${String(run.seed)}:${rewardId}`, table.entries), quantity: 1 });
   /* Slot vazio é vestido na hora. Sem isso o drop garantido da fase 3 fica
      parado na mochila e o jogador entra na fase 4 sem o alcance que ela
      pressupõe — num jogo idle, contar com ele abrindo o inventário é apostar

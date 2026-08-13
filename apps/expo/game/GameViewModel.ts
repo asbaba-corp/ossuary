@@ -136,7 +136,15 @@ export function useGameViewModel(): GameViewModel {
         setState(session.state);
         const message = formatEvent(events[events.length - 1]);
         if (message) setEventMessage(message);
-      }).catch((error: unknown) => setEventMessage(error instanceof Error ? error.message : "Falha ao avançar a run."));
+      }).catch((error: unknown) => {
+        /* Erro de domínio não é notícia de jogo. Antes a mensagem crua ia para
+           a mesma linha que anuncia "Fase concluída", e o jogador lia
+           "equipment instance is already in inventory: vestibule-phase-1:0:…"
+           como se fosse parte da narrativa. O detalhe vai para o console, onde
+           serve a quem depura; a tela recebe uma frase que ela entende. */
+        console.error("Falha ao avançar a run:", error);
+        setEventMessage("Algo deu errado ao avançar a marcha. Veja o console.");
+      });
     }, 250);
     return () => clearInterval(timer);
   }, [paused, ready, speed]);

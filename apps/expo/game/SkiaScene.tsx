@@ -1,6 +1,6 @@
 import { Canvas, Circle, Group, Image as SkiaImage, Line, Rect, rect, useImage } from "@shopify/react-native-skia";
 import { StyleSheet, Text, View, useWindowDimensions } from "react-native";
-import type { SceneAnimationState } from "./GameViewModel";
+import type { SceneAnimation, SceneAnimationState } from "./GameViewModel";
 
 const W = 960;
 const H = 384;
@@ -27,10 +27,25 @@ function frame(animation: Animation, time: number, enemy: boolean) {
     : Math.floor(Math.max(0, time) * sheet.fps) % sheet.frames;
 }
 
+/* Duração de cada sinal, em segundos. A de morte é a da própria folha:
+   5 quadros a 11 fps. */
+const DURACAO: Record<SceneAnimation, number> = { attack: 0.5, hurt: 0.3, dead: 5 / 11 };
+/* Depois da animação de morte o corpo ainda desvanece por um instante, e só
+   então some. Sem isso os mortos ficavam deitados no chão para sempre — a onda
+   virava um empilhado de cadáveres. */
+const FADE_MORTE = 0.45;
+
 function activeSignal(signal: SceneAnimationState[string] | undefined, time: number) {
   if (!signal) return false;
-  if (signal.animation === "dead") return true;
-  return time - signal.epoch < (signal.animation === "attack" ? 0.5 : 0.3);
+  return time - signal.epoch < DURACAO[signal.animation];
+}
+
+/** 1 enquanto vivo; cai a 0 ao longo do desvanecer; 0 quando o corpo já sumiu. */
+function opacidadeDoCorpo(signal: SceneAnimationState[string] | undefined, time: number) {
+  if (!signal || signal.animation !== "dead") return 1;
+  const decorrido = time - signal.epoch - DURACAO.dead;
+  if (decorrido <= 0) return 1;
+  return Math.max(0, 1 - decorrido / FADE_MORTE);
 }
 
 function SpriteAtlas({ image, animation, time, x, y, scale, enemy }: { image: ReturnType<typeof useImage>; animation: Animation; time: number; x: number; y: number; scale: number; flip?: boolean; enemy?: boolean }) {
@@ -81,7 +96,22 @@ export function SkiaScene({ time, status, enemies, animations, partyId, feedback
         {[90, 520, 950].map((worldX) => { const x = worldX - camera * 0.55; return <Group key={worldX}><Rect x={x - 10} y={40} width={20} height={260} color="#524737" /><Rect x={x - 16} y={34} width={32} height={8} color="#a38353" /><Rect x={x - 16} y={292} width={32} height={8} color="#766042" /><Circle cx={x} cy={150} r={96} color="#ff9a3c" opacity={0.055} /><Circle cx={x} cy={145} r={4} color="#ffe0a8" /></Group>; })}
         <Line p1={{ x: 0, y: GROUND }} p2={{ x: W, y: GROUND }} color="#3a3431" strokeWidth={3} />
         <SpriteAtlas image={heroImage} animation={heroAnimation} time={heroTime} x={(moving ? 250 + Math.sin(time * 2) * 10 : 275) - 64 * 1.3} y={GROUND - FRAME * 1.3} scale={1.3} />
-        {ghostEnemies.map((enemy, index) => { const signal = animations[enemy.id]; const signalActive = activeSignal(signal, time); const animation: Animation = signalActive && signal ? signal.animation : moving ? "walk" : "idle"; const enemyTime = signalActive && signal ? Math.max(0, time - signal.epoch) : time + index * 0.13; const images = { idle: ignavoIdle, walk: ignavoWalk, attack: ignavoAttack, hurt: ignavoHurt, dead: ignavoDead }; const x = 510 + index * 88 - (moving ? Math.min(100, time * 30) : 0); return <Group key={enemy.id}><SpriteAtlas image={images[animation]} animation={animation} time={enemyTime} x={x - 64 * 1.05} y={GROUND - FRAME * 1.05} scale={1.05} enemy /><Rect x={x - 25} y={GROUND + 8} width={50} height={4} color="#1b1410" /><Rect x={x - 25} y={GROUND + 8} width={50 * Math.max(0, enemy.hp / Math.max(1, enemy.maxHp))} height={4} color="#7a2222" /></Group>; })}
+        {ghostEnemies.map((enemy, index) => {
+          const signal = animations[enemy.id];
+          const opacidade = opacidadeDoCorpo(signal, time);
+          if (opacidade <= 0) return null;                 // corpo já sumiu
+          const morrendo = signal?.animation === "dead";
+          const signalActive = activeSignal(signal, time);
+          // o último quadro da morte segura enquanto o corpo desvanece
+          const animation: Animation = morrendo ? "dead" : signalActive && signal ? signal.animation : moving ? "walk" : "idle";
+          const enemyTime = (signalActive || morrendo) && signal ? Math.max(0, time - signal.epoch) : time + index * 0.13;
+          const images = { idle: ignavoIdle, walk: ignavoWalk, attack: ignavoAttack, hurt: ignavoHurt, dead: ignavoDead };
+          const x = 510 + index * 88 - (moving ? Math.min(100, time * 30) : 0);
+          return <Group key={enemy.id} opacity={opacidade}>
+            <SpriteAtlas image={images[animation]} animation={animation} time={enemyTime} x={x - 64 * 1.05} y={GROUND - FRAME * 1.05} scale={1.05} enemy />
+            {!morrendo && <><Rect x={x - 25} y={GROUND + 8} width={50} height={4} color="#1b1410" /><Rect x={x - 25} y={GROUND + 8} width={50 * Math.max(0, enemy.hp / Math.max(1, enemy.maxHp))} height={4} color="#7a2222" /></>}
+          </Group>;
+        })}
       </Group>
     </Canvas>
     <View pointerEvents="none" style={styles.feedback}>{feedback.map((item, index) => <Text key={item.id} style={[styles.feedbackText, { color: item.color, left: width * (0.45 + (index % 4) * 0.12), top: height * (0.28 - (index % 3) * 0.05) }]}>{item.text}</Text>)}</View>
