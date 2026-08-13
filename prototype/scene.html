@@ -254,6 +254,18 @@
   }
   .cellslot.has { background: #1d1610; }
 
+  /* ---- equipados ---- */
+  .equipados { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+  .eq {
+    flex: 1 1 150px; min-width: 140px;
+    background: #16100c; border: 1px solid #261c14; padding: 8px 10px;
+    display: flex; flex-direction: column; gap: 2px;
+  }
+  .eq .slot { color: #6b5a44; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; }
+  .eq .nome { font-size: 12px; color: #4a3f33; }
+  .eq.tem .nome { color: var(--bone-b); }
+  .eq .ganho { font-size: 11px; color: #6b5a44; font-variant-numeric: tabular-nums; }
+
   /* ---- poções ---- */
   .potions {
     display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 16px;
@@ -484,6 +496,7 @@
       </div>
     </div>
 
+    <div class="equipados" id="equipados"></div>
     <div class="grid" id="invGrid"></div>
     </div>
    </section>
@@ -1315,6 +1328,49 @@
      Removidos: sem sistema de equipar, o drop só enchia o inventário de peças
      que não fazem nada. Voltam com equipamento (core-design §4.5). */
 
+  /* ---- itens e loot ----
+     Mesma escada do Mundo 0 em `packages/core/src/world-0.ts`. `alcance` é
+     alvo adicional por golpe, e é a resposta à multidão — por isso sobe com a
+     raridade, não com o nível.
+
+     Não existe arma antes da fase 3, e isso é estrutural: o auto-equipar só
+     preenche slot VAZIO, para nunca desfazer escolha do jogador. Se uma arma
+     comum caísse na fase 1, ela ocuparia o slot e a Foice ficaria parada na
+     mochila — o jogador entraria nas fases seguintes com alcance 1 contra um
+     calibre que pressupõe 2. */
+  const RARIDADE = {
+    comum:     { nome: "comum",     cor: "#8a8f96" },
+    rara:      { nome: "rara",      cor: "#6f93b8" },
+    epica:     { nome: "épica",     cor: "#a074c4" },
+    lendaria:  { nome: "lendária",  cor: "#d9a03c" },
+  };
+
+  const ITENS = {
+    foice:   { nome: "Foice do Vestíbulo", slot: "arma",   raridade: "rara",     dano: 8,  alcance: 1 },
+    gadanho: { nome: "Gadanho de osso",    slot: "arma",   raridade: "epica",    dano: 14, alcance: 1 },
+    ceifa:   { nome: "Ceifa de Caronte",   slot: "arma",   raridade: "lendaria", dano: 22, alcance: 2 },
+    elmo:    { nome: "Elmo esburacado",    slot: "elmo",   raridade: "comum",    vigor: 8 },
+    peito:   { nome: "Cota de lama",       slot: "peito",  raridade: "comum",    vigor: 14 },
+    escudo:  { nome: "Escudo de tábuas",   slot: "escudo", raridade: "comum",    vigor: 11 },
+  };
+
+  const SLOTS = ["arma", "elmo", "peito", "escudo"];
+
+  /* Tabela por fase. As fases 3 e 7 têm uma entrada só: o drop é GARANTIDO,
+     e as fases seguintes contam com ele para fechar. */
+  const LOOT_POR_FASE = [
+    ["elmo", "escudo", "peito"],          // 1
+    ["elmo", "escudo", "peito"],          // 2
+    ["foice"],                            // 3 — garantido
+    ["peito", "elmo", "escudo"],          // 4
+    ["peito", "elmo", "escudo"],          // 5
+    ["peito", "escudo", "gadanho"],       // 6
+    ["ceifa"],                            // 7 — garantido
+    ["gadanho", "peito", "ceifa"],        // 8
+    ["gadanho", "ceifa", "peito"],        // 9
+    ["ceifa", "gadanho", "peito"],        // 10
+  ];
+
   const INV_SIZE = 128, INV_PAGE = 48;
 
   let S;
@@ -1340,7 +1396,10 @@
       },
 
       inv: new Array(INV_SIZE).fill(null),
-      invPage: 0
+      invPage: 0,
+      // o herói chega ao Vestíbulo de mãos vazias; a Foice da fase 3 é a
+      // primeira coisa que ele veste
+      equip: { arma: null, elmo: null, peito: null, escudo: null }
     };
     for (let i = 0; i < 34; i++) {
       S.motes.push({ x: rng() * W, y: WALL_Y + rng() * (GROUND - WALL_Y), s: 0.15 + rng() * 0.5, r: 1 + (rng() > 0.8 ? 1 : 0) });
@@ -1349,14 +1408,32 @@
   }
 
   /* ---- derivados a partir dos primários (core-design §4.4) ---- */
+  /* Soma do que está vestido. O alcance vem SÓ de arma — nenhum atributo o
+     concede, e é isso que faz a Foice da fase 3 ser um marco em vez de mais
+     um número subindo sozinho. */
+  function bonusDoEquipamento() {
+    const b = { dano: 0, vigor: 0, alcance: 0 };
+    if (!S || !S.equip) return b;
+    for (const slot of SLOTS) {
+      const id = S.equip[slot];
+      if (!id) continue;
+      const it = ITENS[id];
+      b.dano += it.dano ?? 0;
+      b.vigor += it.vigor ?? 0;
+      b.alcance += it.alcance ?? 0;
+    }
+    return b;
+  }
+
   function derived(c) {
+    const eq = bonusDoEquipamento();
     return {
-      vigor:  60 + c.cons * 14,
-      dano:   6 + c.str * 1.7,
+      vigor:  60 + c.cons * 14 + eq.vigor,
+      dano:   6 + c.str * 1.7 + eq.dano,
       pen:    c.str * 0.9,
       cad:    0.78 + c.dex * 0.035,          // ataques por segundo
       crit:   Math.min(0.6, 0.03 + c.dex * 0.008),
-      alc:    1 + Math.floor((c.dex + c.int) / 14),
+      alc:    1 + eq.alcance,
       sust:   c.int * 0.006,                 // fração do dano devolvida
       mana:   18 + c.int * 9
     };
@@ -1388,6 +1465,42 @@
 
   /* ---- inventário ---- */
   reset();
+
+  /* ---- loot ----
+     Uma peça por onda limpa. As fases 3 e 7 têm tabela de entrada única, então
+     a Foice e a Ceifa são garantidas: as fases seguintes contam com o alcance
+     que elas dão. */
+  function soltarLoot() {
+    const p = faseDaOnda(S.wave);
+    const tabela = LOOT_POR_FASE[p.fase - 1];
+    const id = tabela[(rng() * tabela.length) | 0];
+    const item = ITENS[id];
+
+    const vaga = S.inv.indexOf(null);
+    if (vaga < 0) {
+      pop(S.hero.x + 20, S.hero.y0 - 52, "mochila cheia", POP.aviso);
+      return;
+    }
+    S.inv[vaga] = id;
+
+    /* Auto-equipar só em slot VAZIO. Nunca substitui o que o jogador escolheu,
+       nem compara qual é melhor — num jogo idle, esperar que ele abra a
+       mochila é apostar contra a própria proposta, mas desfazer escolha dele é
+       pior ainda. */
+    let vestiu = false;
+    if (!S.equip[item.slot]) {
+      S.equip[item.slot] = id;
+      S.inv[vaga] = null;
+      vestiu = true;
+      recalc(false);
+    }
+
+    const cor = RARIDADE[item.raridade].cor;
+    pop(S.hero.x + 20, S.hero.y0 - 52, (vestiu ? "✦ " : "") + item.nome, cor);
+    if (vestiu) pop(S.hero.x + 20, S.hero.y0 - 70, "equipado", POP.ouro);
+    S.ultimoLoot = { id, vestiu, t: S.t };
+    drawInv();
+  }
 
   function spawnWave() {
     const p = faseDaOnda(S.wave);
@@ -1624,6 +1737,7 @@
     if (s.phase !== PHASE.FIGHT) h.mp = Math.min(h.mpMax, h.mp + 3.5 * DT);
 
     if (s.phase === PHASE.CLEAR && s.phaseT > 0.9) {
+      soltarLoot();
       s.mobs.length = 0;
       /* depois de recuar, farma a profundidade atual antes de voltar a
          avançar — é a "fase de melhor saldo" do §5.3, e é o que evita
@@ -2066,11 +2180,47 @@
     $grid.appendChild(d); slotEls.push(d);
   }
 
+  const $equipados = el("equipados");
+
+  /* A faixa de equipados existe para o jogador ver de onde vem o alcance. Sem
+     ela, a Foice da fase 3 seria um número que mudou sozinho. */
+  function desenharEquipados() {
+    $equipados.textContent = "";
+    for (const slot of SLOTS) {
+      const id = S.equip[slot];
+      const item = id ? ITENS[id] : null;
+      const cel = document.createElement("div");
+      cel.className = "eq" + (item ? " tem" : "");
+      const ganhos = [];
+      if (item?.dano) ganhos.push("dano +" + item.dano);
+      if (item?.vigor) ganhos.push("vigor +" + item.vigor);
+      if (item?.alcance) ganhos.push("alcance +" + item.alcance);
+      cel.innerHTML =
+        '<span class="slot">' + slot + '</span>' +
+        '<span class="nome">' + (item ? item.nome : "vazio") + '</span>' +
+        '<span class="ganho">' + ganhos.join(" · ") + '</span>';
+      if (item) cel.style.borderColor = RARIDADE[item.raridade].cor + "55";
+      $equipados.appendChild(cel);
+    }
+  }
+
   function drawInv() {
     const start = S.invPage * INV_PAGE;
     for (let i = 0; i < INV_PAGE; i++) {
-      slotEls[i].hidden = start + i >= INV_SIZE;
+      const cel = slotEls[i];
+      cel.hidden = start + i >= INV_SIZE;
+      const id = S.inv[start + i];
+      const item = id ? ITENS[id] : null;
+      /* A célula mostra a inicial na cor da raridade. Ícone por item seria o
+         certo, mas isto é rascunho: o que precisa ficar legível agora é que
+         caiu coisa, de que tipo, e o quanto é boa. */
+      cel.textContent = item ? item.nome[0] : "";
+      cel.className = "cellslot" + (item ? " has" : "");
+      cel.style.color = item ? RARIDADE[item.raridade].cor : "";
+      cel.style.borderColor = item ? RARIDADE[item.raridade].cor + "55" : "";
+      cel.title = item ? item.nome + " · " + RARIDADE[item.raridade].nome : "";
     }
+    desenharEquipados();
     const used = S.inv.reduce((a, x) => a + (x ? 1 : 0), 0);
     el("invUsed").textContent = used + " / " + INV_SIZE;
     el("invGold").textContent = S.gold;
