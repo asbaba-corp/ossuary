@@ -24,6 +24,19 @@ o arquivo mexido. "Ataques agora acertam no quadro do golpe" vale mais que
 
 ---
 
+## 0.09 — Mais tempo de leitura na morte do herói
+PR #48 · 2026-08-13 · @thipintop
+
+### Changed
+- O "a carne cede" que sobe ao morrer, e a frase temática no breu (#45),
+  não davam tempo de leitura — o breu cobria o primeiro antes de terminar
+  de aparecer, e o segundo sumia rápido demais. A queda ganhou 0,3s antes
+  do breu cobrir totalmente a cena, e o breu em si ganhou mais 0,3s de
+  exibição. O ciclo completo passa de ~2s para ~2,6s — ainda rápido para o
+  ritmo idle, agora com peso suficiente para ler as duas frases.
+
+---
+
 ## 0.08 — Remove a ilustração da tela de morte
 PR #47 · 2026-08-13 · @thipintop
 
