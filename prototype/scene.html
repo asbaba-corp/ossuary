@@ -542,6 +542,45 @@
     }
   }
 
+  /* Clarão sobre o sprite: recorta o quadro num canvas auxiliar, pinta por
+     cima com `source-atop` (só onde há pixel opaco) e compõe com alpha.
+     Serve para o feedback de acerto funcionar também com spritesheet — antes
+     só a arte procedural piscava, então com sprite ligado não havia retorno
+     visual nenhum de quem estava apanhando. */
+  let flashCv = null;
+  function drawSheetTint(set, animName, t, cx, footScreenY, flip, alpha, color) {
+    const a = set.anims[animName];
+    if (!a || !a.img.complete || !a.img.naturalWidth) return false;
+    const F = set.frame, s = set.scale, dw = F * s;
+
+    if (!flashCv || flashCv.width !== F) {
+      flashCv = document.createElement("canvas");
+      flashCv.width = F; flashCv.height = F;
+    }
+    const g = flashCv.getContext("2d");
+    g.imageSmoothingEnabled = false;
+    g.clearRect(0, 0, F, F);
+    g.globalCompositeOperation = "source-over";
+    g.drawImage(a.img, frameOf(a, t) * F, 0, F, F, 0, 0, F, F);
+    g.globalCompositeOperation = "source-atop";
+    g.fillStyle = color;
+    g.fillRect(0, 0, F, F);
+    g.globalCompositeOperation = "source-over";
+
+    const dx = Math.round(cx - dw / 2);
+    const dy = Math.round(footScreenY - set.footY * s);
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    if (flip) {
+      ctx.translate(dx + dw, dy); ctx.scale(-1, 1);
+      ctx.drawImage(flashCv, 0, 0, F, F, 0, 0, dw, dw);
+    } else {
+      ctx.drawImage(flashCv, 0, 0, F, F, dx, dy, dw, dw);
+    }
+    ctx.restore();
+    return true;
+  }
+
   function frameOf(a, t) {
     const i = Math.floor(t * a.fps);
     return a.loop === false ? Math.min(i, a.frames - 1) : i % a.frames;
@@ -1196,7 +1235,7 @@
       c.level++; c.points += 3;
       recalc(false);
       S.hero.hp = S.hero.hpMax; S.hero.mp = S.hero.mpMax;
-      pop(S.hero.x + 24, S.hero.y0 - 46, "nível " + c.level, "#d9c9a8");
+      pop(S.hero.x + 24, S.hero.y0 - 46, "nível " + c.level, POP.nivel);
     }
   }
 
@@ -1216,10 +1255,45 @@
     }
   }
 
-  function pop(x, y, text, color) { S.pops.push({ x, y, text, color, life: 0.85 }); }
+  /* Cores dos números flutuantes, num só lugar.
+     Antes ficavam soltas nas chamadas, e uma delas (`P.boneB`) nem existia na
+     paleta: `fillStyle = undefined` é ignorado pelo Canvas, então o número
+     herdava o preto da sombra desenhada logo antes e o dano saía preto. */
+  const POP = {
+    dano:   "#ff5a48",   // dano físico no monstro
+    crit:   "#ffb648",   // crítico
+    spell:  "#6ec6ff",   // dano de spell
+    ouro:   "#f0c04a",   // ouro que caiu
+    poeira: "#b9d4e6",   // poeira que caiu
+    cura:   "#7fa86b",   // poção de vida
+    mana:   "#5f92b5",   // poção de mana
+    sofre:  "#ff8a7a",   // dano recebido pelo herói
+    aviso:  "#c9a44a",   // avisos (sem ouro, recuando)
+    nivel:  "#d9c9a8"    // subiu de nível
+  };
+
+  /* Empilha em vez de sobrepor: vários eventos caem no mesmo instante e no
+     mesmo alvo (dano, spell, ouro, poeira), e escritos na mesma altura viram
+     um borrão ilegível. Cada novo pop sobe acima dos que ainda estão vivos
+     por perto. */
+  function pop(x, y, text, color) {
+    let tries = 0;
+    let collide = true;
+    while (collide && tries++ < 6) {
+      collide = false;
+      for (const q of S.pops) {
+        if (q.life > 0.5 && Math.abs(q.x - x) < 66 && Math.abs(q.y - y) < 15) {
+          y -= 16; collide = true; break;
+        }
+      }
+    }
+    S.pops.push({ x, y, text, color, life: 0.85 });
+  }
 
   /* ---------- simulação ---------- */
   const DT = 1 / 60;
+  // duração do clarão de acerto; longa o bastante para o olho pegar
+  const HURT_T = 0.22;
 
   function step() {
     const s = S, h = s.hero;
@@ -1237,7 +1311,7 @@
         pop(h.x + 24, h.y0 - (kind === "hp" ? 22 : 34), p.name.split(" ")[0] + " −" + p.cost, col);
       } else if (!s.warned) {
         s.warned = true;
-        pop(h.x + 24, h.y0 - 30, "sem ouro p/ poção", "#c9a44a");
+        pop(h.x + 24, h.y0 - 30, "sem ouro p/ poção", POP.aviso);
       }
     };
     if (h.hp > 0) {
@@ -1253,7 +1327,7 @@
       s.retreatTo = Math.max(120, h.x - 300);
       s.wave = Math.max(1, s.wave - 1);
       s.hold = 5;
-      pop(h.x + 24, h.y0 - 34, "recuando", "#c9a44a");
+      pop(h.x + 24, h.y0 - 34, "recuando", POP.aviso);
     }
 
     if (s.phase === PHASE.RETREAT) {
@@ -1292,8 +1366,8 @@
           const g = 14 + s.wave * 3 + ((rng() * 9) | 0);
           s.gold += g; s.loot += g;
           gainXP(9 + ((rng() * 6) | 0));
-          pop(tgt.x + 16, tgt.y0 - 26, "+" + g + "o", "#c9a44a");
-          if (rng() < 0.05) { s.dust++; pop(tgt.x + 16, tgt.y0 - 40, "+1 poeira", "#9fb6c9"); }
+          pop(tgt.x + 16, tgt.y0 - 26, "+" + g + " ouro", POP.ouro);
+          if (rng() < 0.05) { s.dust++; pop(tgt.x + 16, tgt.y0 - 40, "+1 poeira", POP.poeira); }
         };
 
         // golpe físico — Cadência define o ritmo, Alcance quantos pega
@@ -1305,9 +1379,9 @@
           const targets = alive.slice(0, d.alc);
           for (const tgt of targets) {
             const dmg = Math.max(1, Math.round((d.dano * (0.85 + rng() * 0.3)) * (crit ? 2.1 : 1)));
-            tgt.hp -= dmg; tgt.hurt = 0.16;
+            tgt.hp -= dmg; tgt.hurt = HURT_T;
             h.hp = Math.min(h.hpMax, h.hp + dmg * d.sust);
-            pop(tgt.x + 20, tgt.y0 - 12, (crit ? "✦" : "") + dmg, crit ? P.flameC : P.boneB);
+            pop(tgt.x + 20, tgt.y0 - 12, (crit ? "✦ " : "") + dmg, crit ? POP.crit : POP.dano);
             if (tgt.hp <= 0) kill(tgt);
           }
         }
@@ -1321,8 +1395,8 @@
           for (const tgt of alive.slice(0, 3)) {
             if (tgt.dead) continue;
             const dmg = Math.max(1, Math.round(d.spell * (0.9 + rng() * 0.25)));
-            tgt.hp -= dmg; tgt.hurt = 0.16;
-            pop(tgt.x + 20, tgt.y0 - 26, "✷" + dmg, "#7fa8d8");
+            tgt.hp -= dmg; tgt.hurt = HURT_T;
+            pop(tgt.x + 20, tgt.y0 - 26, "spell " + dmg, POP.spell);
             if (tgt.hp <= 0) kill(tgt);
           }
         }
@@ -1337,7 +1411,7 @@
             const raw = 2 + ((rng() * 3) | 0) + s.wave * 0.32;
             const dmg = Math.max(1, Math.round(raw));
             h.hp = Math.max(0, h.hp - dmg); h.hurt = 0.14;
-            pop(h.x + 22, h.y0 - 8, "−" + dmg, "#b4534b");
+            pop(h.x + 22, h.y0 - 8, "−" + dmg, POP.sofre);
           }
         }
       }
@@ -1526,9 +1600,16 @@
         drawSheet(SPRITES.ignavo, m.anim, m.animT, sx + 28, GROUND, true);
       if (!usouFolha) {
         drawSprite(ctx, MOB, MOB_PAL, sx, sy, MS, true);
-        if (m.hurt > 0) {
-          ctx.globalAlpha = 0.55 * (m.hurt / 0.16);
-          drawSprite(ctx, MOB, { k:"#2a1414", n:"#8e4038", N:"#a04c40", p:"#5c2a26", P:"#71332c" }, sx, sy, MS, true);
+      }
+
+      /* Quem levou o golpe pisca de branco. O combate é single target e sem
+         isso não dá para saber qual dos cinco está sendo atingido. */
+      if (m.hurt > 0 && !m.dead) {
+        const a = 0.75 * (m.hurt / HURT_T);
+        if (!usouFolha ||
+            !drawSheetTint(SPRITES.ignavo, m.anim, m.animT, sx + 28, GROUND, true, a, "#ffffff")) {
+          ctx.globalAlpha = a;
+          drawSprite(ctx, MOB, { k:"#ffffff", n:"#ffffff", N:"#ffffff", p:"#ffffff", P:"#ffffff" }, sx, sy, MS, true);
           ctx.globalAlpha = m.dead > 0 ? Math.max(0, m.dead / 0.45) : 1;
         }
       }
