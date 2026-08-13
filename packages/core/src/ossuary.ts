@@ -7,6 +7,7 @@ export const OSSUARY_DERIVED_STATS = [
   "reach",
   "sustain",
   "mana",
+  "spellDamage",
 ] as const;
 
 export type OssuaryDerivedStat = (typeof OSSUARY_DERIVED_STATS)[number];
