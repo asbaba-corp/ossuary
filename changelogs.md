@@ -21,6 +21,28 @@ o arquivo mexido. "Ataques agora acertam no quadro do golpe" vale mais que
 
 ---
 
+## 0.04 — Ondas compostas por espécie
+PR #39 · 2026-08-13 · @thipintop
+
+### Changed
+- As ondas deixam de ser cinco inimigos iguais e passam a ter composição por
+  fase, a mesma do Mundo 0. Moscardos entram na fase 3, Marcados na 5, Gorjas
+  na 6, Encalhados na 9 e Caronte na 10.
+- Cada espécie briga do seu jeito: o Moscardo telegrafa quase três vezes mais
+  rápido por metade do dano, a Gorja se cura com 30% do que causa, e o
+  Encalhado corta 72% do golpe recebido — ele custa tempo, não vida.
+- Os inimigos de uma onda entram misturados. Em blocos, o herói limpava uma
+  espécie inteira antes de encostar na outra, e a onda não lia como bando.
+- Ondas grandes cabem no quadro: o espaçamento aperta conforme a fila cresce.
+
+### Fixed
+- O indicador de fase deixa de mentir. Ele anunciava "Fase 3" enquanto a cena
+  mandava os mesmos Ignavos da fase 1.
+- O pisca branco de dano funciona para qualquer espécie, e não só para a
+  paleta do Ignavo.
+
+---
+
 ## 0.03 — Política de changelog
 PR #42 · 2026-08-13 · @juniozguedes
 
