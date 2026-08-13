@@ -70,17 +70,59 @@ test("penetração acima da defesa não gera bônus", () => {
   assert.equal(r.damage, 20);
 });
 
-/* Este é o caso que motivou o piso: com defesa >= 100 + penetração a mitigação
-   zera, o alvo fica imortal e o combate não resolve. O Encalhado do Mundo 0
-   tem defesa 106 e a penetração inicial do herói é 6. */
-test("defesa igual ao defenseConstant zera o dano — motivo do piso", () => {
+/* Antes do piso, defesa >= defenseConstant + penetração zerava o dano: alvo
+   imortal e combate sem saída. O Encalhado do Mundo 0 tem defesa 106 contra
+   penetração inicial 6, exatamente esse caso. */
+test("defesa igual ao defenseConstant não zera mais o dano", () => {
   const r = calculateCombatDamage(
     combatente("p1"),
     combatente("e1", { defense: 100 }),
     REGRAS,
     "seed",
   );
+  assert.equal(r.damage, 1);   // piso de 5% sobre 20 de dano
+});
+
+test("defesa absurda ainda deixa passar o piso", () => {
+  const r = calculateCombatDamage(
+    combatente("p1"),
+    combatente("e1", { defense: 100000 }),
+    REGRAS,
+    "seed",
+  );
+  assert.equal(r.damage, 1);
+});
+
+test("o piso é configurável pelas regras", () => {
+  const r = calculateCombatDamage(
+    combatente("p1"),
+    combatente("e1", { defense: 100 }),
+    { ...REGRAS, minimumMitigation: 0.5 },
+    "seed",
+  );
+  assert.equal(r.damage, 10);
+});
+
+test("piso zero reproduz o comportamento antigo", () => {
+  const r = calculateCombatDamage(
+    combatente("p1"),
+    combatente("e1", { defense: 100 }),
+    { ...REGRAS, minimumMitigation: 0 },
+    "seed",
+  );
   assert.equal(r.damage, 0);
+});
+
+test("piso inválido é rejeitado", () => {
+  assert.throws(
+    () => calculateCombatDamage(
+      combatente("p1"),
+      combatente("e1"),
+      { ...REGRAS, minimumMitigation: 1.5 },
+      "seed",
+    ),
+    RangeError,
+  );
 });
 
 test("sustain devolve uma fração do dano causado", () => {

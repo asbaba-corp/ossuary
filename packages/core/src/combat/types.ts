@@ -52,6 +52,11 @@ export interface CombatantState {
 export interface CombatRules {
   readonly tickSeconds: number;
   readonly defenseConstant: number;
+  /**
+   * Fração mínima do dano que sempre passa, entre 0 e 1. Impede que defesa
+   * alta zere o dano e deixe o combate sem saída. Ausente usa 5%.
+   */
+  readonly minimumMitigation?: number;
   readonly protectionReductionPercent?: number;
   readonly controlCadenceMultiplier?: number;
 }
