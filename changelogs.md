@@ -35,7 +35,11 @@ PR #45 · 2026-08-13 · @thipintop
 - A cena esmaece para o breu total junto do colapso. É por baixo do preto que
   o recuo é aplicado — posição, vida, onda — então a câmera pode saltar sem
   ninguém ver o salto.
-- No breu, uma mensagem centralizada: "A carne cede. O osso permanece."
+- No breu, uma ilustração (dança da morte, arte original do dono do jogo) e
+  uma mensagem centralizada, uma das dez que giram em ordem a cada morte —
+  "A carne cede. O osso permanece." é a primeira. Sem a imagem, um crânio
+  procedural com olhos em brasa assume — mesma regra de sempre: nunca perder
+  o fallback.
 - A cena e o herói reaparecem juntos, o herói entrando gradualmente em
   transparência até visibilidade total, e o jogo retoma o andar sozinho — sem
   qualquer clique do jogador.
