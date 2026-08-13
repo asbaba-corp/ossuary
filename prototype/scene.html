@@ -629,7 +629,9 @@
       anims: {
         idle:   { file: "Idle.png",     frames: 4, fps: 6 },
         walk:   { file: "Walk.png",     frames: 8, fps: 10 },
-        attack: { file: "Attack 1.png", frames: 5, fps: 15, loop: false, impact: 4 }
+        attack: { file: "Attack 1.png", frames: 5, fps: 15, loop: false, impact: 4 },
+        // colapso do herói; medido: 768×128, 6 quadros, footY 128 (igual às demais)
+        dead:   { file: "Dead.png",     frames: 6, fps: 8,  loop: false }
       }
     },
     /* Ignavo: silhueta sem rosto nem roupa, que é a descrição do bestiário —
@@ -1306,8 +1308,13 @@
 
   /* ---------- estado ---------- */
   const PHASE = {
-    WALK: "Andando", ENTER: "Onda entrando", FIGHT: "Combate",
-    CLEAR: "Onda limpa", RETREAT: "Recuando"
+    WALK: "Andando", ENTER: "Onda entrando", FIGHT: "Combate", CLEAR: "Onda limpa",
+    /* A party não morre de verdade (core-design §3.3): ela recua para a
+       última fase limpa. O que mudou é só a apresentação — em vez de andar
+       de costas pela tela, o herói cai, a cena esmaece para o breu, o recuo
+       acontece por baixo do preto, e a cena volta com ele reaparecendo aos
+       poucos. Três fases porque cada uma tem uma curva de fade própria. */
+    DEATH_FALL: "Caído", DEATH_VOID: "No breu", DEATH_RISE: "Retornando"
   };
   /* ---- catálogo de poções ----
      A básica custa 50. Só é usada se o ouro cobrir: nunca negativa. */
@@ -1383,7 +1390,8 @@
       mobs: [], pops: [], motes: [],
       cam: 0, wave: 1, nextWaveX: 520,
       gold: 150, loot: 0, supply: 0, spend: { n: 0, life: 0 }, dust: 0, kills: 0, retreats: 0, hold: 0,
-      retreatTo: 0,
+      // opacidade do véu de morte (0 = cena visível, 1 = breu total) e do herói
+      deathBlack: 0, heroAlpha: 1,
 
       // personagem
       ch: { name: "Sem-Nome", level: 1, xp: 0, cons: 5, str: 6, dex: 5, int: 4, points: 0 },
@@ -1587,6 +1595,20 @@
   const ATK_IMPACT = impactTime(SPRITES.hero, "attack");
   const MOB_IMPACT = impactTime(SPRITES.ignavo, "attack");
 
+  /* ---- morte do herói: queda, breu, retorno ----
+     Timing pensado para ser rápido mas com peso: por volta de 1,9s do fim ao
+     fim, curto o bastante para não travar o ritmo idle, longo o bastante para
+     o jogador perceber que algo aconteceu.
+
+     O breu não é só estética — é o corte que esconde o reposicionamento. O
+     recuo (posição, vida, onda) é aplicado por baixo do preto total, então a
+     câmera pode saltar sem ninguém ver o salto. */
+  const animDuration = (set, anim) => { const a = set.anims[anim]; return a.frames / a.fps; };
+  const DEATH_FALL_T = animDuration(SPRITES.hero, "dead") + 0.15;   // colapso + instante de espera
+  const DEATH_VOID_T = 0.55;                                        // breu com a mensagem
+  const DEATH_RISE_T = 0.55;                                        // cena e herói reaparecem juntos
+  const DEATH_MSG = "A carne cede. O osso permanece.";
+
   function step() {
     const s = S, h = s.hero;
     s.t += DT; s.phaseT += DT;
@@ -1619,25 +1641,52 @@
       if (s.spend.life <= 0) s.spend.n = 0;
     }
 
-    // sem poção e sem HP → recua para fase mais rasa, não morre (§3.3)
-    if (h.hp <= 0 && s.phase !== PHASE.RETREAT) {
-      s.phase = PHASE.RETREAT; s.phaseT = 0;
-      s.mobs.length = 0;
+    /* sem poção e sem HP → a carne cede, o osso permanece (§3.3): a party
+       não morre de verdade, recua para a última fase limpa. Três fases:
+       DEATH_FALL o herói cai e a cena esmaece; DEATH_VOID o breu é total e é
+       quando o recuo é aplicado, escondido; DEATH_RISE a cena e o herói
+       reaparecem juntos. Os inimigos não têm ação própria aqui — eles só
+       atacam durante FIGHT, então ao sair dessa fase eles simplesmente param,
+       parados olhando o herói cair. */
+    const emMorte = s.phase === PHASE.DEATH_FALL || s.phase === PHASE.DEATH_VOID || s.phase === PHASE.DEATH_RISE;
+    if (h.hp <= 0 && !emMorte) {
+      s.phase = PHASE.DEATH_FALL; s.phaseT = 0;
+      h.swing = false; h.anim = "dead"; h.animT = 0;
       s.retreats++;
-      s.retreatTo = Math.max(120, h.x - 300);
-      s.wave = Math.max(1, s.wave - 1);
-      s.hold = 5;
-      pop(h.x + 24, h.y0 - 34, "recuando", POP.aviso);
+      s.deathBlack = 0; s.heroAlpha = 1;
+      pop(h.x + 24, h.y0 - 34, "a carne cede", POP.aviso);
     }
 
-    if (s.phase === PHASE.RETREAT) {
-      h.x = Math.max(s.retreatTo, h.x - 150 * DT);
-      h.frame += DT * 7;
-      h.hp = Math.min(h.hpMax * 0.6, h.hp + 26 * DT);
-      h.mp = Math.min(h.mpMax, h.mp + 14 * DT);
-      if (h.x <= s.retreatTo && h.hp >= h.hpMax * 0.6 - 0.5) {
+    if (s.phase === PHASE.DEATH_FALL) {
+      // o breu cresce junto do colapso, para o corpo sumir dentro dele
+      s.deathBlack = Math.min(1, s.phaseT / DEATH_FALL_T);
+      s.heroAlpha = Math.max(0, 1 - s.phaseT / DEATH_FALL_T);
+      if (s.phaseT >= DEATH_FALL_T) {
+        // reposiciona por baixo do preto total — ninguém vê o salto da câmera
+        h.x = Math.max(120, h.x - 300);
+        h.hp = Math.round(h.hpMax * 0.6);
+        h.mp = h.mpMax;
+        h.anim = "idle"; h.animT = 0;
+        s.mobs.length = 0;
+        s.wave = Math.max(1, s.wave - 1);
+        s.hold = 5;
         s.warned = false;
         s.nextWaveX = h.x + 620;
+        s.deathBlack = 1; s.heroAlpha = 0;
+        s.phase = PHASE.DEATH_VOID; s.phaseT = 0;
+      }
+    }
+
+    if (s.phase === PHASE.DEATH_VOID && s.phaseT >= DEATH_VOID_T) {
+      s.phase = PHASE.DEATH_RISE; s.phaseT = 0;
+    }
+
+    if (s.phase === PHASE.DEATH_RISE) {
+      const k = Math.min(1, s.phaseT / DEATH_RISE_T);
+      s.deathBlack = 1 - k;
+      s.heroAlpha = k;
+      if (s.phaseT >= DEATH_RISE_T) {
+        s.deathBlack = 0; s.heroAlpha = 1;
         s.phase = PHASE.WALK; s.phaseT = 0;
       }
     }
@@ -1748,14 +1797,17 @@
       s.phase = PHASE.WALK; s.phaseT = 0;
     }
 
-    /* animação: o golpe tem prioridade e roda até o fim; fora dele,
-       andar ou parar decide entre walk e idle */
+    /* animação: durante a queda o quadro final do colapso fica congelado
+       (loop:false já cuida disso); fora da morte, o golpe tem prioridade e
+       roda até o fim, e no resto andar ou parar decide entre walk e idle. */
     h.animT += DT;
-    const atkA = SPRITES.hero.anims.attack;
-    const atkDone = h.anim === "attack" && h.animT >= atkA.frames / atkA.fps;
-    if (h.anim !== "attack" || atkDone) {
-      const want = (s.phase === PHASE.WALK || s.phase === PHASE.RETREAT) ? "walk" : "idle";
-      if (h.anim !== want) { h.anim = want; h.animT = 0; }
+    if (s.phase !== PHASE.DEATH_FALL && s.phase !== PHASE.DEATH_VOID) {
+      const atkA = SPRITES.hero.anims.attack;
+      const atkDone = h.anim === "attack" && h.animT >= atkA.frames / atkA.fps;
+      if (h.anim !== "attack" || atkDone) {
+        const want = s.phase === PHASE.WALK ? "walk" : "idle";
+        if (h.anim !== want) { h.anim = want; h.animT = 0; }
+      }
     }
 
     /* animação dos mobs, mesma prioridade do herói: morte manda em tudo, o
@@ -1956,10 +2008,14 @@
     // herói
     {
       const sx = Math.round(h.x - cam), sy = h.y0;
-      const moving = s.phase === PHASE.WALK || s.phase === PHASE.RETREAT;
-      const back = s.phase === PHASE.RETREAT;
+      const moving = s.phase === PHASE.WALK;
+      // o herói nunca mais vira de costas: a queda é no lugar, e o recuo
+      // vira um corte por baixo do breu, não uma caminhada visível
+      const back = false;
+      const heroA = s.heroAlpha ?? 1;
 
       // spritesheet quando disponível; arte procedural quando não
+      ctx.globalAlpha = heroA;
       const sheet = SPRITES.hero.ready &&
         drawSheet(SPRITES.hero, h.anim, h.animT, sx + 32, GROUND, back);
 
@@ -1971,22 +2027,23 @@
 
       /* Flash de dano RECEBIDO (não é telegrafia de ataque): repinta o
          próprio quadro em vermelho, então a marca tem a forma do herói e
-         some junto com ele. Decai em 0,14s.                                */
+         some junto com ele. Decai em 0,14s. Multiplicado por heroA para
+         sumir junto do herói durante a queda, em vez de piscar sozinho. */
       if (h.hurt > 0) {
         const k = Math.max(0, Math.min(1, h.hurt / 0.14));
         const tingiu = sheet && drawSheet(
           SPRITES.hero, h.anim, h.animT, sx + 32, GROUND, back,
-          "rgba(206,72,56," + (0.62 * k).toFixed(3) + ")"
+          "rgba(206,72,56," + (0.62 * k * heroA).toFixed(3) + ")"
         );
         if (!tingiu) {
           const legs = HERO_LEGS[moving ? (Math.floor(h.frame) % 2) : 0];
-          ctx.globalAlpha = 0.55 * k;
+          ctx.globalAlpha = 0.55 * k * heroA;
           drawSprite(ctx, HERO_BODY, HERO_HURT_PAL, sx, sy, HS, back);
           drawSprite(ctx, legs, HERO_HURT_PAL, sx, sy + HERO_BODY.length * HS, HS, back);
-          ctx.globalAlpha = 1;
         }
       }
-      light(sx + 30, GROUND - 58, 50, 0.1);
+      ctx.globalAlpha = 1;
+      light(sx + 30, GROUND - 58, 50, 0.1 * heroA);
     }
 
     // números flutuantes
@@ -2007,6 +2064,31 @@
     vg.addColorStop(0, "rgba(0,0,0,0)");
     vg.addColorStop(1, "rgba(6,6,9,0.42)");
     ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
+
+    /* Breu da morte: por cima de tudo, inclusive vinheta e números
+       flutuantes — é o corte que esconde o reposicionamento do herói. A
+       mensagem só entra depois que o breu passa de 50% opaco, e sai pela
+       mesma conta durante DEATH_RISE — uma fórmula só cobre ida e volta. */
+    if (s.deathBlack > 0) {
+      ctx.fillStyle = "rgba(4,3,4," + s.deathBlack + ")";
+      ctx.fillRect(0, 0, W, H);
+
+      const msgA = Math.max(0, (s.deathBlack - 0.5) / 0.5);
+      if (msgA > 0) {
+        ctx.save();
+        ctx.globalAlpha = msgA;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.font = '600 16px ui-monospace, "SF Mono", Menlo, Consolas, monospace';
+        ctx.fillStyle = P.blood;
+        ctx.fillText(DEATH_MSG, W / 2 + 1, H / 2 + 1);
+        ctx.fillStyle = P.flame;
+        ctx.fillText(DEATH_MSG, W / 2, H / 2);
+        ctx.restore();
+        ctx.textAlign = "left";
+        ctx.textBaseline = "alphabetic";
+      }
+    }
   }
 
   /* ---------- HUD ---------- */
