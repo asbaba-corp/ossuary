@@ -24,6 +24,19 @@ o arquivo mexido. "Ataques agora acertam no quadro do golpe" vale mais que
 
 ---
 
+## 0.08 — Remove a ilustração da tela de morte
+PR #47 · 2026-08-13 · @thipintop
+
+### Removed
+- A ilustração da tela de morte (#45) saiu, junto do crânio procedural que
+  servia de fallback dela. Detalhada demais para o tamanho da tela, ficava
+  ilegível no render, e a janela da tela de morte é curta demais para uma
+  imagem carregada pedir leitura. Fica só a mensagem temática — as dez
+  frases continuam girando a cada morte — até haver uma solução de arte que
+  caiba no tempo e no espaço disponíveis.
+
+---
+
 ## 0.07 — Dev Mode no protótipo
 PR #46 · 2026-08-13 · @thipintop
 
