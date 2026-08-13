@@ -1,6 +1,6 @@
 # Mundo 0 — The Blank Banner
 
-Vestíbulo, Antinferno. Nome interno: `world_01_vestibule`. **Fases 1–10** de 100 (Temporada 1). É o Antinferno, antes do primeiro círculo — daí o número zero, que mantém Mundo *n* alinhado ao Círculo *n*.
+Vestíbulo, Antinferno. Nome interno: `world_00_vestibule`. **Fases 1–10** de 100 (Temporada 1). É o Antinferno, antes do primeiro círculo — daí o número zero, que mantém Mundo *n* alinhado ao Círculo *n*.
 
 Estrutura de fases conforme `docs/design/core-design.md` §3.3:
 

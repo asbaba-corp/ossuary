@@ -7,7 +7,7 @@ Idle game for iOS. No prestige, with PVP and cross-device sync — the client is
 Reference documents:
 - `docs/design/core-design.md` — pillars, core loop, party, combat, economy, Ossuary, world map
 - `plano-tecnico-idle-ios.md` — stack, architecture, sync, PVP, monetization
-- `world_1_vestibule.md` — World 0 (the Vestibule) design
+- `world_0_vestibule.md` — World 0 (the Vestibule) design
 
 Design docs are written in Portuguese; that is intentional. Keep them in Portuguese.
 
