@@ -411,7 +411,7 @@
       </div>
       <div class="pot-col">
         <h3>Poção de mana</h3>
-        <label class="sw"><input type="checkbox" id="potMpOn" checked> <span>Usar automaticamente</span></label>
+        <label class="sw"><input type="checkbox" id="potMpOn"> <span>Usar automaticamente</span></label>
         <div class="pot-list" id="potMpList"></div>
         <p class="hint" id="potMpAff"></p>
       </div>
@@ -534,7 +534,7 @@
       anims: {
         idle:   { file: "Idle.png",     frames: 4, fps: 6 },
         walk:   { file: "Walk.png",     frames: 8, fps: 10 },
-        attack: { file: "Attack 1.png", frames: 5, fps: 13, loop: false }
+        attack: { file: "Attack 1.png", frames: 5, fps: 15, loop: false, impact: 4 }
       }
     },
     /* Ignavo: silhueta sem rosto nem roupa, que é a descrição do bestiário —
@@ -547,7 +547,7 @@
         idle:   { file: "Idle.png",   frames: 6,  fps: 6 },
         walk:   { file: "Walk.png",   frames: 10, fps: 12 },
         // 4/8 = 0,5s, cabe na cadência de golpe do mob (atkCd 1,15s)
-        attack: { file: "Attack.png", frames: 4,  fps: 8,  loop: false },
+        attack: { file: "Attack.png", frames: 4,  fps: 8,  loop: false, impact: 2 },
         hurt:   { file: "Hurt.png",   frames: 4,  fps: 14, loop: false },
         dead:   { file: "Dead.png",   frames: 5,  fps: 11, loop: false }
       }
@@ -1201,7 +1201,7 @@
     rng = mulberry32(20260811);
     S = {
       t: 0, phase: PHASE.WALK, phaseT: 0,
-      hero: { x: 120, hp: 1, hpMax: 1, mp: 1, mpMax: 1, atkCd: 0, spellCd: 0, hurt: 0, frame: 0, y0: 234, anim: "idle", animT: 0 },
+      hero: { x: 120, hp: 1, hpMax: 1, mp: 1, mpMax: 1, atkCd: 0, swing: false, hurt: 0, frame: 0, y0: 234, anim: "idle", animT: 0 },
       mobs: [], pops: [], motes: [],
       cam: 0, wave: 1, nextWaveX: 520,
       gold: 150, loot: 0, supply: 0, dust: 0, kills: 0, retreats: 0, hold: 0,
@@ -1213,7 +1213,8 @@
       // poções: liga/desliga e escolha por tipo
       pot: {
         hp: { on: true, id: "hp1", at: 0.45 },
-        mp: { on: true, id: "mp1", at: 0.35 }
+        // sem magia implementada, nada gasta mana — nasce desligada
+        mp: { on: false, id: "mp1", at: 0.35 }
       },
 
       inv: new Array(INV_SIZE).fill(null),
@@ -1235,8 +1236,7 @@
       crit:   Math.min(0.6, 0.03 + c.dex * 0.008),
       alc:    1 + Math.floor((c.dex + c.int) / 14),
       sust:   c.int * 0.006,                 // fração do dano devolvida
-      mana:   18 + c.int * 9,
-      spell:  10 + c.int * 2.4
+      mana:   18 + c.int * 9
     };
   }
 
@@ -1269,12 +1269,12 @@
 
   function spawnWave() {
     const n = 5;
-    const hp = Math.round(26 * Math.pow(1.11, S.wave - 1));
+    const hp = Math.round(26 * Math.pow(1.085, S.wave - 1));
     for (let i = 0; i < n; i++) {
       S.mobs.push({
         x: S.cam + W + 30 + i * 46,
         slot: S.hero.x + 96 + i * 40,
-        hp, hpMax: hp, atkCd: 0.6 + rng() * 0.7, hurt: 0, dead: 0, frame: 0, y0: 249,
+        hp, hpMax: hp, atkCd: 0.6 + rng() * 0.7, swing: false, hurt: 0, dead: 0, frame: 0, y0: 249,
         anim: "walk", animT: rng() * 0.6
       });
     }
@@ -1287,7 +1287,6 @@
   const POP = {
     dano:   "#ff5a48",   // dano físico no monstro
     crit:   "#ffb648",   // crítico
-    spell:  "#6ec6ff",   // dano de spell
     ouro:   "#f0c04a",   // ouro que caiu
     cura:   "#7fa86b",   // poção de vida
     mana:   "#5f92b5",   // poção de mana
@@ -1318,6 +1317,17 @@
   const DT = 1 / 60;
   // duração do clarão de acerto; longa o bastante para o olho pegar
   const HURT_T = 0.22;
+  const DEAD_T = 0.45;          // desvanecer do corpo após o abate
+
+  /* Momento do impacto dentro de cada animação de golpe, em segundos.
+     Derivado do próprio config do sprite: mexer em `fps` ou `impact` reajusta
+     o dano junto, sem chance de a animação e o golpe saírem de sincronia. */
+  const impactTime = (set, anim) => {
+    const a = set.anims[anim];
+    return (a.impact ?? 0) / a.fps;
+  };
+  const ATK_IMPACT = impactTime(SPRITES.hero, "attack");
+  const MOB_IMPACT = impactTime(SPRITES.ignavo, "attack");
 
   function step() {
     const s = S, h = s.hero;
@@ -1386,7 +1396,8 @@
       if (alive.length === 0) { s.phase = PHASE.CLEAR; s.phaseT = 0; }
       else {
         const kill = (tgt) => {
-          tgt.dead = 0.45; s.kills++;
+          tgt.dead = DEAD_T; s.kills++;
+          tgt.hurt = HURT_T * 1.6;      // o golpe que mata pisca mais tempo
           const g = 14 + s.wave * 3 + ((rng() * 9) | 0);
           s.gold += g; s.loot += g;
           gainXP(9 + ((rng() * 6) | 0));
@@ -1397,14 +1408,25 @@
           if (rng() < 0.015) s.dust++;
         };
 
-        // golpe físico — Cadência define o ritmo, Alcance quantos pega
+        /* Turno de auto attack, no modelo do Tibia: o intervalo é fixo e corre
+           sozinho. Ao virar o turno, o golpe *começa*; o dano só sai no quadro
+           de impacto da animação, quando a lâmina de fato chega à frente.
+           Antes o dano saía junto com o primeiro quadro, com o cavaleiro ainda
+           em guarda — daí a sensação de que o pisca do inimigo não batia com
+           o golpe. O relógio do turno não espera o impacto: ele já recomeça,
+           então a cadência continua sendo o que a Cadência diz. */
         h.atkCd -= DT;
-        if (h.atkCd <= 0) {
+        if (h.atkCd <= 0 && !h.swing) {
           h.atkCd = 1 / d.cad;
+          h.swing = true;
           h.anim = "attack"; h.animT = 0;
+        }
+
+        if (h.swing && h.animT >= ATK_IMPACT) {
+          h.swing = false;
           const crit = rng() < d.crit;
-          const targets = alive.slice(0, d.alc);
-          for (const tgt of targets) {
+          for (const tgt of alive.slice(0, d.alc)) {
+            if (tgt.dead) continue;
             const dmg = Math.max(1, Math.round((d.dano * (0.85 + rng() * 0.3)) * (crit ? 2.1 : 1)));
             tgt.hp -= dmg; tgt.hurt = HURT_T;
             h.hp = Math.min(h.hpMax, h.hp + dmg * d.sust);
@@ -1413,28 +1435,17 @@
           }
         }
 
-        /* spell de auto-cast: consome mana, dispara sozinha (§4.6).
-           É o que faz a poção de mana ter função em vez de ser enfeite. */
-        h.spellCd -= DT;
-        const SPELL_MANA = 16;
-        if (h.spellCd <= 0 && h.mp >= SPELL_MANA && alive.length >= 2) {
-          h.spellCd = 3.4; h.mp -= SPELL_MANA;
-          for (const tgt of alive.slice(0, 3)) {
-            if (tgt.dead) continue;
-            const dmg = Math.max(1, Math.round(d.spell * (0.9 + rng() * 0.25)));
-            tgt.hp -= dmg; tgt.hurt = HURT_T;
-            pop(tgt.x + 20, tgt.y0 - 26, "spell " + dmg, POP.spell);
-            if (tgt.hp <= 0) kill(tgt);
-          }
-        }
-
         // mobs atacam
         for (const m of alive) {
           if (m.dead) continue;
           m.atkCd -= DT;
-          if (m.atkCd <= 0) {
+          if (m.atkCd <= 0 && !m.swing) {
             m.atkCd = 1.15;
+            m.swing = true;
             m.anim = "attack"; m.animT = 0;
+          }
+          if (m.swing && m.animT >= MOB_IMPACT) {
+            m.swing = false;
             const raw = 2 + ((rng() * 3) | 0) + s.wave * 0.32;
             const dmg = Math.max(1, Math.round(raw));
             h.hp = Math.max(0, h.hp - dmg); h.hurt = 0.14;
@@ -1619,7 +1630,7 @@
     for (const m of s.mobs) {
       m.y0 = GROUND - MOB.length * MS;
       const sx = Math.round(m.x - cam), sy = m.y0;
-      ctx.globalAlpha = m.dead > 0 ? Math.max(0, m.dead / 0.45) : 1;
+      ctx.globalAlpha = m.dead > 0 ? Math.max(0, m.dead / DEAD_T) : 1;
       /* O mob avança contra o jogador, então sempre olha para a esquerda.
          Sem a pasta `sprites/` o carregamento falha e a arte procedural
          assume — nunca remova esse fallback.                               */
@@ -1630,14 +1641,24 @@
       }
 
       /* Quem levou o golpe pisca de branco. O combate é single target e sem
-         isso não dá para saber qual dos cinco está sendo atingido. */
-      if (m.hurt > 0 && !m.dead) {
-        const a = 0.75 * (m.hurt / HURT_T);
+         isso não dá para saber qual dos cinco está sendo atingido.
+
+         O golpe que mata pisca também. Antes uma guarda `!m.dead` pulava esse
+         caso, e o abate — o momento que mais pede peso — era o único sem
+         retorno. O clarão do golpe fatal é mais forte e mais longo, e some
+         acompanhando o desvanecer do corpo para não flutuar sozinho. */
+      if (m.hurt > 0) {
+        const morrendo = m.dead > 0;
+        const fade = morrendo ? Math.max(0, m.dead / DEAD_T) : 1;
+        // clamp explícito: no golpe fatal `hurt` passa de HURT_T de propósito,
+        // e sem isto o alpha só não estoura por conta do clamp do Canvas
+        const forca = Math.min(1, m.hurt / HURT_T);
+        const a = (morrendo ? 0.95 : 0.75) * forca * fade;
         if (!usouFolha ||
             !drawSheetTint(SPRITES.ignavo, m.anim, m.animT, sx + 28, GROUND, true, a, "#ffffff")) {
           ctx.globalAlpha = a;
           drawSprite(ctx, MOB, { k:"#ffffff", n:"#ffffff", N:"#ffffff", p:"#ffffff", P:"#ffffff" }, sx, sy, MS, true);
-          ctx.globalAlpha = m.dead > 0 ? Math.max(0, m.dead / 0.45) : 1;
+          ctx.globalAlpha = morrendo ? fade : 1;
         }
       }
       // barra de vida
@@ -1934,8 +1955,7 @@
     ["Crítico", d => (d.crit * 100).toFixed(1) + "%"],
     ["Alcance", d => d.alc + (d.alc > 1 ? " alvos" : " alvo")],
     ["Sustento", d => (d.sust * 100).toFixed(1) + "%"],
-    ["Mana", d => Math.round(d.mana)],
-    ["Dano de spell", d => d.spell.toFixed(1)]
+    ["Mana", d => Math.round(d.mana)]
   ];
   const $derList = el("derList");
   const derRows = DER.map(([name]) => {
