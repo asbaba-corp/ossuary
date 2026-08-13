@@ -5,7 +5,7 @@ Expõe ao jogador as criaturas do Vestíbulo, até então descritas apenas em
 
 ## Entregue
 
-Pop-up **Bestiário** em `prototype/scene.html`, acionado por um ícone no HUD ao
+Pop-up **Bestiário** na aplicação Expo, acionado por um botão no HUD ao
 lado de Atributos, pela tecla `B` ou por `?tab=best`. Lista as cinco criaturas
 do Mundo 0 mais o guardião Caronte, cada uma com nome, epíteto, papel, figura,
 dano, drops e o que testa no jogador.
@@ -24,7 +24,7 @@ Encalhado, Marcado e Caronte ganharam arte pixelada nova (14×17, mesmo estilo e
 paleta do `MOB` existente), desenhada no próprio `scene.html`. O Marcado
 reaproveita a silhueta do Ignavo com a queimadura do remo nas costas, que é
 literalmente o que o design descreve. Sem dependência de arquivo externo: o
-protótipo continua funcionando por `file://`.
+o conteúdo continua sendo carregado como dados compartilhados pela aplicação.
 
 **Conteúdo é dado.** A tabela `BESTIARY` guarda as entradas; a montagem das
 fichas acontece uma vez, fora do loop de render — nada ali depende do estado da

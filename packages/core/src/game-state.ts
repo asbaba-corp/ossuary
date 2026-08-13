@@ -1,16 +1,18 @@
 import { addItem, createInventory, removeItem, type Inventory } from "./inventory.js";
 import { applyEconomyTransaction, createEconomyState, GOLD_RESOURCE, type EconomyState } from "./economy.js";
-import { createOssuaryState, type OssuaryState } from "./ossuary.js";
+import { createOssuaryState, getOssuaryBonuses, type OssuaryState } from "./ossuary.js";
 import { createRoster, createParty, gainPartyExperience, type Party, type RosterState } from "./party.js";
 import { createCombatantsFromParty } from "./combat/character-adapter.js";
 import { createCombatState, advanceCombatTick, type CombatState, type CombatEvent } from "./combat/index.js";
-import { createEquipmentFromDropTable } from "./equipment/legacy.js";
+import { createEquipmentFromDropTable, equipEquipment } from "./equipment.js";
+import { equipSpell } from "./spell-loadout.js";
 import { deterministicUnit } from "./random.js";
 import { assertGameContent, findPhase, findWave, type GameContentContext } from "./game-content.js";
 
 export interface WorldProgressState { readonly unlockedPhaseIds: readonly string[]; readonly clearedPhaseIds: readonly string[]; readonly selectedFarmPhaseId: string; }
 export interface RunCheckpoint { readonly checkpointId: string; readonly sequence: number; readonly lastResolvedWaveIndex: number; readonly appliedRewardIds: readonly string[]; }
-export interface RunState { readonly phaseId: string; readonly seed: number | string; readonly status: "walking" | "combat" | "completed" | "retreating"; readonly waveIndex: number; readonly distanceToWave: number; readonly combat: CombatState | null; readonly checkpoint: RunCheckpoint; }
+export interface RunMetrics { readonly kills: number; readonly loot: number; readonly dust: number; readonly retreats: number; }
+export interface RunState { readonly phaseId: string; readonly seed: number | string; readonly status: "walking" | "combat" | "completed" | "retreating"; readonly waveIndex: number; readonly distanceToWave: number; readonly combat: CombatState | null; readonly checkpoint: RunCheckpoint; readonly metrics?: RunMetrics; }
 export interface GameStateMetadata { readonly lastUpdatedAtMs: number; readonly pendingSync: boolean; readonly seq: number; readonly deviceId: string; }
 export interface GameState { readonly schemaVersion: number; readonly contentVersion: string; readonly roster: RosterState; readonly party: Party; readonly inventory: Inventory; readonly economy: EconomyState; readonly ossuary: OssuaryState; readonly world: WorldProgressState; readonly run: RunState | null; readonly metadata: GameStateMetadata; }
 export type GameAction = { readonly type: "start_run"; readonly phaseId?: string; readonly seed?: number | string } | { readonly type: "select_farm_phase"; readonly phaseId: string } | { readonly type: "retreat" };
@@ -21,7 +23,14 @@ export function createInitialGameState(content: GameContentContext, deviceId = "
   assertGameContent(content);
   const first = content.phases.find((phase) => phase.order === 0) ?? content.phases[0];
   if (!first) throw new RangeError("content não possui fase inicial");
-  return { schemaVersion: 1, contentVersion: content.version, roster: createRoster(), party: createParty(), inventory: createInventory(), economy: { ...createEconomyState(), account: { [GOLD_RESOURCE]: 10 } }, ossuary: createOssuaryState(), world: { unlockedPhaseIds: [first.id], clearedPhaseIds: [], selectedFarmPhaseId: first.id }, run: null, metadata: { lastUpdatedAtMs: 0, pendingSync: false, seq: 0, deviceId } };
+  const initial = createRoster();
+  const characterId = initial.characters[0]!.id;
+  let spellLoadout = initial.spellLoadouts[characterId]!;
+  if (content.spells[0]) spellLoadout = equipSpell(spellLoadout, content.spells.map(({ id }) => id), content.spells[0].id);
+  let loadout = initial.equipmentLoadouts[characterId]!;
+  for (const equipment of content.startingEquipment ?? []) loadout = equipEquipment(loadout, equipment);
+  const roster: RosterState = { ...initial, equipmentLoadouts: { ...initial.equipmentLoadouts, [characterId]: loadout }, spellLoadouts: { ...initial.spellLoadouts, [characterId]: spellLoadout } };
+  return { schemaVersion: 1, contentVersion: content.version, roster, party: createParty(), inventory: createInventory(), economy: { ...createEconomyState(), account: { [GOLD_RESOURCE]: content.startingGold ?? 10 } }, ossuary: createOssuaryState(), world: { unlockedPhaseIds: [first.id], clearedPhaseIds: [], selectedFarmPhaseId: first.id }, run: null, metadata: { lastUpdatedAtMs: 0, pendingSync: false, seq: 0, deviceId } };
 }
 
 export function applyGameAction(state: GameState, action: GameAction, content: GameContentContext): GameTransition {
@@ -35,7 +44,7 @@ export function applyGameAction(state: GameState, action: GameAction, content: G
   const phaseId = action.phaseId ?? state.world.selectedFarmPhaseId;
   if (!state.world.unlockedPhaseIds.includes(phaseId)) throw new RangeError(`fase bloqueada: ${phaseId}`);
   const checkpoint = makeCheckpoint(0, -1, []);
-  return { state: { ...state, run: { phaseId, seed: action.seed ?? 1, status: "walking", waveIndex: 0, distanceToWave: content.runRules.walkingMs, combat: null, checkpoint }, metadata: { ...state.metadata, pendingSync: true } }, events: [{ type: "run_started", phaseId }] };
+  return { state: { ...state, run: { phaseId, seed: action.seed ?? 1, status: "walking", waveIndex: 0, distanceToWave: content.runRules.walkingMs, combat: null, checkpoint, metrics: { kills: 0, loot: 0, dust: 0, retreats: 0 } }, metadata: { ...state.metadata, pendingSync: true } }, events: [{ type: "run_started", phaseId }] };
 }
 
 export function tickGameState(state: GameState, deltaMs: number, content: GameContentContext): GameTransition {
@@ -64,7 +73,8 @@ export function tickGameState(state: GameState, deltaMs: number, content: GameCo
       remaining -= step;
       const result = advanceCombatTick(run.combat, content.combatRules, { spells: content.spells });
       events.push(...result.events.map((event) => ({ type: "combat" as const, event })));
-      next = { ...next, run: { ...run, combat: result.state } };
+      const defeatedEnemies = result.events.filter((event) => event.type === "combatant_defeated" && run.combat?.combatants.find(({ snapshot }) => snapshot.id === event.combatantId)?.snapshot.side === "enemy").length;
+      next = { ...next, run: { ...run, combat: result.state, metrics: { kills: (run.metrics?.kills ?? 0) + defeatedEnemies, loot: run.metrics?.loot ?? 0, dust: run.metrics?.dust ?? 0, retreats: run.metrics?.retreats ?? 0 } } };
       if (result.state.outcome === "victory") next = resolveVictory(next, content, events);
       else if (result.state.outcome === "defeat") { const retreatResult = retreat(next, content, "defeat"); next = retreatResult.state; events.push(...retreatResult.events); }
     }
@@ -77,6 +87,7 @@ function resolveVictory(state: GameState, content: GameContentContext, events: G
   if (run.checkpoint.appliedRewardIds.includes(rewardId)) return state;
   const experience = gainPartyExperience(state.roster, state.party, wave.xpReward);
   let economy = applyEconomyTransaction(state.economy, { scope: "account", resourceId: GOLD_RESOURCE, direction: "credit", amount: wave.goldReward, reason: `wave:${wave.id}` }).state;
+  economy = applyEconomyTransaction(economy, { scope: "run", resourceId: GOLD_RESOURCE, direction: "credit", amount: wave.goldReward, reason: `wave:${wave.id}` }).state;
   let inventory = state.inventory;
   const table = content.dropTables.find((candidate) => candidate.id === wave.dropTableId)!;
   inventory = addItem(inventory, { item: createEquipmentFromDropTable(`${rewardId}:${Math.floor(deterministicUnit(run.seed, rewardId) * 1e9)}`, `${String(run.seed)}:${rewardId}`, table.entries), quantity: 1 });
@@ -90,21 +101,22 @@ function resolveVictory(state: GameState, content: GameContentContext, events: G
   if (last && phase.nextPhaseId && !unlocked.includes(phase.nextPhaseId)) { unlocked.push(phase.nextPhaseId); eventsToAdd.push({ type: "phase_unlocked", phaseId: phase.nextPhaseId }); }
   events.push(...eventsToAdd);
   const checkpoint = makeCheckpoint(run.checkpoint.sequence + 1, run.waveIndex, [...run.checkpoint.appliedRewardIds, rewardId]);
-  if (last) return { ...state, roster: experience.roster, inventory, economy, world: { ...state.world, clearedPhaseIds: cleared, unlockedPhaseIds: unlocked }, run: { ...run, status: "completed", combat: null, checkpoint }, metadata: { ...state.metadata, pendingSync: true } };
-  return { ...state, roster: experience.roster, inventory, economy, world: { ...state.world, clearedPhaseIds: cleared, unlockedPhaseIds: unlocked }, run: { ...run, status: "walking", waveIndex: run.waveIndex + 1, distanceToWave: content.runRules.walkingMs, combat: null, checkpoint }, metadata: { ...state.metadata, pendingSync: true } };
+  const metrics = { kills: run.metrics?.kills ?? 0, loot: (run.metrics?.loot ?? 0) + wave.goldReward, dust: run.metrics?.dust ?? 0, retreats: run.metrics?.retreats ?? 0 };
+  if (last) return { ...state, roster: experience.roster, inventory, economy, world: { ...state.world, clearedPhaseIds: cleared, unlockedPhaseIds: unlocked }, run: { ...run, status: "completed", combat: null, checkpoint, metrics }, metadata: { ...state.metadata, pendingSync: true } };
+  return { ...state, roster: experience.roster, inventory, economy, world: { ...state.world, clearedPhaseIds: cleared, unlockedPhaseIds: unlocked }, run: { ...run, status: "walking", waveIndex: run.waveIndex + 1, distanceToWave: content.runRules.walkingMs, combat: null, checkpoint, metrics }, metadata: { ...state.metadata, pendingSync: true } };
 }
 
 function retreat(state: GameState, content: GameContentContext, reason: string): GameTransition {
   const run = state.run; if (!run) return { state, events: [] };
   const phase = findPhase(content, run.phaseId); const fallback = phase.retreatPhaseId ?? state.world.selectedFarmPhaseId;
   const target = state.world.unlockedPhaseIds.includes(fallback) ? fallback : state.world.selectedFarmPhaseId;
-  const next = { ...state, world: { ...state.world, selectedFarmPhaseId: target }, run: { ...run, phaseId: target, status: "retreating" as const, waveIndex: 0, distanceToWave: content.runRules.walkingMs, combat: null, checkpoint: makeCheckpoint(run.checkpoint.sequence + 1, -1, []) }, metadata: { ...state.metadata, pendingSync: true } };
+  const next = { ...state, world: { ...state.world, selectedFarmPhaseId: target }, run: { ...run, phaseId: target, status: "retreating" as const, waveIndex: 0, distanceToWave: content.runRules.walkingMs, combat: null, checkpoint: makeCheckpoint(run.checkpoint.sequence + 1, -1, []), metrics: { kills: run.metrics?.kills ?? 0, loot: run.metrics?.loot ?? 0, dust: run.metrics?.dust ?? 0, retreats: (run.metrics?.retreats ?? 0) + 1 } }, metadata: { ...state.metadata, pendingSync: true } };
   return { state: { ...next, run: { ...next.run!, status: "walking" } }, events: [{ type: reason === "defeat" ? "run_defeat" : "run_retreat", phaseId: target }] };
 }
 
 function findWaveForRun(state: GameState, content: GameContentContext) { const phase = findPhase(content, state.run!.phaseId); const id = phase.waveIds[state.run!.waveIndex]; if (!id) throw new RangeError("índice de wave inválido"); return findWave(content, id); }
 function createCombatantsForWave(state: GameState, content: GameContentContext, enemyIds: readonly string[], seed: number | string, waveIndex: number) {
-  const party = createCombatantsFromParty(state.roster, state.party, { side: "party", itemEffects: { activeEffects: [] }, formulas: content.derivedStatFormulas, ossuaryBonuses: Object.fromEntries(["vigor", "damage", "penetration", "cadence", "critical", "reach", "sustain", "mana"].map((id) => [id, 0])) as never });
+  const party = createCombatantsFromParty(state.roster, state.party, { side: "party", itemEffects: { activeEffects: [] }, formulas: content.derivedStatFormulas, ossuaryBonuses: getOssuaryBonuses(state.ossuary, content.ossuaryUpgrades ?? []) });
   const enemies = enemyIds.map((id, index) => { const enemy = content.enemies.find((candidate) => candidate.id === id); if (!enemy) throw new RangeError(`enemy ausente: ${id}`); return { id: `${id}:${waveIndex}:${index}`, name: enemy.name, side: "enemy" as const, stats: enemy.stats }; });
   return [...party, ...enemies];
 }

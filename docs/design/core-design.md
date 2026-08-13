@@ -837,6 +837,13 @@ A arena é o endgame infinito (plano técnico §7). O core design precisa respei
 
 ## 9. Renderização
 
+A aplicação Expo é a experiência principal em `/`. A cena usa React Native
+Skia, enquanto HUD, party e painéis continuam como Views React Native; o loop
+de simulação continua exclusivamente no `packages/core`, e a tela transforma
+estado e eventos em apresentação. `/lab` é
+uma rota técnica para validar domínios isolados e não representa o produto
+jogável.
+
 **react-native-skia**, decidido. Mesmo código de render em iOS, Android (v2) e web, preservando o monorepo TS unificado.
 
 ```

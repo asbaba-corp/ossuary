@@ -1,5 +1,6 @@
 import type { DerivedStatFormulas } from "./progression/derived.js";
-import type { EquipmentDropEntry } from "./equipment/legacy.js";
+import type { EquipmentDropEntry, Equipment } from "./equipment.js";
+import type { OssuaryUpgradeDefinition } from "./ossuary.js";
 import type { CombatRules, CombatantStats } from "./combat/types.js";
 
 export interface EnemyDefinition {
@@ -59,6 +60,9 @@ export interface GameContentContext {
   readonly rewardRules: RewardRules;
   readonly runRules: RunRules;
   readonly derivedStatFormulas: DerivedStatFormulas;
+  readonly startingEquipment?: readonly Equipment[];
+  readonly ossuaryUpgrades?: readonly OssuaryUpgradeDefinition[];
+  readonly startingGold?: number;
 }
 
 export function validateGameContent(content: GameContentContext): readonly string[] {
