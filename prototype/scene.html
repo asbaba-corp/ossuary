@@ -1634,21 +1634,26 @@
   const DEATH_VOID_T = 0.85;                                        // breu com a mensagem — tempo de leitura da frase
   const DEATH_RISE_T = 0.55;                                        // cena e herói reaparecem juntos
 
-  /* Dez variações, para a mesma frase não cansar em runs longas. Giram em
-     ordem (não sorteadas) — sorteio puro repetiria a mesma cedo demais, e a
-     ordem fixa garante as dez antes de qualquer repetição. Nenhuma nomeia um
-     monstro específico: a morte pode vir de qualquer inimigo. */
+  /* Dez citações do Inferno de Dante Alighieri (Divina Comédia, ~1320) — texto
+     de domínio público havia sete séculos antes de qualquer lei de direito
+     autoral existir, sem risco de licença. Giram em ordem (não sorteadas) —
+     sorteio puro repetiria a mesma cedo demais, e a ordem fixa garante as
+     dez antes de qualquer repetição.
+
+     No original em italiano, com o personagem que a diz no poema — mantém o
+     tom de outro lugar/outra língua, e curtas o bastante para caber na
+     janela de leitura da tela de morte. */
   const DEATH_MESSAGES = [
-    "A carne cede. O osso permanece.",
-    "Aqui você cai. O Vestíbulo não conta quantas vezes.",
-    "Não é a morte. É só mais um recuo.",
-    "O osso que fica é seu, mesmo quando o resto não é.",
-    "A sombra te alcançou. Ela sempre alcança.",
-    "Cai, levanta, recua. O Ossuary não julga.",
-    "Nada se perde além do que foi gasto em vão.",
-    "O Antinferno não perdoa — mas também não termina.",
-    "Mais um tombo. O caminho continua o mesmo.",
-    "Você recua. O osso, não."
+    "“Lasciate ogne speranza” — A Porta do Inferno",
+    "“Per me si va tra la perduta gente” — A Porta do Inferno",
+    "“Mi ritrovai per una selva oscura” — Dante",
+    "“Guai a voi, anime prave” — Caronte",
+    "“Non omo, omo già fui” — Virgílio",
+    "“Questi non hanno speranza di morte” — Virgílio",
+    "“Non ragioniam di lor, ma guarda e passa” — Virgílio",
+    "“Nessun maggior dolore” — Francesca da Rimini",
+    "“Fatti non foste a viver come bruti” — Ulisses",
+    "“E quindi uscimmo a riveder le stelle” — Dante"
   ];
 
   function step() {

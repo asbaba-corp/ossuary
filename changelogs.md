@@ -24,6 +24,19 @@ o arquivo mexido. "Ataques agora acertam no quadro do golpe" vale mais que
 
 ---
 
+## 0.10 — Citações do Inferno na tela de morte
+PR #49 · 2026-08-13 · @thipintop
+
+### Changed
+- As dez frases da tela de morte (#45) eram genéricas demais. Viram dez
+  citações do Inferno de Dante Alighieri, no original em italiano, entre
+  aspas e assinadas pelo personagem que as diz no poema — a inscrição do
+  portão, Virgílio, Caronte, Francesca da Rimini, Ulisses e o próprio
+  Dante. Texto de domínio público desde muito antes de qualquer lei de
+  direito autoral existir.
+
+---
+
 ## 0.09 — Mais tempo de leitura na morte do herói
 PR #48 · 2026-08-13 · @thipintop
 
