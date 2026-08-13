@@ -15,6 +15,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
+    "test": "tsc -p tsconfig.build.json && node --test test/*.test.js",
     "scenario": "pnpm build && node dist/vertical-scenario.js"
   },
   "devDependencies": {
