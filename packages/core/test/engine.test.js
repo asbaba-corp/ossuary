@@ -50,21 +50,116 @@ test("estado inicial começa zerado e em andamento", () => {
   assert.equal(estado.combatants[0].hp, 100);
 });
 
-/* CONTRATO CENTRAL: hoje o atacante mira UM alvo por tick. É exatamente isto
-   que a implementação de alcance vai mudar — quando mudar, este teste tem de
-   ser reescrito de propósito, não quebrar por acidente. */
-test("cada atacante gera no máximo um evento de ataque por tick", () => {
+/* Sem alcance declarado, o comportamento é o de sempre: um alvo por golpe.
+   Este par de casos protege quem não usa alcance de regredir. */
+test("sem alcance, cada atacante gera um evento de ataque por tick", () => {
   const estado = createCombatState([heroi(), inimigo("e1"), inimigo("e2"), inimigo("e3")], "seed");
   const { events } = advanceCombatTick(estado, REGRAS, SEM_MAGIA);
   const doHeroi = events.filter((e) => e.type === "attack" && e.attackerId === "p1");
   assert.equal(doHeroi.length, 1);
 });
 
-test("o alvo do herói é um só, mesmo com vários inimigos vivos", () => {
+test("sem alcance, só um inimigo é ferido por vez", () => {
   const estado = createCombatState([heroi(), inimigo("e1"), inimigo("e2")], "seed");
   const { state } = advanceCombatTick(estado, REGRAS, SEM_MAGIA);
   const feridos = state.combatants.filter((c) => c.snapshot.side === "enemy" && c.hp < 100);
   assert.equal(feridos.length, 1);
+});
+
+/* ---- alcance ---- */
+
+test("alcance 3 atinge três alvos com um golpe", () => {
+  const estado = createCombatState(
+    [heroi({ reach: 3 }), inimigo("e1"), inimigo("e2"), inimigo("e3"), inimigo("e4")],
+    "seed",
+  );
+  const { state, events } = advanceCombatTick(estado, REGRAS, SEM_MAGIA);
+  const ataques = events.filter((e) => e.type === "attack" && e.attackerId === "p1");
+  assert.equal(ataques.length, 3);
+  const feridos = state.combatants.filter((c) => c.snapshot.side === "enemy" && c.hp < 100);
+  assert.equal(feridos.length, 3);
+});
+
+test("alcance maior que a quantidade de inimigos não quebra", () => {
+  const estado = createCombatState([heroi({ reach: 9 }), inimigo("e1")], "seed");
+  const { events } = advanceCombatTick(estado, REGRAS, SEM_MAGIA);
+  const doHeroi = events.filter((e) => e.type === "attack" && e.attackerId === "p1");
+  assert.equal(doHeroi.length, 1);
+});
+
+/* O cooldown é do golpe, não do alvo: varrer três não custa três ataques. */
+test("varrer vários alvos consome um único ataque", () => {
+  let estado = createCombatState(
+    [heroi({ reach: 3 }), inimigo("e1", { attacksPerSecond: 0 }), inimigo("e2", { attacksPerSecond: 0 })],
+    "seed",
+  );
+  estado = advanceCombatTick(estado, REGRAS, SEM_MAGIA).state;
+  for (let i = 0; i < 3; i += 1) {
+    const passo = advanceCombatTick(estado, REGRAS, SEM_MAGIA);
+    assert.equal(passo.events.filter((e) => e.type === "attack").length, 0);
+    estado = passo.state;
+  }
+});
+
+test("cada alvo do varrimento emite a própria morte", () => {
+  const estado = createCombatState(
+    [
+      heroi({ reach: 2, damage: 500 }),
+      inimigo("e1", { maxHp: 10, attacksPerSecond: 0 }),
+      inimigo("e2", { maxHp: 10, attacksPerSecond: 0 }),
+    ],
+    "seed",
+  );
+  const { events, state } = advanceCombatTick(estado, REGRAS, SEM_MAGIA);
+  const mortes = events.filter((e) => e.type === "combatant_defeated").map((e) => e.combatantId);
+  assert.deepEqual(mortes.sort(), ["e1", "e2"]);
+  assert.equal(state.outcome, "victory");
+});
+
+test("sustain soma a cura de todos os alvos atingidos", () => {
+  const estado = createCombatState(
+    [
+      heroi({ reach: 2, maxHp: 100, damage: 10, sustainPercent: 50 }),
+      inimigo("e1", { attacksPerSecond: 0 }),
+      inimigo("e2", { attacksPerSecond: 0 }),
+    ],
+    "seed",
+  );
+  // o herói entra ferido para a cura ter onde caber
+  const machucado = {
+    ...estado,
+    combatants: estado.combatants.map((c) => c.snapshot.id === "p1" ? { ...c, hp: 50 } : c),
+  };
+  const { state } = advanceCombatTick(machucado, REGRAS, SEM_MAGIA);
+  const p1 = state.combatants.find((c) => c.snapshot.id === "p1");
+  // 10 de dano em dois alvos, 50% de sustain em cada => +10
+  assert.equal(p1.hp, 60);
+});
+
+test("alcance inválido é rejeitado", () => {
+  const estado = createCombatState([heroi({ reach: 0 }), inimigo("e1")], "seed");
+  assert.throws(() => advanceCombatTick(estado, REGRAS, SEM_MAGIA), RangeError);
+});
+
+/* O motivo de o alcance existir: com um alvo por vez o dano recebido cresce
+   com N(N+1)/2, e a multidão do Mundo 0 fica impossível. */
+test("alcance reduz o dano recebido numa multidão", () => {
+  const montar = (reach) => createCombatState(
+    [
+      heroi({ reach, maxHp: 10000, damage: 100 }),
+      ...Array.from({ length: 6 }, (_, i) => inimigo(`e${i}`, { maxHp: 100, damage: 10 })),
+    ],
+    "seed",
+  );
+  const sozinho = resolveCombat(montar(1), REGRAS, 4000, SEM_MAGIA);
+  const varrendo = resolveCombat(montar(3), REGRAS, 4000, SEM_MAGIA);
+  const vidaFinal = (r) => r.state.combatants.find((c) => c.snapshot.id === "p1").hp;
+  assert.equal(sozinho.state.outcome, "victory");
+  assert.equal(varrendo.state.outcome, "victory");
+  assert.ok(
+    vidaFinal(varrendo) > vidaFinal(sozinho),
+    `alcance 3 deveria sobrar mais vida: ${vidaFinal(varrendo)} vs ${vidaFinal(sozinho)}`,
+  );
 });
 
 test("ataque só sai quando o cooldown zera", () => {

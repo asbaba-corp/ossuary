@@ -60,39 +60,54 @@ export function advanceCombatTick(
     }
 
     if (attacker.attackCooldown > 0 || attacker.snapshot.stats.attacksPerSecond <= 0) continue;
-    const target = findLivingTarget(combatants, attacker);
-    if (!target) continue;
+    /* Um golpe pode varrer vários alvos. A seed continua incluindo o id do
+       alvo, então cada acerto tem a própria rolagem de crítico e o combate
+       segue determinístico. O cooldown é do golpe, não do alvo: varrer três
+       não custa três ataques. */
+    const targets = findLivingTargets(combatants, attacker);
+    if (targets.length === 0) continue;
 
-    const damageResult = calculateCombatDamage(
-      attacker.snapshot,
-      target.snapshot,
-      rules,
-      `${String(state.seed)}:${tick}:${attacker.snapshot.id}:${target.snapshot.id}`,
-    );
-    const effectiveDamage = applyProtection(damageResult.damage, target, rules);
-    const targetHpAfter = Math.max(0, target.hp - effectiveDamage);
+    const atingidos: { readonly id: string; readonly hp: number }[] = [];
+    let healingTotal = 0;
+    for (const target of targets) {
+      const damageResult = calculateCombatDamage(
+        attacker.snapshot,
+        target.snapshot,
+        rules,
+        `${String(state.seed)}:${tick}:${attacker.snapshot.id}:${target.snapshot.id}`,
+      );
+      const effectiveDamage = applyProtection(damageResult.damage, target, rules);
+      const targetHpAfter = Math.max(0, target.hp - effectiveDamage);
+      healingTotal += damageResult.healing;
+      atingidos.push({ id: target.snapshot.id, hp: targetHpAfter });
+      events.push({
+        type: "attack",
+        tick,
+        attackerId: attacker.snapshot.id,
+        targetId: target.snapshot.id,
+        critical: damageResult.critical,
+        damage: effectiveDamage,
+        healing: damageResult.healing,
+        targetHpAfter,
+      });
+    }
+
     const attackerHpAfter = Math.min(
       attacker.snapshot.stats.maxHp,
-      attacker.hp + damageResult.healing,
+      attacker.hp + healingTotal,
     );
+    const hpPorAlvo = new Map(atingidos.map(({ id, hp }) => [id, hp]));
     combatants = combatants.map((candidate) => {
       if (candidate.snapshot.id === attacker.snapshot.id) {
         return { ...candidate, hp: attackerHpAfter, attackCooldown: attackInterval(attacker, rules) };
       }
-      if (candidate.snapshot.id === target.snapshot.id) return { ...candidate, hp: targetHpAfter };
-      return candidate;
+      const hp = hpPorAlvo.get(candidate.snapshot.id);
+      return hp === undefined ? candidate : { ...candidate, hp };
     });
-    events.push({
-      type: "attack",
-      tick,
-      attackerId: attacker.snapshot.id,
-      targetId: target.snapshot.id,
-      critical: damageResult.critical,
-      damage: effectiveDamage,
-      healing: damageResult.healing,
-      targetHpAfter,
-    });
-    if (targetHpAfter === 0) events.push({ type: "combatant_defeated", tick, combatantId: target.snapshot.id });
+    // as mortes saem depois dos acertos, para o fluxo ler como um golpe só
+    for (const { id, hp } of atingidos) {
+      if (hp === 0) events.push({ type: "combatant_defeated", tick, combatantId: id });
+    }
 
     const outcome = getOutcome(combatants);
     if (outcome !== "in_progress") {
@@ -215,6 +230,26 @@ function createCombatantState(snapshot: CombatantSnapshot): CombatantState {
 
 function findLivingTarget(combatants: readonly CombatantState[], attacker: CombatantState): CombatantState | undefined {
   return combatants.find((candidate) => candidate.hp > 0 && candidate.snapshot.side !== attacker.snapshot.side);
+}
+
+/** Os primeiros vivos do lado oposto, até o alcance do atacante. */
+function findLivingTargets(
+  combatants: readonly CombatantState[],
+  attacker: CombatantState,
+): readonly CombatantState[] {
+  const reach = resolveReach(attacker.snapshot.stats.reach);
+  const vivos = combatants.filter(
+    (candidate) => candidate.hp > 0 && candidate.snapshot.side !== attacker.snapshot.side,
+  );
+  return vivos.slice(0, reach);
+}
+
+function resolveReach(reach: number | undefined): number {
+  if (reach === undefined) return 1;
+  if (!Number.isFinite(reach) || reach < 1) {
+    throw new RangeError("reach deve ser um número maior ou igual a 1");
+  }
+  return Math.floor(reach);
 }
 
 function updateHp(combatants: readonly CombatantState[], id: string, hp: number): CombatantState[] {

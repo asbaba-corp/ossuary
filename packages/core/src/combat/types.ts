@@ -13,6 +13,13 @@ export interface CombatantStats {
   readonly criticalChancePercent: number;
   readonly criticalMultiplier: number;
   readonly sustainPercent: number;
+  /**
+   * Quantos alvos o golpe atinge. Ausente ou 1 é o comportamento de sempre.
+   * Sem isso, multidão é intratável: matando um por vez, o dano recebido cresce
+   * com N(N+1)/2 — enquanto o primeiro morre todos batem, enquanto o segundo
+   * morre N-1 batem.
+   */
+  readonly reach?: number;
 }
 
 export interface CombatantSnapshot {
