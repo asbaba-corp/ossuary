@@ -145,6 +145,13 @@
   /* ---- personagem ---- */
   .party { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; }
   .hero-card { background: #1c1510; border: 1px solid #33261a; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+  /* o card do personagem abre os atributos: precisa parecer clicável */
+  #heroCard { cursor: pointer; transition: border-color .12s, background .12s; }
+  #heroCard:hover { border-color: #5a442c; background: #221a12; }
+  #heroCard:focus-visible { outline: 2px solid var(--flame); outline-offset: 2px; }
+  /* com pontos a distribuir, o card chama atenção sozinho */
+  #heroCard.tem-pontos { border-color: #6b4a26; }
+  #heroCard.tem-pontos:hover { border-color: var(--flame); }
   .hc-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
   .hc-name { color: var(--bone-b); font-size: 14px; letter-spacing: 0.04em; }
   .hc-lv { color: #7a6850; font-size: 11px; }
@@ -334,7 +341,8 @@
   <!-- ===== Party — sempre visível, fora das abas ===== -->
   <section class="panel party-bar">
     <div class="party">
-      <article class="hero-card">
+      <article class="hero-card" id="heroCard" role="button" tabindex="0"
+               aria-haspopup="dialog" title="Abrir atributos (C)">
         <header class="hc-top">
           <span class="hc-name" id="chName">Sem-Nome</span>
           <span class="hc-lv">Nível <b id="chLevel">1</b></span>
@@ -1746,6 +1754,15 @@
 
   el("openInv").onclick = () => (openModal === "inv" ? closeModal() : setTab("inv"));
   el("openStats").onclick = () => (openModal === "stats" ? closeModal() : setTab("stats"));
+
+  /* O card do personagem abre os atributos. É onde o aviso de pontos a
+     distribuir aparece, então é o lugar onde a mão vai primeiro — mandar o
+     jogador procurar o ícone no topo depois de ler o aviso é atrito à toa. */
+  const $card = el("heroCard");
+  $card.onclick = () => setTab("stats");
+  $card.onkeydown = e => {
+    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setTab("stats"); }
+  };
   el("openBest").onclick = () => (openModal === "best" ? closeModal() : setTab("best"));
 
   for (const id of TABS) {
@@ -1904,9 +1921,11 @@
     el("hpTxt").textContent = Math.ceil(h.hp) + " / " + h.hpMax;
     el("mpbar2").style.width = pct(h.mp, h.mpMax);
     el("mpTxt").textContent = Math.ceil(h.mp) + " / " + h.mpMax;
-    el("ptsNote").textContent = c.points > 0
+    const temPts = c.points > 0;
+    el("ptsNote").textContent = temPts
       ? c.points + (c.points === 1 ? " ponto a distribuir" : " pontos a distribuir")
       : "";
+    $card.classList.toggle("tem-pontos", temPts);
 
     // marcador no ícone: o pop-up fechado precisa avisar que há o que fazer
     el("statDot").hidden = c.points <= 0;
