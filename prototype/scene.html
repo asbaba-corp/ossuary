@@ -911,6 +911,46 @@
     "..o.kcc..cck.."
   ];
 
+  /* ---- espécies em cena ----
+     Até aqui a cena spawnava cinco mobs idênticos, e o bestiário era só uma
+     galeria: as artes existiam sem nunca pisar no palco. Agora a onda é
+     composta por espécie, seguindo a mesma tabela de fases do Mundo 0 que
+     está em `packages/core/src/world-0.ts`.
+
+     Os multiplicadores traduzem o papel de cada uma sobre a curva do
+     protótipo, em vez de importar os números do core: este arquivo tem
+     simulação própria, e a graça dele é o feeling, não a paridade numérica.
+     Só o Ignavo tem spritesheet; o resto usa a arte procedural do bestiário. */
+  const ESPECIES = {
+    ignavo:    { nome: "Ignavo",    rows: MOB,       pal: MOB_PAL,       folha: "ignavo", hp: 1.00, dano: 1.00, cadencia: 1.00 },
+    moscardo:  { nome: "Moscardo",  rows: MOSCARDO,  pal: MOSCARDO_PAL,  folha: null,     hp: 0.35, dano: 0.45, cadencia: 2.60 },
+    gorja:     { nome: "Gorja",     rows: GORJA,     pal: GORJA_PAL,     folha: null,     hp: 2.40, dano: 1.35, cadencia: 0.60, dreno: 0.30 },
+    encalhado: { nome: "Encalhado", rows: ENCALHADO, pal: ENCALHADO_PAL, folha: null,     hp: 1.90, dano: 0.15, cadencia: 0.50, couraça: 0.72 },
+    marcado:   { nome: "Marcado",   rows: MARCADO,   pal: MARCADO_PAL,   folha: null,     hp: 2.70, dano: 2.10, cadencia: 1.20 },
+    caronte:   { nome: "Caronte",   rows: CARONTE,   pal: CARONTE_PAL,   folha: null,     hp: 9.00, dano: 2.60, cadencia: 1.00 },
+  };
+
+  /* Composição de cada onda, fase a fase — mesma do Mundo 0. As quantidades
+     são as do design; a cena aperta o espaçamento quando a fila cresce, o que
+     lê como bando, que é justamente o que o bestiário descreve dos Ignavos. */
+  const COMPOSICAO = [
+    [{ ignavo: 3 }, { ignavo: 4 }, { ignavo: 5 }],
+    [{ ignavo: 4 }, { ignavo: 5 }, { ignavo: 6 }, { ignavo: 7 }],
+    [{ ignavo: 6, moscardo: 3 }, { ignavo: 6, moscardo: 4 }, { ignavo: 7, moscardo: 5 }, { moscardo: 9 }],
+    [{ ignavo: 8, moscardo: 4 }, { ignavo: 9, moscardo: 5 }, { ignavo: 10, moscardo: 6 }, { ignavo: 12, moscardo: 6 }],
+    [{ ignavo: 8, moscardo: 5 }, { ignavo: 10, moscardo: 6 }, { marcado: 1, ignavo: 8, moscardo: 5 }],
+    [{ gorja: 1, ignavo: 7 }, { gorja: 1, moscardo: 8 }, { gorja: 1, ignavo: 9 }, { gorja: 2, moscardo: 7 }],
+    [{ gorja: 2, ignavo: 8 }, { gorja: 2, moscardo: 8 }, { gorja: 2, ignavo: 7, moscardo: 5 }, { gorja: 2, moscardo: 7, ignavo: 6 }],
+    [{ ignavo: 10, moscardo: 7 }, { gorja: 2, moscardo: 8 }, { marcado: 1, ignavo: 6 }, { marcado: 1, gorja: 1 }],
+    [{ encalhado: 2, ignavo: 7 }, { encalhado: 3, moscardo: 8 }, { encalhado: 3, gorja: 1 }, { encalhado: 4, ignavo: 8 }],
+    [{ ignavo: 8, moscardo: 6 }, { gorja: 1, encalhado: 2 }, { caronte: 1 }],
+  ];
+
+  for (const esp of Object.values(ESPECIES)) {
+    // a silhueta inteira em branco, para o pisca de dano de qualquer espécie
+    esp.palBranca = Object.fromEntries(Object.keys(esp.pal).map((chave) => [chave, "#ffffff"]));
+  }
+
   const BESTIARY = [
     {
       name: "Ignavos", epithet: "os Corredores", role: "Trash mob",
@@ -1350,16 +1390,40 @@
   reset();
 
   function spawnWave() {
-    const n = 5;
-    const hp = Math.round(26 * Math.pow(1.085, S.wave - 1));
-    for (let i = 0; i < n; i++) {
+    const p = faseDaOnda(S.wave);
+    const composicao = COMPOSICAO[p.fase - 1][p.ondaNaFase - 1] ?? { ignavo: 5 };
+
+    const fila = [];
+    for (const [id, quantidade] of Object.entries(composicao)) {
+      for (let i = 0; i < quantidade; i++) fila.push(id);
+    }
+    /* Embaralha para as espécies não entrarem em blocos separados — o herói
+       mira o primeiro da fila, e em blocos ele mataria todos os Moscardos
+       antes de encostar num Ignavo. Misturado, a onda lê como bando. */
+    for (let i = fila.length - 1; i > 0; i--) {
+      const j = (rng() * (i + 1)) | 0;
+      [fila[i], fila[j]] = [fila[j], fila[i]];
+    }
+
+    // escala da main: 1,085 substituiu 1,11 quando a spell saiu e o DPS caiu
+    const base = Math.round(26 * Math.pow(1.085, S.wave - 1));
+    // a fila aperta conforme cresce, para caber na cena sem sair do quadro
+    const passo = Math.min(40, 430 / fila.length);
+
+    fila.forEach((id, i) => {
+      const e = ESPECIES[id];
+      const hp = Math.max(1, Math.round(base * e.hp));
       S.mobs.push({
-        x: S.cam + W + 30 + i * 46,
-        slot: S.hero.x + 96 + i * 40,
-        hp, hpMax: hp, atkCd: 0.6 + rng() * 0.7, swing: false, hurt: 0, dead: 0, frame: 0, y0: 249,
+        especie: id,
+        x: S.cam + W + 30 + i * (passo + 6),
+        slot: S.hero.x + 96 + i * passo,
+        hp, hpMax: hp,
+        atkCd: (0.6 + rng() * 0.7) / e.cadencia,
+        swing: false,          // golpe em curso: o dano sai no quadro de impacto
+        hurt: 0, dead: 0, frame: 0, y0: 249,
         anim: "walk", animT: rng() * 0.6
       });
-    }
+    });
   }
 
   /* Cores dos números flutuantes, num só lugar.
@@ -1515,8 +1579,13 @@
           h.swing = false;
           const crit = rng() < d.crit;
           for (const tgt of alive.slice(0, d.alc)) {
+            // da main: entre o turno e o impacto o alvo pode ter morrido
             if (tgt.dead) continue;
-            const dmg = Math.max(1, Math.round((d.dano * (0.85 + rng() * 0.3)) * (crit ? 2.1 : 1)));
+            /* A couraça do Encalhado corta o golpe: é a parede do círculo, e
+               a saída dela é penetração, não mais dano bruto. Aqui é um corte
+               fixo porque o protótipo ainda não modela penetração. */
+            const couraça = ESPECIES[tgt.especie].couraça ?? 0;
+            const dmg = Math.max(1, Math.round((d.dano * (0.85 + rng() * 0.3)) * (crit ? 2.1 : 1) * (1 - couraça)));
             tgt.hp -= dmg; tgt.hurt = HURT_T;
             h.hp = Math.min(h.hpMax, h.hp + dmg * d.sust);
             pop(tgt.x + 20, tgt.y0 - 12, (crit ? "✦ " : "") + dmg, crit ? POP.crit : POP.dano);
@@ -1527,18 +1596,25 @@
         // mobs atacam
         for (const m of alive) {
           if (m.dead) continue;
+          const e = ESPECIES[m.especie];
           m.atkCd -= DT;
           if (m.atkCd <= 0 && !m.swing) {
-            m.atkCd = 1.15;
+            /* Cada espécie tem ritmo e peso de golpe próprios. O Moscardo bate
+               quase três vezes mais rápido por metade do dano; o Encalhado
+               quase não fere — ele custa tempo, não vida. */
+            m.atkCd = 1.15 / e.cadencia;
             m.swing = true;
             m.anim = "attack"; m.animT = 0;
           }
+          // o dano sai no quadro de impacto, não no primeiro da animação
           if (m.swing && m.animT >= MOB_IMPACT) {
             m.swing = false;
-            const raw = 2 + ((rng() * 3) | 0) + s.wave * 0.32;
+            const raw = (2 + ((rng() * 3) | 0) + s.wave * 0.32) * e.dano;
             const dmg = Math.max(1, Math.round(raw));
             h.hp = Math.max(0, h.hp - dmg); h.hurt = 0.14;
             pop(h.x + 22, h.y0 - 8, "−" + dmg, POP.sofre);
+            // a Gorja cura o que causa: é o dreno que a define no bestiário
+            if (e.dreno) m.hp = Math.min(m.hpMax, m.hp + dmg * e.dreno);
           }
         }
       }
@@ -1573,8 +1649,10 @@
        ou parar decide. Sem isso o mob ficaria preso num quadro só.          */
     for (const m of s.mobs) {
       m.animT += DT;
-      const A = SPRITES.ignavo.anims;
-      const rodando = (nome) => m.anim === nome && m.animT < A[nome].frames / A[nome].fps;
+      // só quem tem folha tem duração de animação; o resto é arte estática
+      const folha = ESPECIES[m.especie].folha;
+      const A = folha ? SPRITES[folha].anims : null;
+      const rodando = (nome) => !!A && m.anim === nome && m.animT < A[nome].frames / A[nome].fps;
       let quer;
       if (m.dead) quer = "dead";
       else if (rodando("attack")) quer = "attack";
@@ -1723,10 +1801,12 @@
       /* O mob avança contra o jogador, então sempre olha para a esquerda.
          Sem a pasta `sprites/` o carregamento falha e a arte procedural
          assume — nunca remova esse fallback.                               */
-      const usouFolha = SPRITES.ignavo.ready &&
-        drawSheet(SPRITES.ignavo, m.anim, m.animT, sx + 28, GROUND, true);
+      const e = ESPECIES[m.especie];
+      const folhaMob = e.folha ? SPRITES[e.folha] : null;
+      const usouFolha = !!folhaMob && folhaMob.ready &&
+        drawSheet(folhaMob, m.anim, m.animT, sx + 28, GROUND, true);
       if (!usouFolha) {
-        drawSprite(ctx, MOB, MOB_PAL, sx, sy, MS, true);
+        drawSprite(ctx, e.rows, e.pal, sx, sy, MS, true);
       }
 
       /* Quem levou o golpe pisca de branco. O combate é single target e sem
@@ -1744,9 +1824,10 @@
         const forca = Math.min(1, m.hurt / HURT_T);
         const a = (morrendo ? 0.95 : 0.75) * forca * fade;
         if (!usouFolha ||
-            !drawSheetTint(SPRITES.ignavo, m.anim, m.animT, sx + 28, GROUND, true, a, "#ffffff")) {
+            !drawSheetTint(folhaMob, m.anim, m.animT, sx + 28, GROUND, true, a, "#ffffff")) {
           ctx.globalAlpha = a;
-          drawSprite(ctx, MOB, { k:"#ffffff", n:"#ffffff", N:"#ffffff", p:"#ffffff", P:"#ffffff" }, sx, sy, MS, true);
+          // paleta branca por espécie (#39), com o fade do abate da main
+          drawSprite(ctx, e.rows, e.palBranca, sx, sy, MS, true);
           ctx.globalAlpha = morrendo ? fade : 1;
         }
       }
