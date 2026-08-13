@@ -1317,6 +1317,7 @@
   const DT = 1 / 60;
   // duração do clarão de acerto; longa o bastante para o olho pegar
   const HURT_T = 0.22;
+  const DEAD_T = 0.45;          // desvanecer do corpo após o abate
 
   /* Momento do impacto dentro de cada animação de golpe, em segundos.
      Derivado do próprio config do sprite: mexer em `fps` ou `impact` reajusta
@@ -1395,7 +1396,8 @@
       if (alive.length === 0) { s.phase = PHASE.CLEAR; s.phaseT = 0; }
       else {
         const kill = (tgt) => {
-          tgt.dead = 0.45; s.kills++;
+          tgt.dead = DEAD_T; s.kills++;
+          tgt.hurt = HURT_T * 1.6;      // o golpe que mata pisca mais tempo
           const g = 14 + s.wave * 3 + ((rng() * 9) | 0);
           s.gold += g; s.loot += g;
           gainXP(9 + ((rng() * 6) | 0));
@@ -1628,7 +1630,7 @@
     for (const m of s.mobs) {
       m.y0 = GROUND - MOB.length * MS;
       const sx = Math.round(m.x - cam), sy = m.y0;
-      ctx.globalAlpha = m.dead > 0 ? Math.max(0, m.dead / 0.45) : 1;
+      ctx.globalAlpha = m.dead > 0 ? Math.max(0, m.dead / DEAD_T) : 1;
       /* O mob avança contra o jogador, então sempre olha para a esquerda.
          Sem a pasta `sprites/` o carregamento falha e a arte procedural
          assume — nunca remova esse fallback.                               */
@@ -1639,14 +1641,24 @@
       }
 
       /* Quem levou o golpe pisca de branco. O combate é single target e sem
-         isso não dá para saber qual dos cinco está sendo atingido. */
-      if (m.hurt > 0 && !m.dead) {
-        const a = 0.75 * (m.hurt / HURT_T);
+         isso não dá para saber qual dos cinco está sendo atingido.
+
+         O golpe que mata pisca também. Antes uma guarda `!m.dead` pulava esse
+         caso, e o abate — o momento que mais pede peso — era o único sem
+         retorno. O clarão do golpe fatal é mais forte e mais longo, e some
+         acompanhando o desvanecer do corpo para não flutuar sozinho. */
+      if (m.hurt > 0) {
+        const morrendo = m.dead > 0;
+        const fade = morrendo ? Math.max(0, m.dead / DEAD_T) : 1;
+        // clamp explícito: no golpe fatal `hurt` passa de HURT_T de propósito,
+        // e sem isto o alpha só não estoura por conta do clamp do Canvas
+        const forca = Math.min(1, m.hurt / HURT_T);
+        const a = (morrendo ? 0.95 : 0.75) * forca * fade;
         if (!usouFolha ||
             !drawSheetTint(SPRITES.ignavo, m.anim, m.animT, sx + 28, GROUND, true, a, "#ffffff")) {
           ctx.globalAlpha = a;
           drawSprite(ctx, MOB, { k:"#ffffff", n:"#ffffff", N:"#ffffff", p:"#ffffff", P:"#ffffff" }, sx, sy, MS, true);
-          ctx.globalAlpha = m.dead > 0 ? Math.max(0, m.dead / 0.45) : 1;
+          ctx.globalAlpha = morrendo ? fade : 1;
         }
       }
       // barra de vida
