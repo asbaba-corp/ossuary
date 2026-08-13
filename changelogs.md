@@ -8,16 +8,36 @@ numeração vivem no `AGENTS.md`, seção *Changelog*.
 Formato de cada entrada:
 
 ```
-## 0.07 — Título curto do que mudou
-PR #52 · 2026-08-14 · @autor
+## X.YY — Título curto do que mudou
+PR #NN · AAAA-MM-DD · @autor
 
 ### Added / Changed / Fixed / Removed
 - ...
 ```
 
+O exemplo usa `X.YY` de propósito: um número plausível aqui seria lido como
+versão já usada por quem varre o arquivo procurando o próximo livre.
+
 Escreva para quem vai ler daqui a seis meses sem contexto: diga o efeito, não
 o arquivo mexido. "Ataques agora acertam no quadro do golpe" vale mais que
 "altera `resolveCombat`".
+
+---
+
+## 0.04 — Gasto de poção sai de cima do herói
+PR #43 · 2026-08-13 · @juniozguedes
+
+### Changed
+- O gasto com poção não sobe mais como número vermelho sobre o herói. Um
+  `−50` vermelho no meio do combate lia como dano recebido.
+- Passa a aparecer **embaixo do ouro**, em âmbar apagado, ao lado do saldo que
+  acabou de cair. Gastos seguidos somam num só indicador em vez de piscar.
+- O ouro já caía em tempo real; agora o indicador nomeia o quanto saiu.
+
+### Fixed
+- O exemplo de formato deste arquivo usava `0.07`, um número plausível que
+  seria lido como versão ocupada por quem varre o arquivo procurando a
+  próxima livre. Virou `X.YY`.
 
 ---
 
