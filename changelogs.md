@@ -15,6 +15,23 @@ PR #NN · AAAA-MM-DD · @autor
 - ...
 ```
 
+## 0.14 — Cada noite tem a sua fase da lua
+PR #53 · 2026-08-14 · @juniozguedes
+
+### Changed
+- as dez luas da trilha de noites deixam de ser dez crescentes iguais e passam
+  a percorrer o **ciclo lunar inteiro**: foice fina na noite 1, cheia no meio
+  do mundo, foice de volta na noite 10. Agora a cor diz o ESTADO (vencida,
+  atual, aberta, trancada) e a forma diz QUAL noite é — duas informações em
+  canais separados.
+- sai o ícone de lua fixo ao lado do rótulo NIGHT: com a fileira de fases ali,
+  um crescente genérico só repetia informação.
+
+### Notas
+O terminador é uma elipse feita de círculo com `scaleX`, e não de
+`borderRadius` em porcentagem: porcentagem em raio só existe na web, e o
+desenho precisa valer no iOS e no Android também.
+
 ## 0.13 — Trilhas de noite e de onda no HUD, com seleção e loop
 PR #52 · 2026-08-14 · @juniozguedes
 

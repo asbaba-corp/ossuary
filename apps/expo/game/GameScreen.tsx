@@ -143,14 +143,47 @@ function Bar({ value, max, color = "#8a2525" }: { value: number; max: number; co
   return <View style={styles.bar}><View style={[styles.barFill, { width: `${Math.max(0, Math.min(100, value / Math.max(1, max) * 100))}%`, backgroundColor: color }]} /></View>;
 }
 
-/** Uma noite do mundo, desenhada como lua crescente.
+/** Uma lua em qualquer fase do ciclo.
 
-    Mesma gramática de cor da trilha de ondas: vencida em cinza avermelhado, a
-    de agora acesa, a aberta ainda não vencida em osso, a trancada apagada.
+    `fase` vai de 0 a 1: 0 é lua nova, 0,25 quarto crescente, 0,5 cheia, 0,75
+    quarto minguante. O desenho é o clássico: metade do disco iluminada,
+    metade na sombra, e uma elipse no meio cuja largura é |cos(2π·fase)| — é
+    ela que faz o terminador. A elipse é escura no crescente/minguante (come a
+    parte clara) e clara no giboso (devolve).
+
+    A elipse sai de um círculo com `scaleX`, e não de um `borderRadius` em
+    porcentagem, porque porcentagem em raio só existe na web: assim o mesmo
+    desenho vale no iOS e no Android. */
+function Lua({ fase, cor, fundo, d = 12 }: { fase: number; cor: string; fundo: string; d?: number }) {
+  const crescendo = fase < 0.5;
+  const larguraTerminador = Math.abs(Math.cos(2 * Math.PI * fase));
+  // no crescente e no minguante o terminador é sombra; no giboso é luz
+  const corTerminador = fase < 0.25 || fase > 0.75 ? fundo : cor;
+  const meia = { position: "absolute" as const, top: 0, width: d / 2, height: d };
+  return (
+    <View style={{ width: d, height: d, borderRadius: d / 2, overflow: "hidden", backgroundColor: fundo }}>
+      <View style={[meia, { left: 0, backgroundColor: crescendo ? fundo : cor }]} />
+      <View style={[meia, { left: d / 2, backgroundColor: crescendo ? cor : fundo }]} />
+      <View style={{
+        position: "absolute", left: 0, top: 0, width: d, height: d, borderRadius: d / 2,
+        backgroundColor: corTerminador, transform: [{ scaleX: larguraTerminador }],
+      }} />
+    </View>
+  );
+}
+
+/** Uma noite do mundo.
+
+    A cor diz o ESTADO (vencida, atual, aberta, trancada) e a forma diz QUAL
+    noite é: a fileira percorre o ciclo lunar inteiro, da foice fina da noite 1
+    à cheia no meio do mundo e de volta à foice na noite 10. Duas informações
+    em canais separados, sem uma atrapalhar a outra.
+
     Noite trancada não responde ao toque — deixar clicar levaria o jogador
     direto para a noite 10 e a uma morte que ele não teria como entender. */
-function CasaDeNoite({ noite, aoEscolher }: {
+function CasaDeNoite({ noite, total, aoEscolher }: {
   noite: { id: string; numero: number; estado: "cleared" | "current" | "unlocked" | "locked" };
+  total: number;
   aoEscolher: (id: string) => void;
 }) {
   const { estado } = noite;
@@ -159,6 +192,9 @@ function CasaDeNoite({ noite, aoEscolher }: {
     : estado === "unlocked" ? "#7d6b52"
     : "#332b23";
   const trancada = estado === "locked";
+  /* Meio passo em cada ponta evita a lua nova exata, que ficaria um buraco
+     preto indistinguível de casa vazia. */
+  const fase = (noite.numero - 0.5) / total;
   return (
     <Pressable
       onPress={() => { if (!trancada) aoEscolher(noite.id); }}
@@ -166,10 +202,7 @@ function CasaDeNoite({ noite, aoEscolher }: {
       accessibilityLabel={`Noite ${noite.numero}${trancada ? " (trancada)" : ""}`}
       style={[styles.casaNoite, estado === "current" && styles.casaNoiteAtual]}
     >
-      <View style={styles.luaCasa}>
-        <View style={[styles.luaCasaDisco, { backgroundColor: cor }]} />
-        <View style={styles.luaCasaSombra} />
-      </View>
+      <Lua fase={fase} cor={cor} fundo="#17110d" />
       <Text style={[styles.luaCasaNum, { color: cor }]}>{noite.numero}</Text>
     </Pressable>
   );
@@ -183,7 +216,7 @@ function TrilhaDeNoites({ noites, aoEscolher }: {
     <View style={[styles.metric, styles.metricNoites]}>
       <Text style={styles.label}>NIGHT</Text>
       <View style={styles.trilhaNoites}>
-        {noites.map((noite) => <CasaDeNoite key={noite.id} noite={noite} aoEscolher={aoEscolher} />)}
+        {noites.map((noite) => <CasaDeNoite key={noite.id} noite={noite} total={noites.length} aoEscolher={aoEscolher} />)}
       </View>
     </View>
   );
@@ -237,15 +270,9 @@ function Metric({ label, value, tone, icon }: { label: string; value: string; to
    Emoji renderiza diferente em cada plataforma (e no Android muitos nem
    existem), e webfont de ícone não sobrevive ao empacotamento nativo. Três
    formas simples resolvem, e resolvem igual no iOS, no Android e na web. */
-function Lua() {
-  // crescente por subtração: um disco claro com um disco do fundo por cima
-  return (
-    <View style={styles.icone}>
-      <View style={styles.luaDisco} />
-      <View style={styles.luaSombra} />
-    </View>
-  );
-}
+/* O ícone de lua fixo do HUD saiu: a seção NIGHT virou a fileira do ciclo
+   lunar, onde cada noite tem a sua fase. Um crescente genérico ao lado dela
+   só repetiria informação. */
 
 function Ondas() {
   return (
@@ -301,16 +328,11 @@ const styles = StyleSheet.create({
   trilhaNoites: { flexDirection: "row", alignItems: "center", gap: 3 },
   casaNoite: { alignItems: "center", paddingHorizontal: 2, paddingVertical: 2, borderColor: "transparent", borderWidth: 1 },
   casaNoiteAtual: { borderColor: "#e0913f", backgroundColor: "#241608" },
-  luaCasa: { width: 13, height: 13 },
-  luaCasaDisco: { position: "absolute", left: 0, top: 0, width: 12, height: 12, borderRadius: 6 },
-  luaCasaSombra: { position: "absolute", left: 4, top: -1, width: 12, height: 12, borderRadius: 6, backgroundColor: "#17110d" },
   luaCasaNum: { fontSize: 7, marginTop: 1, fontVariant: ["tabular-nums"] },
   casaOnda: { width: 17, height: 17, backgroundColor: "#17110d", borderColor: "#2e241b", borderWidth: 1 },
   casaOndaAtual: { borderColor: "#e0913f" },
   casaOndaLinha: { position: "absolute", left: 2, right: 2, height: 2, borderRadius: 1 },
   icone: { width: 14, height: 14 },
-  luaDisco: { position: "absolute", left: 0, top: 0, width: 13, height: 13, borderRadius: 7, backgroundColor: "#d9c9a8" },
-  luaSombra: { position: "absolute", left: 4, top: -1, width: 13, height: 13, borderRadius: 7, backgroundColor: "#17110d" },
   ondaLinha: { position: "absolute", left: 0, width: 14, height: 2, borderRadius: 1, backgroundColor: "#7f9bb0" },
   moeda: { position: "absolute", left: 0, width: 14, height: 5, borderRadius: 3 },
 });
