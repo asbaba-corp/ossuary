@@ -25,6 +25,9 @@ const MOB_SCALE = 1.05;
 const VAO_ENTRE_MOBS = 62;
 const PRIMEIRO_MOB_X = 372;      // encostado no alcance do herói, não do outro lado do salão
 const HEROI_X = 250;
+/* O cavaleiro é desenhado à esquerda do centro do seu quadro; sem isto o
+   número de dano dele sobe deslocado para a direita. */
+const DESVIO_NUMERO_HEROI = -20;
 /* A horda entra de FORA do palco (960 de largura): o primeiro mob começa em
    372+660=1032, além da borda direita. Com 300 ela nascia em 672, dentro do
    quadro — a onda seguinte aparecia do nada no meio da cena. */
@@ -452,15 +455,19 @@ export function SkiaScene({ time, status, enemies, animations, hits, partyId, fe
           const indice = enemies.findIndex((inimigo) => inimigo.id === item.alvo);
           const noHeroi = item.alvo === partyId;
           if (indice < 0 && !noHeroi) return null;
-          const mundoX = indice >= 0 ? posicaoMob(indice) : heroiX;
+          const mundoX = indice >= 0 ? posicaoMob(indice) : heroiX + DESVIO_NUMERO_HEROI;
           /* Sobe rápido e desacelera, em vez de deslizar linear a 34px/s: com
              a vida de 0,9s aquilo percorria 30px no total e lia como parado.
              O ease-out dá o "pop" que o olho reconhece como golpe. */
           const avanco = 1 - (1 - idade / VIDA_NUMERO) ** 2;
           /* A altura sai da escala de QUEM levou o golpe. Usar sempre a do
              mob punha o número no meio do peito do herói, que é maior. */
-          const escalaAlvo = indice >= 0 ? MOB_SCALE : HERO_SCALE;
-          const mundoY = GROUND - FRAME * escalaAlvo * 0.84 - avanco * 78 + (item.dy ?? 0);
+          /* O herói é mais alto que o mob e o cavaleiro não ocupa o centro do
+             quadro de 128: o número nascia acima e à direita da cabeça dele.
+             Por isso cada lado tem seu próprio par de coeficientes em vez de
+             dividirem um só. */
+          const alturaRelativa = indice >= 0 ? MOB_SCALE * 0.84 : HERO_SCALE * 0.70;
+          const mundoY = GROUND - FRAME * alturaRelativa - avanco * 78 + (item.dy ?? 0);
           return (
             <Text
               key={item.id}

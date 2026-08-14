@@ -15,12 +15,31 @@ pnpm web
 A home jogável fica em `http://localhost:8081/`. O laboratório fica em
 `http://localhost:8081/lab`.
 
-O conteúdo inicial usa o Vestíbulo em
-`packages/core/src/vestibule-content.ts`.
+O conteúdo jogado é o **Mundo 0** em `packages/core/src/world-0.ts`: dez
+noites, 3 ondas nas noites 1 a 4 e 5 nas noites 5 a 10, com inimigos que
+escalam por noite. `vestibule-content.ts` é andaime de teste (dez fases de uma
+onda cada) e **não** é o que o app carrega.
+
+Save de conteúdo divergente é descartado na carga: trocar o mundo não deixa o
+app com um save apontando para fases que não existem mais.
 
 O prototype está temporariamente mantido em `prototype/scene.html` para
 comparação lado a lado durante a migração. Ele não é a home nem participa do
 build Expo.
+
+### Medir e reproduzir
+
+Rotas de desenvolvimento servidas pelo Metro, para conferir o jogo **em
+movimento** — captura estática não mostra fluidez, animação nem transbordo:
+
+| Rota | Para quê |
+|---|---|
+| `/?sonda=1` | Mede o rAF do próprio app por 12s e reporta em `127.0.0.1:9333` |
+| `/seed.html` | Semeia um save de jogo avançado (mochila cheia) e entra com a sonda |
+| `/combate.html` | Semeia um save **já em combate** — sem ele a captura gasta a marcha e nunca vê um golpe |
+
+Para receber o resultado da sonda, deixe um receptor ouvindo em 9333 antes de
+abrir a rota.
 
 ## Arte e conteúdo
 
@@ -78,6 +97,7 @@ são ignorados porque não recebem secrets do GitHub.
 | `plano-tecnico-idle-ios.md` | Stack, arquitetura, sync, PVP, monetização |
 | `world_0_vestibule.md` | Mundo 0, o Vestíbulo — bestiário e fases |
 | `AGENTS.md` | Fluxo de trabalho e convenções do repositório |
+| `memory.md` | Decisões, defeitos de raiz e armadilhas já pagas — leia antes de mexer na cena |
 
 ## Contribuir
 

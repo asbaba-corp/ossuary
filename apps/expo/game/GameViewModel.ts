@@ -216,13 +216,11 @@ export function useGameViewModel(): GameViewModel {
               text: `-${Math.round(dano)}`, color: critico ? "#ffb648" : "#ff5a48",
               dx: 0, dy: (Math.abs(Math.round(nascidoEm * 7)) % 3) * -11,
             })),
-            /* A marca de morte sai de cima do número de dano: no golpe que
-               mata os dois nascem no mesmo ponto e no mesmo instante, e a
-               marca dourada ficava atrás do número, tornando-o ilegível. */
-            ...defeats.map((event, i) => ({
-              id: `m:${nascidoEm.toFixed(3)}:${i}:${event.combatantId}`, alvo: event.combatantId,
-              epoch: nascidoEm, text: "✦", color: "#f0c04a", dx: 20, dy: -26,
-            })),
+            /* Sem marca de morte subindo da cabeça do bicho.
+               O "✦" dourado disputava espaço e leitura com o número de dano
+               justamente no golpe que mata, que é o quadro mais cheio de
+               informação da luta. A morte já é comunicada pelo clarão branco e
+               pelo corpo que fica no chão. */
           ]);
         }
         if (attacks.length > 0 || defeats.length > 0) {
