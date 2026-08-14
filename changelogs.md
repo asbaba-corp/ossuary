@@ -24,6 +24,16 @@ o arquivo mexido. "Ataques agora acertam no quadro do golpe" vale mais que
 
 ---
 
+## 0.11 — Traduz as citações do Inferno para português
+PR #50 · 2026-08-13 · @thipintop
+
+### Changed
+- As dez citações do Inferno na tela de morte (#49) estavam no italiano
+  original. Viram tradução livre para português — mesma citação, mesmo
+  personagem, mesma referência, só em PT-BR.
+
+---
+
 ## 0.10 — Citações do Inferno na tela de morte
 PR #49 · 2026-08-13 · @thipintop
 
