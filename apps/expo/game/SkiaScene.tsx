@@ -1,4 +1,6 @@
-import { Canvas, Circle, ColorMatrix, Group, Image as SkiaImage, Oval, Paint, RadialGradient, Rect, rect, useImage, vec } from "@shopify/react-native-skia";
+import { useMemo } from "react";
+import { Canvas, Circle, ColorMatrix, Group, Image as SkiaImage, Oval, Paint, RadialGradient, Rect, Skia, rect, useImage, vec } from "@shopify/react-native-skia";
+import type { SkCanvas, SkPaint } from "@shopify/react-native-skia";
 import { StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import type { SceneAnimation, SceneAnimationState } from "./GameViewModel";
 
@@ -121,44 +123,44 @@ const recua = (tom: Tom, k: number): Tom => ({
   dim: mistura(tom.dim, PAREDE_FUNDO, k),
 });
 
-/** Um crânio da pilha.
+/** Desenha um crânio direto no canvas.
+
+    Deixou de ser componente React de propósito. Como componente, cada crânio
+    virava ~10 nós `<Oval>`, e a parede inteira passava de dez mil nós
+    reconciliados a cada quadro — com o relógio da cena avançando 20 vezes por
+    segundo, era isso que travava o jogo. A parede não muda: ela só desliza.
+    Então é desenhada uma vez e reaproveitada.
 
     A forma segue o protótipo: caixa mais ALTA que larga, maxilar recuado,
-    afunilamento abaixo das órbitas e prateleira supraciliar. Cinco elipses
-    chapadas do mesmo tom liam como cabeça — ou como bolha —, não como crânio.
+    prateleira supraciliar, afunilamento sob as órbitas e órbitas quase pretas.
+    `nuca` desenha o crânio virado: sutura, sem rosto — sem ele a parede vira
+    uma grade de caras encarando o jogador. */
+function desenhaCaveira(canvas: SkCanvas, tinta: SkPaint, c: ItemParede) {
+  const { cx, cy, r, tom, nuca } = c;
+  const oval = (x: number, y: number, w: number, h: number, cor: string, alfa = 1) => {
+    tinta.setColor(Skia.Color(cor));
+    tinta.setAlphaf(alfa);
+    canvas.drawOval(rect(x, y, w, h), tinta);
+  };
 
-    `nuca` desenha o crânio virado: sutura, sem rosto. Sem ele a parede vira
-    uma grade de caras encarando o jogador, que é o que tirava a seriedade. */
-function Caveira({ cx, cy, r, tom, nuca }: { cx: number; cy: number; r: number; tom: Tom; nuca: boolean }) {
-  return (
-    <Group>
-      {/* vão escuro atrás: separa este crânio do que está embaixo */}
-      <Oval x={cx - r * 1.22} y={cy - r * 0.96} width={r * 2.44} height={r * 2.52} color={FENDA} opacity={0.62} />
+  oval(cx - r * 1.22, cy - r * 0.96, r * 2.44, r * 2.52, FENDA, 0.62);   // vão atrás
+  if (!nuca) oval(cx - r * 0.52, cy + r * 0.3, r * 1.04, r * 0.8, tom.dim);
+  oval(cx - r * 0.82, cy - r * 1.18, r * 1.64, r * 2.16, tom.mid);        // calota
+  oval(cx - r * 0.62, cy - r * 1.0, r * 0.86, r * 1.0, tom.lit, 0.5);     // luz de cima à esquerda
 
-      {!nuca && <Oval x={cx - r * 0.52} y={cy + r * 0.3} width={r * 1.04} height={r * 0.8} color={tom.dim} />}
-
-      {/* calota: alta e estreita, não esférica */}
-      <Oval x={cx - r * 0.82} y={cy - r * 1.18} width={r * 1.64} height={r * 2.16} color={tom.mid} />
-      {/* luz vem de cima à esquerda, como os castiçais */}
-      <Oval x={cx - r * 0.62} y={cy - r * 1.0} width={r * 0.86} height={r * 1.0} color={tom.lit} opacity={0.5} />
-
-      {nuca ? (
-        <Oval x={cx - r * 0.05} y={cy - r * 0.62} width={r * 0.1} height={r * 1.44} color={tom.dim} opacity={0.5} />
-      ) : (
-        <>
-          {/* prateleira supraciliar: uma sombra contínua, não duas sobrancelhas */}
-          <Oval x={cx - r * 0.66} y={cy - r * 0.46} width={r * 1.32} height={r * 0.3} color={tom.dim} opacity={0.75} />
-          <Oval x={cx - r * 0.57} y={cy - r * 0.25} width={r * 0.48} height={r * 0.42} color={ORBITA} />
-          <Oval x={cx + r * 0.09} y={cy - r * 0.25} width={r * 0.48} height={r * 0.42} color={ORBITA} />
-          <Oval x={cx - r * 0.09} y={cy + r * 0.24} width={r * 0.18} height={r * 0.3} color={ORBITA} opacity={0.85} />
-          {/* afunilamento: come a silhueta dos dois lados abaixo das órbitas */}
-          <Oval x={cx - r * 1.04} y={cy + r * 0.18} width={r * 0.56} height={r * 0.72} color={FENDA} opacity={0.8} />
-          <Oval x={cx + r * 0.48} y={cy + r * 0.18} width={r * 0.56} height={r * 0.72} color={FENDA} opacity={0.8} />
-        </>
-      )}
-    </Group>
-  );
+  if (nuca) {
+    oval(cx - r * 0.05, cy - r * 0.62, r * 0.1, r * 1.44, tom.dim, 0.5);  // sutura
+    return;
+  }
+  oval(cx - r * 0.66, cy - r * 0.46, r * 1.32, r * 0.3, tom.dim, 0.75);   // supraciliar
+  oval(cx - r * 0.57, cy - r * 0.25, r * 0.48, r * 0.42, ORBITA);
+  oval(cx + r * 0.09, cy - r * 0.25, r * 0.48, r * 0.42, ORBITA);
+  oval(cx - r * 0.09, cy + r * 0.24, r * 0.18, r * 0.3, ORBITA, 0.85);
+  oval(cx - r * 1.04, cy + r * 0.18, r * 0.56, r * 0.72, FENDA, 0.8);     // afunilamento
+  oval(cx + r * 0.48, cy + r * 0.18, r * 0.56, r * 0.72, FENDA, 0.8);
 }
+
+type ItemParede = { cx: number; cy: number; r: number; tom: Tom; nuca: boolean };
 
 /** Empilhamento determinístico: a mesma parede a cada render, sem sortear.
 
@@ -166,7 +168,7 @@ function Caveira({ cx, cy, r, tom, nuca }: { cx: number; cy: number; r: number; 
     o fundo de ossos sem forma definida; a da frente traz os crânios legíveis.
     Uma camada só, todos do mesmo tamanho, lia como padrão de papel de parede. */
 const PAREDE = (() => {
-  const itens: { cx: number; cy: number; r: number; tom: Tom; nuca: boolean }[] = [];
+  const itens: ItemParede[] = [];
   let semente = 7;
   const passo = () => (semente = (semente * 1103515245 + 12345) % 2147483648) / 2147483648;
 
@@ -186,10 +188,13 @@ const PAREDE = (() => {
     }
   };
 
-  camada(19, 21, 6.2, 0.62, 0.5);   // fundo: quase sem rosto, quase cor de parede
-  camada(27, 30, 9.4, 0.14, 0.32);  // frente: os crânios que se leem
+  camada(24, 27, 6.6, 0.62, 0.5);   // fundo: quase sem rosto, quase cor de parede
+  camada(32, 35, 9.8, 0.14, 0.32);  // frente: os crânios que se leem
   return itens;
 })();
+
+const PAREDE_L = W + 400;
+const PAREDE_A = GROUND - WALL_TOP;
 
 const COLUNAS = [90, 520, 950, 1380];
 const CICLO_COLUNA = 1720;
@@ -210,6 +215,37 @@ export function SkiaScene({ time, status, enemies, animations, hits, partyId, fe
     if (quando === undefined) return 0;
     return Math.max(0, 1 - (time - quando) / VIDA_CLARAO) * 0.85;
   };
+  /* A parede é RASTERIZADA uma vez, para uma imagem, e depois só transladada.
+     Duas etapas foram necessárias, e a primeira não bastou:
+
+     1. como árvore de componentes, cada crânio virava ~10 nós `<Oval>` e a
+        parede passava de dez mil nós reconciliados a cada quadro;
+     2. gravada como `Picture`, a reconciliação sumiu, mas o Skia continuava
+        rasterizando as dez mil elipses todo quadro — medido em 20,7 fps, com
+        quadro mediano de 50ms. Continuava travado.
+
+     Como imagem é um quad texturizado por quadro. A parede não muda nunca:
+     ela só desliza. */
+  const paredeGravada = useMemo(() => {
+    /* `Make` (CPU) e não `MakeOffscreen` (GPU): a textura é desenhada uma vez
+       na carga e nunca mais, então não há o que ganhar com a GPU aqui, e a
+       superfície de CPU é a que existe nas três plataformas. */
+    const superficie = Skia.Surface.Make(PAREDE_L, PAREDE_A) ?? Skia.Surface.MakeOffscreen(PAREDE_L, PAREDE_A);
+    if (!superficie) {
+      console.warn("Sem superfície para rasterizar a parede; a cena cai no fundo chapado.");
+      return null;
+    }
+    const canvas = superficie.getCanvas();
+    const tinta = Skia.Paint();
+    tinta.setAntiAlias(true);
+    tinta.setColor(Skia.Color("#1e1a18"));
+    canvas.drawRect(rect(0, 0, PAREDE_L, PAREDE_A), tinta);
+    // a pilha é montada em coordenadas de cena; a textura começa no zero
+    canvas.translate(40, -WALL_TOP);
+    for (const c of PAREDE) desenhaCaveira(canvas, tinta, c);
+    return superficie.makeImageSnapshot();
+  }, []);
+
   const { width: janela } = useWindowDimensions();
   const width = Math.min(Math.max(320, janela - 36), 1060);
   const escala = width / W;
@@ -267,8 +303,9 @@ export function SkiaScene({ time, status, enemies, animations, hits, partyId, fe
 
           {/* ossuário, com parallax lento */}
           <Group transform={[{ translateX: -((camera * 0.25) % 340) }]}>
-            <Rect x={-40} y={WALL_TOP} width={W + 400} height={GROUND - WALL_TOP} color="#1e1a18" />
-            {PAREDE.map((c, i) => <Caveira key={i} cx={c.cx} cy={c.cy} r={c.r} tom={c.tom} nuca={c.nuca} />)}
+            {paredeGravada
+              ? <SkiaImage image={paredeGravada} x={-40} y={WALL_TOP} width={PAREDE_L} height={PAREDE_A} fit="fill" />
+              : <Rect x={-40} y={WALL_TOP} width={PAREDE_L} height={PAREDE_A} color="#1e1a18" />}
           </Group>
 
           {/* a parede vive na penumbra; a luz vem dos castiçais */}
