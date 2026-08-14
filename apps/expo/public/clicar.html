@@ -1,0 +1,34 @@
+<!doctype html>
+<!-- Semeia o save de noites e CLICA na lua da noite 2, exercitando a troca de
+     verdade. Espera ativa: o CanvasKit e os sprites levam alguns segundos, e
+     uma espera fixa achava a tela ainda vazia. -->
+<meta charset="utf-8"><title>clicando…</title>
+<style>html,body{margin:0;height:100%}iframe{width:1150px;height:700px;border:0}</style>
+<script>
+const relata = (t) => fetch("http://127.0.0.1:9333/r?" + encodeURIComponent(t), { mode: "no-cors" });
+fetch("/save-noites.json").then((r) => r.text()).then((raw) => {
+  localStorage.setItem("ossuary:game-state:v1", raw);
+  const f = document.createElement("iframe");
+  f.src = "/";
+  document.body.appendChild(f);
+  let voltas = 0;
+  const espera = setInterval(() => {
+    voltas += 1;
+    const d = f.contentDocument;
+    // pronto = HUD escrito na tela; clicar antes disso pega uma sessão nula
+    const pronto = d && /\d+ \/ 10/.test(d.body.innerText || "");
+    const alvo = pronto && d.querySelector('[aria-label^="Noite 2"]');
+    if (!alvo) {
+      if (voltas > 60) { clearInterval(espera); relata(`nunca achou a lua 2 (rotulos: ${d ? [...d.querySelectorAll('[aria-label]')].slice(0,4).map(e=>e.getAttribute('aria-label')).join("|") : "sem doc"})`); }
+      return;
+    }
+    clearInterval(espera);
+    const antes = (d.body.innerText.match(/(\d+) \/ 10/) || [])[1];
+    alvo.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+    setTimeout(() => {
+      const depois = (d.body.innerText.match(/(\d+) \/ 10/) || [])[1];
+      relata(`noite antes=${antes} depois do clique na lua 2=${depois}`);
+    }, 3000);
+  }, 500);
+});
+</script>

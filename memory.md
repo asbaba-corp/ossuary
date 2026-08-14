@@ -172,3 +172,22 @@ por exemplo) ficaria congelada no valor que tinha quando o efeito montou.
 pinta a interface, o ref é o que o laço lê. Vale para `loopNight`,
 `combatHits`, `combatAnimations` e os vitais.
 
+### Erro de domínio engolido por um `catch` que só loga
+**Sintoma:** clicar na lua de uma noite já vencida não fazia nada.
+**Causa:** `selectNight` chamava `start_run` com uma run em andamento, e o
+motor recusa isso com `já existe uma run em andamento`. O `catch` escrevia no
+console e seguia — para o jogador, o ícone estava quebrado.
+**Lição:** `catch` que só loga transforma defeito em mistério. Erro de ação do
+jogador vai para a tela. E trocar de alvo não é fracassar: por isso
+`abandon_run` existe separado de `retreat`, que volta uma fase e conta derrota.
+
+### Verificar clique exige esperar o app, não um tempo fixo
+**Sintoma:** o harness de clique reportou "noite 4 → noite 4" e depois
+"não achou o elemento" — duas conclusões erradas seguidas.
+**Causa:** clicava por temporizador. Na primeira vez a tela ainda não existia;
+na segunda o elemento existia mas a sessão do ViewModel ainda era nula, então o
+`selectNight` devolvia sem fazer nada.
+**Lição:** esperar por um **sinal de prontidão do próprio app** (o HUD escrito
+na tela), nunca por `setTimeout`. Com isso o mesmo harness provou a troca:
+`noite antes=4 depois do clique na lua 2=2`. Fica em `public/clicar.html`.
+

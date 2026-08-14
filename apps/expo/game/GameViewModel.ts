@@ -112,6 +112,11 @@ export function useGameViewModel(): GameViewModel {
      isso o ref ao lado do estado: o estado pinta o botão, o ref decide. */
   const [loopNight, setLoopNight] = useState(false);
   const loopRef = useRef(false);
+  /* Uma troca de fase de cada vez.
+     As ações são assíncronas e o intervalo de tick segue disparando a cada
+     250ms; sem esta trava, dois avanços podiam correr ao mesmo tempo e o
+     segundo batia na guarda de "já existe uma run em andamento". */
+  const trocandoRef = useRef(false);
   const [eventMessage, setEventMessage] = useState("Carregando save local…");
   const sessionRef = useRef<GameSession | null>(null);
 
@@ -156,6 +161,8 @@ export function useGameViewModel(): GameViewModel {
          onda, mas não escolhe a fase de farm — essa decisão é do app. */
       const corridaAtual = session.state.run;
       if (!corridaAtual || corridaAtual.status === "completed") {
+        if (trocandoRef.current) return;
+        trocandoRef.current = true;
         const fase = WORLD_0_CONTENT.phases.find(({ id }) => id === corridaAtual?.phaseId);
         const proxima = loopRef.current
           // em loop o jogador fica na mesma noite, moendo as mesmas ondas
@@ -167,7 +174,8 @@ export function useGameViewModel(): GameViewModel {
         void session.action({ type: "select_farm_phase", phaseId: proxima })
           .then(() => session.action({ type: "start_run", phaseId: proxima }))
           .then(() => { setState(session.state); marchaRef.current = { progresso: 0, relogio: sceneClockRef.current }; })
-          .catch((erro: unknown) => console.error("Falha ao abrir a próxima noite:", erro));
+          .catch((erro: unknown) => console.error("Falha ao abrir a próxima noite:", erro))
+          .finally(() => { trocandoRef.current = false; });
         return;
       }
       void session.tick(250 * speed).then((events) => {
@@ -408,7 +416,11 @@ export function useGameViewModel(): GameViewModel {
     selectNight: (phaseId: string) => {
       const session = sessionRef.current;
       if (!session || !session.state.world.unlockedPhaseIds.includes(phaseId)) return;
-      void session.action({ type: "select_farm_phase", phaseId })
+      /* Abandona antes de começar: com uma run em andamento o `start_run`
+         lança, e antes disso o clique não fazia nada além de uma linha no
+         console — o jogador via o ícone não responder. */
+      void session.action({ type: "abandon_run" })
+        .then(() => session.action({ type: "select_farm_phase", phaseId }))
         .then(() => session.action({ type: "start_run", phaseId }))
         .then(() => {
           setState(session.state);
@@ -417,7 +429,10 @@ export function useGameViewModel(): GameViewModel {
           setRestos([]);
           setEventMessage(`Noite ${WORLD_0_CONTENT.phases.findIndex(({ id }) => id === phaseId) + 1}: a marcha recomeça.`);
         })
-        .catch((erro: unknown) => console.error("Falha ao trocar de noite:", erro));
+        .catch((erro: unknown) => {
+          console.error("Falha ao trocar de noite:", erro);
+          setEventMessage("Não foi possível trocar de noite. Veja o console.");
+        });
     },
 
     loopNight,

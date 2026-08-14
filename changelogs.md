@@ -35,6 +35,17 @@ PR #52 · 2026-08-14 · @juniozguedes
   e a 4 em curso — é o que permite conferir os quatro estados da trilha de uma
   vez, coisa que um save novo não mostra.
 
+### Fixed
+- clicar na lua de uma noite já vencida não fazia nada: a troca chamava
+  `start_run` com uma run em andamento, o motor recusa isso, e o erro morria
+  num `catch` que só escrevia no console. Nova ação `abandon_run` no core
+  encerra a run em curso sem punição — trocar de alvo não é fracassar, e por
+  isso não passa pelo `retreat`, que volta uma fase e conta derrota.
+- o avanço automático de noite podia disparar duas vezes: as ações são
+  assíncronas e o tick continua correndo a cada 250ms, então dois avanços
+  concorriam e o segundo batia na mesma guarda. Trava de reentrância.
+- falha ao trocar de noite agora aparece na tela em vez de só no console.
+
 ### Notas
 As dez noites já existiam em conteúdo, com inimigos escalando por noite (ignavo
 hp 12 na noite 1, 62 na noite 10). O que fazia parecer existir só a noite 1 era
