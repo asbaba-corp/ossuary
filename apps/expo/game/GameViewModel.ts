@@ -87,6 +87,12 @@ export function useGameViewModel(): GameViewModel {
      vira null e a cena perdia o corpo antes de ele piscar ou tombar — daí "o
      último hit nem pega". O corpo passa a viver aqui, guardando onde estava e
      quanto o mundo já tinha rolado, para depois ficar para trás sozinho. */
+  /* Último slot conhecido de cada inimigo, enquanto vivo.
+     Na morte não dá para perguntar onde ele estava: quando o ÚLTIMO cai, o
+     motor fecha a onda no mesmo tick e a lista de combatentes já vem vazia.
+     `indexOf` devolvia -1, o `Math.max(0, ...)` virava slot 0, e o corpo
+     aparecia colado no herói — o "teletransporte para a frente". */
+  const indicesRef = useRef<Record<string, number>>({});
   const restosRef = useRef<readonly { id: string; indice: number; epoch: number; camera: number }[]>([]);
   const [restos, setRestos] = useState<readonly { id: string; indice: number; epoch: number; camera: number }[]>([]);
   const [panel, setPanel] = useState<GamePanel>(null);
@@ -130,12 +136,25 @@ export function useGameViewModel(): GameViewModel {
       if (!session || !session.state.run || session.state.run.status === "completed") return;
       void session.tick(250 * speed).then((events) => {
         const corrida = session.state.run;
+        // registra onde cada vivo está ANTES de precisar disso num enterro
+        for (const [i, c] of (corrida?.combat?.combatants ?? []).filter(({ snapshot }) => snapshot.side === "enemy").entries()) {
+          indicesRef.current[c.snapshot.id] = i;
+        }
         marchaRef.current = corrida && corrida.status !== "combat"
           ? { progresso: 1 - Math.min(1, Math.max(0, corrida.distanceToWave / WORLD_0_CONTENT.runRules.walkingMs)), relogio: sceneClockRef.current }
           : { progresso: 1, relogio: sceneClockRef.current };
         const combatEvents = events.filter((event): event is Extract<GameEvent, { type: "combat" }> => event.type === "combat").map((event) => event.event);
         const attacks = combatEvents.filter((event): event is Extract<typeof combatEvents[number], { type: "attack" }> => event.type === "attack");
         const defeats = combatEvents.filter((event): event is Extract<typeof combatEvents[number], { type: "combatant_defeated" }> => event.type === "combatant_defeated");
+        /* Vitória de onda zera a marcha IMEDIATAMENTE.
+           A âncora vale `progresso: 1` durante o combate. Se ela sobrevivesse
+           um único render depois de a onda cair, a cena concluiria que a
+           marcha seguinte já tinha acabado e desenharia a horda nova direto na
+           posição de combate: quatro inimigos piscando na tela e sumindo. */
+        if (events.some(({ type }) => type === "wave_victory")) {
+          marchaRef.current = { progresso: 0, relogio: sceneClockRef.current };
+        }
+
         if (attacks.length > 0 || defeats.length > 0) {
           /* O número carrega o instante e o alvo. Sem o instante ele não tem
              como subir nem desvanecer — ficava congelado na tela; sem o alvo,
@@ -207,13 +226,10 @@ export function useGameViewModel(): GameViewModel {
           for (const event of defeats) nextAnimations[event.combatantId] = { animation: "dead", epoch };
 
           if (defeats.length > 0) {
-            const ordem = (session.state.run?.combat?.combatants ?? [])
-              .filter(({ snapshot }) => snapshot.side === "enemy").map(({ snapshot }) => snapshot.id);
             const anteriores = restosRef.current.filter((r) => epoch - r.epoch < 60);
             const novos = defeats.map((event) => ({
               id: event.combatantId,
-              // se já saiu da lista de combatentes, usa a posição que ocupava
-              indice: Math.max(0, ordem.indexOf(event.combatantId)),
+              indice: indicesRef.current[event.combatantId] ?? 0,
               epoch, camera: cameraRef.current,
             }));
             restosRef.current = [...anteriores, ...novos];
