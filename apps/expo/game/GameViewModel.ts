@@ -92,6 +92,11 @@ export function useGameViewModel(): GameViewModel {
      motor fecha a onda no mesmo tick e a lista de combatentes já vem vazia.
      `indexOf` devolvia -1, o `Math.max(0, ...)` virava slot 0, e o corpo
      aparecia colado no herói — o "teletransporte para a frente". */
+  /* Últimos sinais vitais vistos em combate.
+     Vida e mana só existem dentro de `run.combat`; entre as ondas ele é null e
+     o cartão da party caía para 0/0, como se o herói tivesse morrido ao vencer.
+     A vida não some junto com o combate — o que some é a fonte de leitura. */
+  const vitaisRef = useRef<readonly { id: string; name: string; hp: number; maxHp: number; mana: number; maxMana: number }[]>([]);
   const indicesRef = useRef<Record<string, number>>({});
   const restosRef = useRef<readonly { id: string; indice: number; epoch: number; camera: number }[]>([]);
   const [restos, setRestos] = useState<readonly { id: string; indice: number; epoch: number; camera: number }[]>([]);
@@ -133,7 +138,25 @@ export function useGameViewModel(): GameViewModel {
     if (!ready || paused) return;
     const timer = setInterval(() => {
       const session = sessionRef.current;
-      if (!session || !session.state.run || session.state.run.status === "completed") return;
+      if (!session) return;
+
+      /* Fase terminada abre a PRÓXIMA noite. Antes o tick só devolvia aqui e
+         parava: a noite 1 fechava, ninguém iniciava a 2, e o que o jogador via
+         era a noite 1 recomeçando. O motor desbloqueia `nextPhaseId` na última
+         onda, mas não escolhe a fase de farm — essa decisão é do app. */
+      const corridaAtual = session.state.run;
+      if (!corridaAtual || corridaAtual.status === "completed") {
+        const fase = WORLD_0_CONTENT.phases.find(({ id }) => id === corridaAtual?.phaseId);
+        const proxima = fase?.nextPhaseId && session.state.world.unlockedPhaseIds.includes(fase.nextPhaseId)
+          ? fase.nextPhaseId
+          // sem próxima (ou ainda trancada), repete a atual: idle não para
+          : session.state.world.selectedFarmPhaseId;
+        void session.action({ type: "select_farm_phase", phaseId: proxima })
+          .then(() => session.action({ type: "start_run", phaseId: proxima }))
+          .then(() => { setState(session.state); marchaRef.current = { progresso: 0, relogio: sceneClockRef.current }; })
+          .catch((erro: unknown) => console.error("Falha ao abrir a próxima noite:", erro));
+        return;
+      }
       void session.tick(250 * speed).then((events) => {
         const corrida = session.state.run;
         // registra onde cada vivo está ANTES de precisar disso num enterro
@@ -364,7 +387,13 @@ export function useGameViewModel(): GameViewModel {
     runKills: state?.run?.metrics?.kills ?? 0,
     runDust: state?.run?.metrics?.dust ?? 0,
     runRetreats: state?.run?.metrics?.retreats ?? 0,
-    partyCombatants: state?.run?.combat?.combatants.filter(({ snapshot }) => snapshot.side === "party").map(({ snapshot, hp, mana, maxMana }) => ({ id: snapshot.id, name: snapshot.name, hp, maxHp: snapshot.stats.maxHp, mana, maxMana })) ?? [],
+    partyCombatants: (() => {
+      const emCombate = state?.run?.combat?.combatants
+        .filter(({ snapshot }) => snapshot.side === "party")
+        .map(({ snapshot, hp, mana, maxMana }) => ({ id: snapshot.id, name: snapshot.name, hp, maxHp: snapshot.stats.maxHp, mana, maxMana })) ?? [];
+      if (emCombate.length > 0) vitaisRef.current = emCombate;
+      return emCombate.length > 0 ? emCombate : vitaisRef.current;
+    })(),
     openPanel: setPanel,
     closePanel: () => setPanel(null),
     togglePause: () => setPaused((value) => !value),

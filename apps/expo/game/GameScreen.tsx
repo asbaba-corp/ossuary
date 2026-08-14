@@ -3,7 +3,7 @@ import { Modal, Pressable, ScrollView, StyleSheet, Text, View, type DimensionVal
 import { useGameViewModel, type GamePanel, type SceneAnimationState } from "./GameViewModel";
 import { SceneRenderer } from "./SceneRenderer";
 import { Sprite } from "./Sprite";
-import { WORLD_0_CONTENT } from "@ossuary/core";
+import { WORLD_0_CONTENT, xpToNextLevel } from "@ossuary/core";
 
 const attributeLabels = [
   ["cons", "Constituição"], ["str", "Força"], ["dex", "Destreza"], ["int", "Inteligência"],
@@ -108,7 +108,7 @@ function CharacterCard({ character, combatant }: { character: ReturnType<typeof 
   const progress = character?.progress;
   return <View style={styles.character}>
     <View style={styles.partyHeader}><Text style={styles.characterName}>{character?.name ?? "Sem-Nome"}</Text><Text style={styles.level}>Nível {progress?.level ?? 1}</Text></View>
-    <ResourceRow label="Exp" value={progress?.xp ?? 0} max={55} color="#6b8f4f" />
+    <ResourceRow label="Exp" value={progress?.xp ?? 0} max={xpToNextLevel(progress?.level ?? 1)} color="#6b8f4f" />
     <ResourceRow label="Vida" value={combatant?.hp ?? 0} max={combatant?.maxHp ?? 1} color="#8a2525" />
     <ResourceRow label="Mana" value={combatant?.mana ?? 0} max={combatant?.maxMana ?? 1} color="#2f4a6b" />
     <Text style={styles.muted}>{progress?.unspentAttributePoints ?? 0} pontos a distribuir</Text>
