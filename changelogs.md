@@ -15,6 +15,47 @@ PR #NN · AAAA-MM-DD · @autor
 - ...
 ```
 
+## 0.12 — O protótipo vira jogo: Mundo 0 no app, cena fluida e progressão real
+PR #51 · 2026-08-14 · @juniozguedes
+
+Fecha o desacoplamento do `prototype/scene.html`: o jogo roda como aplicação
+Expo, com o Mundo 0 de verdade, cena em Skia e progressão de noites.
+
+### Added
+- sonda de fluidez embutida (`?sonda=1`) e fixtures de save (`/seed.html`,
+  `/combate.html`) para conferir o jogo em movimento, não em captura estática
+- corpos dos inimigos permanecem no chão e ficam para trás conforme a party
+  caminha, dando o cenário sem fim entre as ondas
+- ícones de NIGHT / WAVE / GOLD e a fileira SESSION ANALYZER no HUD
+- `memory.md`, e a regra no AGENTS.md de alimentá-lo antes de cada PR
+
+### Changed
+- o app passa a jogar `WORLD_0_CONTENT` — dez noites, 3 ondas nas noites 1 a 4
+  e 5 nas noites 5 a 10 — no lugar do andaime `VESTIBULE_CONTENT`, que tinha
+  dez fases de uma onda cada
+- relógio da cena em `requestAnimationFrame`; a parede do ossuário é
+  rasterizada uma vez para uma imagem. Medido: 20,7 → 59,3 fps, pior quadro de
+  868ms para 83ms
+- gravação de save deixa de ser por tick; rotina tem intervalo mínimo de 2s e o
+  que é progresso grava na hora
+- os testes de balanceamento viram testes de funcionamento e relatam a
+  fronteira do build de referência; calibre é do time
+
+### Fixed
+- mochila cheia travava a run para sempre (`inventory has no available slots`)
+- farmar a mesma fase duas vezes derrubava o tick, por id de drop determinístico
+- terminada a noite 1, ela recomeçava: o app não escolhia a próxima fase
+- vida e mana caíam para 0/0 ao vencer a onda; barra de XP mostrava `431/55`
+- o golpe que MATA era o único que não fazia o inimigo piscar
+- herói e horda teleportavam na virada da onda; a horda andava em degraus
+- números de dano empilhados, desalinhados e ilegíveis atrás da marca de morte
+
+### Notas
+Os commits desta branch estão numerados de 0.11 a 0.25 porque tratei cada
+commit como uma versão. A regra é uma versão por PR, e a 0.11 já pertence à PR
+#50. A versão correta desta entrega é a 0.12; não reescrevi os 20 commits já
+publicados por serem branch compartilhada.
+
 O exemplo usa `X.YY` de propósito: um número plausível aqui seria lido como
 versão já usada por quem varre o arquivo procurando o próximo livre.
 
