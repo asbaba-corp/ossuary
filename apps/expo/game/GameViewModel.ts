@@ -19,7 +19,7 @@ export interface GameViewModel {
   readonly speed: 1 | 3;
   readonly sceneTime: number;
   readonly attackEpoch: number;
-  readonly combatFeedback: readonly { readonly id: string; readonly text: string; readonly color: string }[];
+  readonly combatFeedback: readonly { readonly id: string; readonly alvo: string; readonly epoch: number; readonly text: string; readonly color: string }[];
   readonly combatAnimations: SceneAnimationState;
   readonly activeEffects: readonly string[];
   readonly panel: GamePanel;
@@ -59,7 +59,7 @@ export function useGameViewModel(): GameViewModel {
   const [speed, setSpeed] = useState<1 | 3>(1);
   const [sceneTime, setSceneTime] = useState(0);
   const [attackEpoch, setAttackEpoch] = useState(0);
-  const [combatFeedback, setCombatFeedback] = useState<readonly { readonly id: string; readonly text: string; readonly color: string }[]>([]);
+  const [combatFeedback, setCombatFeedback] = useState<readonly { readonly id: string; readonly alvo: string; readonly epoch: number; readonly text: string; readonly color: string }[]>([]);
   const [combatAnimations, setCombatAnimations] = useState<SceneAnimationState>({});
   const combatAnimationsRef = useRef<SceneAnimationState>({});
   const sceneClockRef = useRef(0);
@@ -103,12 +103,15 @@ export function useGameViewModel(): GameViewModel {
         const attacks = combatEvents.filter((event): event is Extract<typeof combatEvents[number], { type: "attack" }> => event.type === "attack");
         const defeats = combatEvents.filter((event): event is Extract<typeof combatEvents[number], { type: "combatant_defeated" }> => event.type === "combatant_defeated");
         if (attacks.length > 0 || defeats.length > 0) {
-          setCombatFeedback([
-            ...attacks.map((event) => ({ id: `${event.tick}-${event.targetId}`, text: `-${Math.round(event.damage)}`, color: event.critical ? "#ffcf70" : "#d9c9a8" })),
-            ...defeats.map((event) => ({ id: `${event.tick}-${event.combatantId}`, text: "✦", color: "#ff9a3c" })),
+          /* O número carrega o instante e o alvo. Sem o instante ele não tem
+             como subir nem desvanecer — ficava congelado na tela; sem o alvo,
+             nasce num ponto fixo em vez de sobre quem levou o golpe. */
+          const nascidoEm = sceneClockRef.current;
+          setCombatFeedback((anteriores) => [
+            ...anteriores.filter((item) => nascidoEm - item.epoch < 1),
+            ...attacks.map((event) => ({ id: `d:${nascidoEm.toFixed(3)}:${event.tick}:${event.targetId}`, alvo: event.targetId, epoch: nascidoEm, text: `-${Math.round(event.damage)}`, color: event.critical ? "#ffb648" : "#ff5a48" })),
+            ...defeats.map((event) => ({ id: `m:${nascidoEm.toFixed(3)}:${event.tick}:${event.combatantId}`, alvo: event.combatantId, epoch: nascidoEm, text: "✦", color: "#f0c04a" })),
           ]);
-        } else {
-          setCombatFeedback([]);
         }
         if (attacks.length > 0 || defeats.length > 0) {
           const epoch = sceneClockRef.current;
