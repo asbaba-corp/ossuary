@@ -23,13 +23,14 @@ export function GameScreen() {
       </View>
 
       <View style={styles.hud}>
-        <Metric label="NIGHT" value={vm.phaseLabel} icon={<Lua />} />
-        <Metric label="WAVE" value={vm.waveLabel} icon={<Ondas />} />
+        <TrilhaDeNoites noites={vm.nightTrack} aoEscolher={vm.selectNight} />
+        <TrilhaDeOndas estados={vm.waveTrack} rotulo={vm.waveLabel} />
         <Metric label="GOLD" value={String(vm.gold)} icon={<Moedas />} />
         <View style={styles.hudIcons}>
           <HudButton label="▣ Mochila" onPress={() => vm.openPanel("inventory")} />
           <HudButton label="♙ Atributos" onPress={() => vm.openPanel("stats")} />
           <HudButton label="▤ Bestiário" onPress={() => vm.openPanel("bestiary")} />
+          <HudButton label={vm.loopNight ? "↻ Loop ON" : "↻ Loop"} onPress={vm.toggleLoop} ativo={vm.loopNight} />
         </View>
         <Text style={styles.event}>{vm.eventMessage}</Text>
       </View>
@@ -142,6 +143,83 @@ function Bar({ value, max, color = "#8a2525" }: { value: number; max: number; co
   return <View style={styles.bar}><View style={[styles.barFill, { width: `${Math.max(0, Math.min(100, value / Math.max(1, max) * 100))}%`, backgroundColor: color }]} /></View>;
 }
 
+/** Uma noite do mundo, desenhada como lua crescente.
+
+    Mesma gramática de cor da trilha de ondas: vencida em cinza avermelhado, a
+    de agora acesa, a aberta ainda não vencida em osso, a trancada apagada.
+    Noite trancada não responde ao toque — deixar clicar levaria o jogador
+    direto para a noite 10 e a uma morte que ele não teria como entender. */
+function CasaDeNoite({ noite, aoEscolher }: {
+  noite: { id: string; numero: number; estado: "cleared" | "current" | "unlocked" | "locked" };
+  aoEscolher: (id: string) => void;
+}) {
+  const { estado } = noite;
+  const cor = estado === "current" ? "#e0913f"
+    : estado === "cleared" ? "#8a3b32"
+    : estado === "unlocked" ? "#7d6b52"
+    : "#332b23";
+  const trancada = estado === "locked";
+  return (
+    <Pressable
+      onPress={() => { if (!trancada) aoEscolher(noite.id); }}
+      disabled={trancada}
+      accessibilityLabel={`Noite ${noite.numero}${trancada ? " (trancada)" : ""}`}
+      style={[styles.casaNoite, estado === "current" && styles.casaNoiteAtual]}
+    >
+      <View style={styles.luaCasa}>
+        <View style={[styles.luaCasaDisco, { backgroundColor: cor }]} />
+        <View style={styles.luaCasaSombra} />
+      </View>
+      <Text style={[styles.luaCasaNum, { color: cor }]}>{noite.numero}</Text>
+    </Pressable>
+  );
+}
+
+function TrilhaDeNoites({ noites, aoEscolher }: {
+  noites: readonly { id: string; numero: number; estado: "cleared" | "current" | "unlocked" | "locked" }[];
+  aoEscolher: (id: string) => void;
+}) {
+  return (
+    <View style={[styles.metric, styles.metricNoites]}>
+      <Text style={styles.label}>NIGHT</Text>
+      <View style={styles.trilhaNoites}>
+        {noites.map((noite) => <CasaDeNoite key={noite.id} noite={noite} aoEscolher={aoEscolher} />)}
+      </View>
+    </View>
+  );
+}
+
+/** Uma onda da noite, desenhada como três vagas empilhadas.
+
+    O estado é cor, não texto: a onda vencida fica num cinza avermelhado, a que
+    está em jogo acende, e a que falta fica cinza apagado. Uma fileira de três
+    ou cinco dessas diz de relance onde a noite está — coisa que o "2 / 3"
+    sozinho não dizia. */
+function CasaDeOnda({ estado }: { estado: "cleared" | "current" | "pending" }) {
+  const cor = estado === "cleared" ? "#8a3b32" : estado === "current" ? "#e0913f" : "#3d342b";
+  return (
+    <View style={[styles.casaOnda, estado === "current" && styles.casaOndaAtual]}>
+      {[0, 1, 2].map((n) => (
+        <View key={n} style={[styles.casaOndaLinha, { top: 4 + n * 4, backgroundColor: cor }]} />
+      ))}
+    </View>
+  );
+}
+
+function TrilhaDeOndas({ estados, rotulo }: { estados: readonly ("cleared" | "current" | "pending")[]; rotulo: string }) {
+  return (
+    <View style={styles.metric}>
+      <Text style={styles.label}>WAVE</Text>
+      <View style={styles.metricLinha}>
+        {/* a noite tem 3 ou 5 ondas conforme o desenho; a fileira segue o conteúdo */}
+        {estados.length > 0
+          ? estados.map((estado, i) => <CasaDeOnda key={i} estado={estado} />)
+          : <Text style={styles.value}>{rotulo}</Text>}
+      </View>
+    </View>
+  );
+}
+
 function Metric({ label, value, tone, icon }: { label: string; value: string; tone?: "pos" | "neg"; icon?: React.ReactNode }) {
   const cor = tone === "pos" ? styles.valuePos : tone === "neg" ? styles.valueNeg : undefined;
   return (
@@ -198,18 +276,38 @@ function mmss(segundos: number) {
   return h > 0 ? `${h}:${dois(m)}:${dois(r)}` : `${m}:${dois(r)}`;
 }
 function GameButton({ label, onPress }: { label: string; onPress: () => void }) { return <Pressable onPress={onPress} style={styles.button}><Text style={styles.buttonText}>{label}</Text></Pressable>; }
-function HudButton({ label, onPress }: { label: string; onPress: () => void }) { return <Pressable onPress={onPress} style={styles.hudButton}><Text style={styles.hudButtonText}>{label}</Text></Pressable>; }
+function HudButton({ label, onPress, ativo }: { label: string; onPress: () => void; ativo?: boolean }) {
+  return (
+    <Pressable onPress={onPress} style={[styles.hudButton, ativo && styles.hudButtonAtivo]}>
+      <Text style={[styles.hudButtonText, ativo && styles.hudButtonTextAtivo]}>{label}</Text>
+    </Pressable>
+  );
+}
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: "#0a0705" }, content: { padding: 18, paddingBottom: 48, gap: 12, maxWidth: 1060, width: "100%", alignSelf: "center" },
   header: { flexDirection: "row", justifyContent: "space-between", alignItems: "baseline" }, title: { color: "#d9c9a8", fontSize: 17, fontWeight: "700", letterSpacing: 3 }, subtitle: { color: "#6b5a44", fontSize: 11, marginTop: 3 }, status: { color: "#ff9a3c", fontSize: 11, letterSpacing: 2 },
-  hud: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 12, backgroundColor: "#17110d", borderColor: "#2e241b", borderWidth: 1, padding: 9 }, metric: { flexGrow: 1, flexBasis: 118, minWidth: 118, paddingHorizontal: 14, paddingVertical: 10, gap: 3, backgroundColor: "#17110d", borderRightColor: "#241b14", borderRightWidth: 1 }, label: { color: "#6b5a44", fontSize: 9, letterSpacing: 1 }, value: { color: "#d9c9a8", fontSize: 15, fontVariant: ["tabular-nums"] }, event: { color: "#b9a891", fontSize: 10, flex: 1, minWidth: 120 }, hudIcons: { flexDirection: "row", gap: 5 }, hudButton: { backgroundColor: "#241b14", borderColor: "#4a3a2a", borderWidth: 1, paddingHorizontal: 9, paddingVertical: 6 }, hudButtonText: { color: "#a89273", fontSize: 9, letterSpacing: 1 },
+  hud: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 12, backgroundColor: "#17110d", borderColor: "#2e241b", borderWidth: 1, padding: 9 }, metric: { flexGrow: 1, flexBasis: 118, minWidth: 118, paddingHorizontal: 14, paddingVertical: 10, gap: 3, backgroundColor: "#17110d", borderRightColor: "#241b14", borderRightWidth: 1 }, label: { color: "#6b5a44", fontSize: 9, letterSpacing: 1 }, value: { color: "#d9c9a8", fontSize: 15, fontVariant: ["tabular-nums"] }, event: { color: "#b9a891", fontSize: 10, flex: 1, minWidth: 120 }, hudIcons: { flexDirection: "row", gap: 5 }, hudButton: { backgroundColor: "#241b14", borderColor: "#4a3a2a", borderWidth: 1, paddingHorizontal: 9, paddingVertical: 6 }, hudButtonText: { color: "#a89273", fontSize: 9, letterSpacing: 1 }, hudButtonAtivo: { borderColor: "#e0913f", backgroundColor: "#2c1d10" }, hudButtonTextAtivo: { color: "#e0913f" },
   scene: { height: 400, overflow: "hidden", backgroundColor: "#0d0a08", borderColor: "#2e241b", borderWidth: 1, position: "relative" }, ceiling: { position: "absolute", top: 34, left: 0, right: 0, height: 42, backgroundColor: "#231f1d", overflow: "hidden", paddingTop: 4 }, ceilingTexture: { color: "#524737", fontSize: 16, lineHeight: 17, letterSpacing: 2, opacity: 0.55 }, skyGlow: { position: "absolute", top: 76, left: "35%", width: "30%", height: "58%", backgroundColor: "#3a2416", opacity: 0.3 }, arch: { alignItems: "center", paddingTop: 12, zIndex: 1 }, archText: { color: "#a89273", fontSize: 10, letterSpacing: 3 }, wall: { position: "absolute", top: 76, left: 0, right: 0, bottom: 44, backgroundColor: "#241b18", opacity: 0.88 }, skull: { position: "absolute", color: "#514137", fontSize: 22, opacity: 0.55 }, column: { position: "absolute", top: 70, bottom: 44, width: 14, backgroundColor: "#4a3a2a", borderLeftColor: "#a89273", borderLeftWidth: 2, zIndex: 1 }, capital: { position: "absolute", top: -5, left: -7, right: -7, height: 9, backgroundColor: "#6b5a44" }, torch: { position: "absolute", top: 74, left: -6, width: 26, height: 24, alignItems: "center", backgroundColor: "#3b2112" }, flame: { color: "#ff9a3c", fontSize: 17 }, floor: { position: "absolute", bottom: 0, left: 0, right: 0, height: 44, backgroundColor: "#17110d", borderTopColor: "#4a3a2a", borderTopWidth: 1 }, sceneParty: { position: "absolute", bottom: 54, alignItems: "center", zIndex: 2 }, hero: { color: "#d9c9a8", fontSize: 42 }, heroMoving: { transform: [{ translateY: -2 }] }, heroName: { color: "#a89273", fontSize: 9 }, enemies: { position: "absolute", left: 0, right: 0, bottom: 54, height: 120, zIndex: 2 }, enemy: { position: "absolute", alignItems: "center", width: 70 }, enemySprite: { height: 82, justifyContent: "flex-end" }, enemyGlyph: { color: "#968a80", fontSize: 29 }, ghostEnemy: { opacity: 0.55 }, enemyName: { color: "#8a7860", fontSize: 8, maxWidth: 60, textAlign: "center" }, feedback: { position: "absolute", left: 0, right: 0, top: 0, height: 260, zIndex: 5 }, feedbackText: { position: "absolute", fontSize: 15, fontWeight: "700", textShadowColor: "#0a0705", textShadowRadius: 2 }, sceneHint: { position: "absolute", bottom: 10, left: 10, color: "#6b5a44", fontSize: 9, zIndex: 3 },
   bar: { height: 9, flex: 1, minWidth: 0, backgroundColor: "#241b14", borderColor: "#382a1e", borderWidth: 1, overflow: "hidden", marginTop: 5 }, resourceRow: { flexDirection: "row", alignItems: "center", gap: 8 }, resourceLabel: { width: 34, color: "#6b5a44", fontSize: 10 }, resourceValue: { width: 66, color: "#9a8a70", fontSize: 10, textAlign: "right" }, partyBar: { backgroundColor: "#17110d", borderColor: "#2e241b", borderWidth: 1, padding: 14 }, partyHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "baseline", gap: 8 }, sectionTitle: { color: "#a89273", fontSize: 11, letterSpacing: 2, fontWeight: "700" }, muted: { color: "#6b5a44", fontSize: 10 }, hint: { color: "#5d4d3a", fontSize: 10, lineHeight: 16, marginTop: 12, maxWidth: "74%" }, partyGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 10 }, character: { backgroundColor: "#1c1510", borderColor: "#33261a", borderWidth: 1, padding: 12, width: "24%", minWidth: 0, gap: 8 }, characterName: { color: "#d9c9a8", fontSize: 14 }, level: { color: "#7a6850", fontSize: 11 }, locked: { backgroundColor: "#1c1510", borderColor: "#2c2118", borderStyle: "dashed", borderWidth: 1, padding: 12, width: "24%", minWidth: 0, justifyContent: "center" }, lockedTitle: { color: "#4e4132", fontSize: 12, letterSpacing: 1 }, controls: { flexDirection: "row", flexWrap: "wrap", gap: 8 }, button: { backgroundColor: "#17110d", borderColor: "#3a2c1f", borderWidth: 1, paddingHorizontal: 13, paddingVertical: 9 }, buttonText: { color: "#a89273", fontSize: 10, letterSpacing: 1 }, ledger: { flexDirection: "row", flexWrap: "wrap", gap: 0, backgroundColor: "#241b14", borderColor: "#241b14", borderWidth: 1 }, scrim: { flex: 1, backgroundColor: "rgba(6,4,3,0.72)", justifyContent: "flex-start", padding: 40 }, modal: { width: "100%", maxWidth: 880, alignSelf: "center", maxHeight: "90%", backgroundColor: "#17110d", borderColor: "#3a2c1f", borderWidth: 1, padding: 0 }, modalNarrow: { maxWidth: 620 }, modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 16, paddingVertical: 12, borderBottomColor: "#241b14", borderBottomWidth: 1, backgroundColor: "#1b140e" }, modalTitle: { color: "#d9c9a8", fontSize: 12, letterSpacing: 2, fontWeight: "600" }, modalBody: { padding: 16 }, closeButton: { width: 26, height: 26, alignItems: "center", justifyContent: "center", borderColor: "#3a2c1f", borderWidth: 1 }, close: { color: "#a89273", fontSize: 17, lineHeight: 20 }, helper: { color: "#6b5a44", fontSize: 10, letterSpacing: 1, marginBottom: 10 }, item: { color: "#d9c9a8", fontSize: 12, paddingVertical: 7 }, statRow: { flexDirection: "row", justifyContent: "space-between", borderBottomColor: "#2e241b", borderBottomWidth: 1 }, statValue: { color: "#d9c9a8", fontSize: 13, fontVariant: ["tabular-nums"] }, bestRow: { borderBottomColor: "#2e241b", borderBottomWidth: 1, paddingVertical: 8 }, grow: { flex: 1 }, inventoryToolbar: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 12, flexWrap: "wrap" }, toolButton: { backgroundColor: "#241b14", borderColor: "#3f2f20", borderWidth: 1, paddingHorizontal: 12, paddingVertical: 7 }, toolButtonText: { color: "#a89273", fontSize: 11, letterSpacing: 1 }, pager: { flexDirection: "row", alignItems: "center", gap: 6 }, pagerButton: { backgroundColor: "#241b14", borderColor: "#3f2f20", borderWidth: 1, color: "#a89273", fontSize: 18, lineHeight: 22, textAlign: "center", width: 26, height: 24 }, inventoryGrid: { flexDirection: "row", flexWrap: "wrap", gap: 3, marginBottom: 10 }, inventoryCell: { width: "6.25%", minWidth: 24, aspectRatio: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#16100c", borderColor: "#261c14", borderWidth: 1 }, inventoryCellFilled: { backgroundColor: "#1d1610", borderColor: "#6b4a26" }, inventoryGlyph: { color: "#4a3f33", fontSize: 13 }, statsColumns: { flexDirection: "row", gap: 22 }, statsColumn: { flex: 1, minWidth: 0 }, attrRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 4 }, attrLabel: { flex: 1, color: "#a89273", fontSize: 12 }, attrKey: { color: "#6b5a44", fontSize: 10, letterSpacing: 1 }, plus: { width: 24, height: 22, color: "#ff9a3c", borderColor: "#3f2f20", borderWidth: 1, textAlign: "center", lineHeight: 20, fontSize: 14 }, derivedRow: { flexDirection: "row", justifyContent: "space-between", gap: 12, paddingVertical: 4 }, derivedLabel: { color: "#7a6850", fontSize: 12 }, bestiaryGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12 }, beastCard: { flexDirection: "row", gap: 12, backgroundColor: "#1c1510", borderColor: "#33261a", borderWidth: 1, padding: 12, width: "48%", minWidth: 230 }, beastBoss: { borderColor: "#5c3a1c", backgroundColor: "#1f1610" }, beastInfo: { flex: 1, minWidth: 0 }, beastName: { color: "#d9c9a8", fontSize: 12, marginBottom: 2 }, beastRole: { color: "#6b5a44", fontSize: 10, letterSpacing: 1 }, beastGlyph: { color: "#a89273", fontSize: 30, width: 42, textAlign: "center" },
   barFill: { height: "100%" }, pagerDisabled: { opacity: 0.35 },
   analyzerHeader: { backgroundColor: "#1b140e", borderColor: "#241b14", borderWidth: 1, borderBottomWidth: 0, paddingHorizontal: 14, paddingVertical: 9 },
   valuePos: { color: "#7fa86b" }, valueNeg: { color: "#b4534b" },
   metricLinha: { flexDirection: "row", alignItems: "center", gap: 6 },
+  /* As dez luas numa fileira só. A célula padrão do HUD tem base 118px e as
+     empurrava para uma segunda linha, o que estraga a leitura de "onde estou
+     nas dez noites". */
+  metricNoites: { flexBasis: 268, minWidth: 268 },
+  trilhaNoites: { flexDirection: "row", alignItems: "center", gap: 3 },
+  casaNoite: { alignItems: "center", paddingHorizontal: 2, paddingVertical: 2, borderColor: "transparent", borderWidth: 1 },
+  casaNoiteAtual: { borderColor: "#e0913f", backgroundColor: "#241608" },
+  luaCasa: { width: 13, height: 13 },
+  luaCasaDisco: { position: "absolute", left: 0, top: 0, width: 12, height: 12, borderRadius: 6 },
+  luaCasaSombra: { position: "absolute", left: 4, top: -1, width: 12, height: 12, borderRadius: 6, backgroundColor: "#17110d" },
+  luaCasaNum: { fontSize: 7, marginTop: 1, fontVariant: ["tabular-nums"] },
+  casaOnda: { width: 17, height: 17, backgroundColor: "#17110d", borderColor: "#2e241b", borderWidth: 1 },
+  casaOndaAtual: { borderColor: "#e0913f" },
+  casaOndaLinha: { position: "absolute", left: 2, right: 2, height: 2, borderRadius: 1 },
   icone: { width: 14, height: 14 },
   luaDisco: { position: "absolute", left: 0, top: 0, width: 13, height: 13, borderRadius: 7, backgroundColor: "#d9c9a8" },
   luaSombra: { position: "absolute", left: 4, top: -1, width: 13, height: 13, borderRadius: 7, backgroundColor: "#17110d" },

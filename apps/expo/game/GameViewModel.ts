@@ -35,6 +35,11 @@ export interface GameViewModel {
   readonly upcomingEnemies: readonly { readonly id: string; readonly name: string; readonly hp: number; readonly maxHp: number }[];
   readonly phaseLabel: string;
   readonly waveLabel: string;
+  readonly waveTrack: readonly ("cleared" | "current" | "pending")[];
+  readonly nightTrack: readonly { readonly id: string; readonly numero: number; readonly estado: "cleared" | "current" | "unlocked" | "locked" }[];
+  readonly selectNight: (phaseId: string) => void;
+  readonly loopNight: boolean;
+  readonly toggleLoop: () => void;
   readonly gold: number;
   readonly runIncome: number;
   readonly runExpenses: number;
@@ -102,6 +107,16 @@ export function useGameViewModel(): GameViewModel {
   const [restos, setRestos] = useState<readonly { id: string; indice: number; epoch: number; camera: number }[]>([]);
   const [panel, setPanel] = useState<GamePanel>(null);
   const [inventoryPage, setInventoryPage] = useState(0);
+  /* Repetir a noite é escolha do jogador, e precisa ser lida de dentro do
+     laço de tick — que fecha sobre o valor do render em que foi criado. Por
+     isso o ref ao lado do estado: o estado pinta o botão, o ref decide. */
+  const [loopNight, setLoopNight] = useState(false);
+  const loopRef = useRef(false);
+  /* Uma troca de fase de cada vez.
+     As ações são assíncronas e o intervalo de tick segue disparando a cada
+     250ms; sem esta trava, dois avanços podiam correr ao mesmo tempo e o
+     segundo batia na guarda de "já existe uma run em andamento". */
+  const trocandoRef = useRef(false);
   const [eventMessage, setEventMessage] = useState("Carregando save local…");
   const sessionRef = useRef<GameSession | null>(null);
 
@@ -146,15 +161,21 @@ export function useGameViewModel(): GameViewModel {
          onda, mas não escolhe a fase de farm — essa decisão é do app. */
       const corridaAtual = session.state.run;
       if (!corridaAtual || corridaAtual.status === "completed") {
+        if (trocandoRef.current) return;
+        trocandoRef.current = true;
         const fase = WORLD_0_CONTENT.phases.find(({ id }) => id === corridaAtual?.phaseId);
-        const proxima = fase?.nextPhaseId && session.state.world.unlockedPhaseIds.includes(fase.nextPhaseId)
-          ? fase.nextPhaseId
-          // sem próxima (ou ainda trancada), repete a atual: idle não para
-          : session.state.world.selectedFarmPhaseId;
+        const proxima = loopRef.current
+          // em loop o jogador fica na mesma noite, moendo as mesmas ondas
+          ? (corridaAtual?.phaseId ?? session.state.world.selectedFarmPhaseId)
+          : fase?.nextPhaseId && session.state.world.unlockedPhaseIds.includes(fase.nextPhaseId)
+            ? fase.nextPhaseId
+            // sem próxima (ou ainda trancada), repete a atual: idle não para
+            : session.state.world.selectedFarmPhaseId;
         void session.action({ type: "select_farm_phase", phaseId: proxima })
           .then(() => session.action({ type: "start_run", phaseId: proxima }))
           .then(() => { setState(session.state); marchaRef.current = { progresso: 0, relogio: sceneClockRef.current }; })
-          .catch((erro: unknown) => console.error("Falha ao abrir a próxima noite:", erro));
+          .catch((erro: unknown) => console.error("Falha ao abrir a próxima noite:", erro))
+          .finally(() => { trocandoRef.current = false; });
         return;
       }
       void session.tick(250 * speed).then((events) => {
@@ -376,6 +397,56 @@ export function useGameViewModel(): GameViewModel {
         return { id: `proximo:${enemyId}:${i}`, name: def?.name ?? enemyId, hp: def?.stats.maxHp ?? 1, maxHp: def?.stats.maxHp ?? 1 };
       });
     })(),
+
+    /* Uma lua por noite do mundo, com o estado que decide a cor e se dá para
+       clicar. `unlocked` vem do motor: noite trancada não é escolhível, senão
+       o jogador pula direto para a 10 e morre sem entender. */
+    nightTrack: WORLD_0_CONTENT.phases.map((fase) => ({
+      id: fase.id,
+      numero: fase.order + 1,
+      estado: fase.id === run?.phaseId ? "current" as const
+        : state?.world.clearedPhaseIds.includes(fase.id) ? "cleared" as const
+        : state?.world.unlockedPhaseIds.includes(fase.id) ? "unlocked" as const
+        : "locked" as const,
+    })),
+
+    /* Trocar de noite encerra a run atual e abre a escolhida. É também o que
+       o botão de loop respeita depois, porque `select_farm_phase` move o alvo
+       de farm, não só a run em curso. */
+    selectNight: (phaseId: string) => {
+      const session = sessionRef.current;
+      if (!session || !session.state.world.unlockedPhaseIds.includes(phaseId)) return;
+      /* Abandona antes de começar: com uma run em andamento o `start_run`
+         lança, e antes disso o clique não fazia nada além de uma linha no
+         console — o jogador via o ícone não responder. */
+      void session.action({ type: "abandon_run" })
+        .then(() => session.action({ type: "select_farm_phase", phaseId }))
+        .then(() => session.action({ type: "start_run", phaseId }))
+        .then(() => {
+          setState(session.state);
+          marchaRef.current = { progresso: 0, relogio: sceneClockRef.current };
+          restosRef.current = [];
+          setRestos([]);
+          setEventMessage(`Noite ${WORLD_0_CONTENT.phases.findIndex(({ id }) => id === phaseId) + 1}: a marcha recomeça.`);
+        })
+        .catch((erro: unknown) => {
+          console.error("Falha ao trocar de noite:", erro);
+          setEventMessage("Não foi possível trocar de noite. Veja o console.");
+        });
+    },
+
+    loopNight,
+    toggleLoop: () => { loopRef.current = !loopRef.current; setLoopNight(loopRef.current); },
+
+    /* Uma casa por onda da noite. `cleared` é o que já caiu nesta run,
+       `current` é a que está em jogo e `pending` o que falta — é essa leitura
+       que deixa o jogador saber onde está sem contar no dedo. */
+    waveTrack: phase
+      ? phase.waveIds.map((_, i) => {
+          const atual = run?.waveIndex ?? 0;
+          return i < atual ? "cleared" as const : i === atual ? "current" as const : "pending" as const;
+        })
+      : [],
 
     phaseLabel: phase ? `${phase.order + 1} / ${WORLD_0_CONTENT.phases.length}` : "—",
     waveLabel: run && phase ? `${run.waveIndex + 1} / ${phase.waveIds.length}` : "—",

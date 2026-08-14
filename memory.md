@@ -162,3 +162,32 @@ teste com `clarao={1}` mostrou os mobs totalmente brancos.
 **Lição:** registrada como *hipótese descartada*, para ninguém refazer o
 caminho. O `layer` externo ao espelhamento ficou porque é mais claro, não
 porque consertou algo.
+
+### Estado que o laço de tick precisa ler tem de ter um ref ao lado
+**Sintoma:** nenhum ainda — anotado para não ser "simplificado" depois.
+**Causa:** o laço de tick vive num `useEffect` e fecha sobre os valores do
+render em que foi criado. Uma flag guardada só em `useState` (o loop de noite,
+por exemplo) ficaria congelada no valor que tinha quando o efeito montou.
+**Lição:** o par `estado + ref` no `GameViewModel` não é redundância. O estado
+pinta a interface, o ref é o que o laço lê. Vale para `loopNight`,
+`combatHits`, `combatAnimations` e os vitais.
+
+### Erro de domínio engolido por um `catch` que só loga
+**Sintoma:** clicar na lua de uma noite já vencida não fazia nada.
+**Causa:** `selectNight` chamava `start_run` com uma run em andamento, e o
+motor recusa isso com `já existe uma run em andamento`. O `catch` escrevia no
+console e seguia — para o jogador, o ícone estava quebrado.
+**Lição:** `catch` que só loga transforma defeito em mistério. Erro de ação do
+jogador vai para a tela. E trocar de alvo não é fracassar: por isso
+`abandon_run` existe separado de `retreat`, que volta uma fase e conta derrota.
+
+### Verificar clique exige esperar o app, não um tempo fixo
+**Sintoma:** o harness de clique reportou "noite 4 → noite 4" e depois
+"não achou o elemento" — duas conclusões erradas seguidas.
+**Causa:** clicava por temporizador. Na primeira vez a tela ainda não existia;
+na segunda o elemento existia mas a sessão do ViewModel ainda era nula, então o
+`selectNight` devolvia sem fazer nada.
+**Lição:** esperar por um **sinal de prontidão do próprio app** (o HUD escrito
+na tela), nunca por `setTimeout`. Com isso o mesmo harness provou a troca:
+`noite antes=4 depois do clique na lua 2=2`. Fica em `public/clicar.html`.
+

@@ -16,7 +16,7 @@ export interface RunMetrics { readonly kills: number; readonly loot: number; rea
 export interface RunState { readonly phaseId: string; readonly seed: number | string; readonly status: "walking" | "combat" | "completed" | "retreating"; readonly waveIndex: number; readonly distanceToWave: number; readonly combat: CombatState | null; readonly checkpoint: RunCheckpoint; readonly metrics?: RunMetrics; }
 export interface GameStateMetadata { readonly lastUpdatedAtMs: number; readonly pendingSync: boolean; readonly seq: number; readonly deviceId: string; }
 export interface GameState { readonly schemaVersion: number; readonly contentVersion: string; readonly roster: RosterState; readonly party: Party; readonly inventory: Inventory; readonly economy: EconomyState; readonly ossuary: OssuaryState; readonly world: WorldProgressState; readonly run: RunState | null; readonly metadata: GameStateMetadata; }
-export type GameAction = { readonly type: "start_run"; readonly phaseId?: string; readonly seed?: number | string } | { readonly type: "select_farm_phase"; readonly phaseId: string } | { readonly type: "retreat" };
+export type GameAction = { readonly type: "start_run"; readonly phaseId?: string; readonly seed?: number | string } | { readonly type: "select_farm_phase"; readonly phaseId: string } | { readonly type: "retreat" } | { readonly type: "abandon_run" };
 export type GameEvent = { readonly type: "run_started" | "wave_started" | "wave_victory" | "phase_unlocked" | "run_defeat" | "run_retreat" | "checkpoint_saved"; readonly phaseId?: string; readonly waveIndex?: number; readonly rewardId?: string } | { readonly type: "combat"; readonly event: CombatEvent };
 export interface GameTransition { readonly state: GameState; readonly events: readonly GameEvent[]; }
 
@@ -41,6 +41,20 @@ export function applyGameAction(state: GameState, action: GameAction, content: G
     return { state: { ...state, world: { ...state.world, selectedFarmPhaseId: action.phaseId } }, events: [] };
   }
   if (action.type === "retreat") return retreat(state, content, "manual");
+
+  /* Abandonar é diferente de recuar: recuar volta uma fase e conta derrota,
+     abandonar só encerra a run em curso sem punição. É o que o jogador faz ao
+     escolher outra noite no HUD — trocar de alvo não é fracassar.
+
+     Sem isto, `start_run` batia na guarda de "já existe uma run em andamento"
+     e a troca de noite falhava calada. */
+  if (action.type === "abandon_run") {
+    if (!state.run || state.run.status === "completed") return { state, events: [] };
+    return {
+      state: { ...state, run: { ...state.run, status: "completed", combat: null }, metadata: { ...state.metadata, pendingSync: true } },
+      events: [{ type: "run_retreat", phaseId: state.run.phaseId }],
+    };
+  }
   if (state.run && state.run.status !== "completed") throw new RangeError("já existe uma run em andamento");
   const phaseId = action.phaseId ?? state.world.selectedFarmPhaseId;
   if (!state.world.unlockedPhaseIds.includes(phaseId)) throw new RangeError(`fase bloqueada: ${phaseId}`);
