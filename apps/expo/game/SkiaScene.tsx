@@ -223,7 +223,13 @@ export function SkiaScene({ time, status, enemies, animations, hits, partyId, fe
   animations: SceneAnimationState; hits?: Readonly<Record<string, number>>;
   partyId?: string; feedback: readonly Feedback[];
 }) {
-  /** Intensidade do pisca de acerto, 1 no instante do golpe e 0 ao fim. */
+  /** Intensidade do pisca de acerto, 1 no instante do golpe e 0 ao fim.
+
+      O golpe que MATA também pisca — antes ele era o único que não piscava.
+      `clarao={morto ? 0 : ...}` zerava o clarão assim que a morte era
+      registrada, e como o Ignavo cai em um ou dois golpes, a maioria dos
+      acertos é letal: na prática o jogador quase nunca via um inimigo piscar.
+      É o golpe mais importante de todos para dar retorno. */
   const claraoDe = (id?: string) => {
     const quando = id ? hits?.[id] : undefined;
     if (quando === undefined) return 0;
@@ -382,7 +388,7 @@ export function SkiaScene({ time, status, enemies, animations, hits, partyId, fe
             return (
               <Group key={inimigo.id} opacity={opacidade}>
                 <Oval x={x - 22} y={GROUND - 6} width={44} height={7} color="#000000" opacity={0.4} />
-                <Quadro image={mob[anim]} animation={anim} t={t} cx={x} footY={GROUND} scale={MOB_SCALE} flip clarao={morto ? 0 : claraoDe(inimigo.id)} />
+                <Quadro image={mob[anim]} animation={anim} t={t} cx={x} footY={GROUND} scale={MOB_SCALE} flip clarao={claraoDe(inimigo.id)} />
                 {!morto && (
                   <Group>
                     <Rect x={x - 22} y={topo} width={44} height={4} color="#1b1410" />
@@ -404,7 +410,13 @@ export function SkiaScene({ time, status, enemies, animations, hits, partyId, fe
         {feedback.map((item) => {
           const idade = time - item.epoch;
           if (idade < 0 || idade > VIDA_NUMERO) return null;
+          /* Alvo que não está mais na cena — mob de uma onda já encerrada —
+             não tem onde nascer. Antes ele caía no `heroiX`, e o jogador via
+             números de dano de OUTRA gente subindo desalinhados em cima do
+             próprio boneco durante a marcha. Só o herói desenha no herói. */
           const indice = enemies.findIndex((inimigo) => inimigo.id === item.alvo);
+          const noHeroi = item.alvo === partyId;
+          if (indice < 0 && !noHeroi) return null;
           const mundoX = indice >= 0 ? posicaoMob(indice) : heroiX;
           /* Sobe rápido e desacelera, em vez de deslizar linear a 34px/s: com
              a vida de 0,9s aquilo percorria 30px no total e lia como parado.
