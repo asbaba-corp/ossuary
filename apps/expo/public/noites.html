@@ -1,0 +1,11 @@
+<!doctype html>
+<!-- Semeia um save com as noites 1 a 3 vencidas e a 4 em curso, para conferir
+     os quatro estados da trilha de noites de uma vez: vencida, atual, aberta e
+     trancada. Um save novo só mostra dois deles. -->
+<meta charset="utf-8"><title>semeando noites…</title>
+<script>
+fetch("/save-noites.json").then((r) => r.text()).then((raw) => {
+  localStorage.setItem("ossuary:game-state:v1", raw);
+  location.replace("/");
+});
+</script>

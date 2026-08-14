@@ -15,10 +15,15 @@ PR #NN · AAAA-MM-DD · @autor
 - ...
 ```
 
-## 0.13 — Trilha de ondas no HUD e loop de noite
+## 0.13 — Trilhas de noite e de onda no HUD, com seleção e loop
 PR #52 · 2026-08-14 · @juniozguedes
 
 ### Added
+- a seção NIGHT vira uma fileira de dez luas, uma por noite do mundo, e cada
+  uma é **clicável**: dá para voltar a uma noite já vencida para farmar. Noite
+  trancada não responde ao toque. Cor por estado: vencida em cinza avermelhado,
+  a de agora acesa com borda, a aberta ainda não vencida em osso, a trancada
+  apagada.
 - a seção WAVE deixa de ser "2 / 3" e passa a mostrar uma casa por onda da
   noite — três nas noites 1 a 4, cinco nas noites 5 a 10, seguindo o conteúdo.
   Onda vencida em cinza avermelhado, a que está em jogo acesa com borda, a que
@@ -26,6 +31,15 @@ PR #52 · 2026-08-14 · @juniozguedes
 - botão **Loop** no HUD: ligado, a party repete a mesma noite em vez de
   avançar para a próxima ao terminar. Serve a quem quer farmar uma noite
   específica.
+- `public/noites.html`, fixture que semeia um save com as noites 1 a 3 vencidas
+  e a 4 em curso — é o que permite conferir os quatro estados da trilha de uma
+  vez, coisa que um save novo não mostra.
+
+### Notas
+As dez noites já existiam em conteúdo, com inimigos escalando por noite (ignavo
+hp 12 na noite 1, 62 na noite 10). O que fazia parecer existir só a noite 1 era
+a progressão quebrada, corrigida na 0.12. Nada de conteúdo novo foi preciso
+aqui — só acesso.
 
 ## 0.12 — O protótipo vira jogo: Mundo 0 no app, cena fluida e progressão real
 PR #51 · 2026-08-14 · @juniozguedes

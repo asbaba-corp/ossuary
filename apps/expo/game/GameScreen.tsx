@@ -23,7 +23,7 @@ export function GameScreen() {
       </View>
 
       <View style={styles.hud}>
-        <Metric label="NIGHT" value={vm.phaseLabel} icon={<Lua />} />
+        <TrilhaDeNoites noites={vm.nightTrack} aoEscolher={vm.selectNight} />
         <TrilhaDeOndas estados={vm.waveTrack} rotulo={vm.waveLabel} />
         <Metric label="GOLD" value={String(vm.gold)} icon={<Moedas />} />
         <View style={styles.hudIcons}>
@@ -143,6 +143,52 @@ function Bar({ value, max, color = "#8a2525" }: { value: number; max: number; co
   return <View style={styles.bar}><View style={[styles.barFill, { width: `${Math.max(0, Math.min(100, value / Math.max(1, max) * 100))}%`, backgroundColor: color }]} /></View>;
 }
 
+/** Uma noite do mundo, desenhada como lua crescente.
+
+    Mesma gramática de cor da trilha de ondas: vencida em cinza avermelhado, a
+    de agora acesa, a aberta ainda não vencida em osso, a trancada apagada.
+    Noite trancada não responde ao toque — deixar clicar levaria o jogador
+    direto para a noite 10 e a uma morte que ele não teria como entender. */
+function CasaDeNoite({ noite, aoEscolher }: {
+  noite: { id: string; numero: number; estado: "cleared" | "current" | "unlocked" | "locked" };
+  aoEscolher: (id: string) => void;
+}) {
+  const { estado } = noite;
+  const cor = estado === "current" ? "#e0913f"
+    : estado === "cleared" ? "#8a3b32"
+    : estado === "unlocked" ? "#7d6b52"
+    : "#332b23";
+  const trancada = estado === "locked";
+  return (
+    <Pressable
+      onPress={() => { if (!trancada) aoEscolher(noite.id); }}
+      disabled={trancada}
+      accessibilityLabel={`Noite ${noite.numero}${trancada ? " (trancada)" : ""}`}
+      style={[styles.casaNoite, estado === "current" && styles.casaNoiteAtual]}
+    >
+      <View style={styles.luaCasa}>
+        <View style={[styles.luaCasaDisco, { backgroundColor: cor }]} />
+        <View style={styles.luaCasaSombra} />
+      </View>
+      <Text style={[styles.luaCasaNum, { color: cor }]}>{noite.numero}</Text>
+    </Pressable>
+  );
+}
+
+function TrilhaDeNoites({ noites, aoEscolher }: {
+  noites: readonly { id: string; numero: number; estado: "cleared" | "current" | "unlocked" | "locked" }[];
+  aoEscolher: (id: string) => void;
+}) {
+  return (
+    <View style={[styles.metric, styles.metricNoites]}>
+      <Text style={styles.label}>NIGHT</Text>
+      <View style={styles.trilhaNoites}>
+        {noites.map((noite) => <CasaDeNoite key={noite.id} noite={noite} aoEscolher={aoEscolher} />)}
+      </View>
+    </View>
+  );
+}
+
 /** Uma onda da noite, desenhada como três vagas empilhadas.
 
     O estado é cor, não texto: a onda vencida fica num cinza avermelhado, a que
@@ -248,6 +294,17 @@ const styles = StyleSheet.create({
   analyzerHeader: { backgroundColor: "#1b140e", borderColor: "#241b14", borderWidth: 1, borderBottomWidth: 0, paddingHorizontal: 14, paddingVertical: 9 },
   valuePos: { color: "#7fa86b" }, valueNeg: { color: "#b4534b" },
   metricLinha: { flexDirection: "row", alignItems: "center", gap: 6 },
+  /* As dez luas numa fileira só. A célula padrão do HUD tem base 118px e as
+     empurrava para uma segunda linha, o que estraga a leitura de "onde estou
+     nas dez noites". */
+  metricNoites: { flexBasis: 268, minWidth: 268 },
+  trilhaNoites: { flexDirection: "row", alignItems: "center", gap: 3 },
+  casaNoite: { alignItems: "center", paddingHorizontal: 2, paddingVertical: 2, borderColor: "transparent", borderWidth: 1 },
+  casaNoiteAtual: { borderColor: "#e0913f", backgroundColor: "#241608" },
+  luaCasa: { width: 13, height: 13 },
+  luaCasaDisco: { position: "absolute", left: 0, top: 0, width: 12, height: 12, borderRadius: 6 },
+  luaCasaSombra: { position: "absolute", left: 4, top: -1, width: 12, height: 12, borderRadius: 6, backgroundColor: "#17110d" },
+  luaCasaNum: { fontSize: 7, marginTop: 1, fontVariant: ["tabular-nums"] },
   casaOnda: { width: 17, height: 17, backgroundColor: "#17110d", borderColor: "#2e241b", borderWidth: 1 },
   casaOndaAtual: { borderColor: "#e0913f" },
   casaOndaLinha: { position: "absolute", left: 2, right: 2, height: 2, borderRadius: 1 },

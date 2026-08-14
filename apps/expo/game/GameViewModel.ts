@@ -36,6 +36,8 @@ export interface GameViewModel {
   readonly phaseLabel: string;
   readonly waveLabel: string;
   readonly waveTrack: readonly ("cleared" | "current" | "pending")[];
+  readonly nightTrack: readonly { readonly id: string; readonly numero: number; readonly estado: "cleared" | "current" | "unlocked" | "locked" }[];
+  readonly selectNight: (phaseId: string) => void;
   readonly loopNight: boolean;
   readonly toggleLoop: () => void;
   readonly gold: number;
@@ -387,6 +389,36 @@ export function useGameViewModel(): GameViewModel {
         return { id: `proximo:${enemyId}:${i}`, name: def?.name ?? enemyId, hp: def?.stats.maxHp ?? 1, maxHp: def?.stats.maxHp ?? 1 };
       });
     })(),
+
+    /* Uma lua por noite do mundo, com o estado que decide a cor e se dá para
+       clicar. `unlocked` vem do motor: noite trancada não é escolhível, senão
+       o jogador pula direto para a 10 e morre sem entender. */
+    nightTrack: WORLD_0_CONTENT.phases.map((fase) => ({
+      id: fase.id,
+      numero: fase.order + 1,
+      estado: fase.id === run?.phaseId ? "current" as const
+        : state?.world.clearedPhaseIds.includes(fase.id) ? "cleared" as const
+        : state?.world.unlockedPhaseIds.includes(fase.id) ? "unlocked" as const
+        : "locked" as const,
+    })),
+
+    /* Trocar de noite encerra a run atual e abre a escolhida. É também o que
+       o botão de loop respeita depois, porque `select_farm_phase` move o alvo
+       de farm, não só a run em curso. */
+    selectNight: (phaseId: string) => {
+      const session = sessionRef.current;
+      if (!session || !session.state.world.unlockedPhaseIds.includes(phaseId)) return;
+      void session.action({ type: "select_farm_phase", phaseId })
+        .then(() => session.action({ type: "start_run", phaseId }))
+        .then(() => {
+          setState(session.state);
+          marchaRef.current = { progresso: 0, relogio: sceneClockRef.current };
+          restosRef.current = [];
+          setRestos([]);
+          setEventMessage(`Noite ${WORLD_0_CONTENT.phases.findIndex(({ id }) => id === phaseId) + 1}: a marcha recomeça.`);
+        })
+        .catch((erro: unknown) => console.error("Falha ao trocar de noite:", erro));
+    },
 
     loopNight,
     toggleLoop: () => { loopRef.current = !loopRef.current; setLoopNight(loopRef.current); },
