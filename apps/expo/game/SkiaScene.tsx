@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import { Canvas, Circle, ColorMatrix, Group, Image as SkiaImage, Oval, Paint, RadialGradient, Rect, rect, useImage, vec } from "@shopify/react-native-skia";
 import { StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import type { SceneAnimation, SceneAnimationState } from "./GameViewModel";
@@ -22,6 +23,9 @@ const MOB_SCALE = 1.05;
 const VAO_ENTRE_MOBS = 62;
 const PRIMEIRO_MOB_X = 372;      // encostado no alcance do herói, não do outro lado do salão
 const HEROI_X = 250;
+const DURACAO_APROXIMACAO = 1.6;  // segundos de marcha até os dois lados se encontrarem
+const ENTRADA_DA_HORDA = 300;     // de quanto à direita a horda entra na cena
+const AVANCO_DO_HEROI = 46;       // o herói também caminha, senão só a horda se move
 
 /* ------------------------------------------------------------- animações */
 
@@ -163,6 +167,29 @@ export function SkiaScene({ time, status, enemies, animations, hits, partyId, fe
   const andando = status === "walking" || status === "retreating";
   const camera = andando ? time * 34 : 0;
 
+  /* Encontro, não teletransporte.
+     Antes o herói e os mobs ficavam em x fixo e só o fundo corria: a marcha
+     terminava e a horda simplesmente ESTAVA ali, do nada, já no alcance. O que
+     o jogo quer mostrar é os dois lados fechando a distância — o herói avança
+     um pouco, a horda entra pela direita, e eles se encontram no ponto em que
+     o combate começa.
+
+     O progresso é medido a partir do instante em que a marcha começou, não do
+     relógio absoluto: `time` nunca zera, então usá-lo direto faria a horda
+     nascer já no lugar a partir da segunda onda. */
+  const inicioMarcha = useRef(0);
+  const statusAnterior = useRef(status);
+  if (statusAnterior.current !== status) {
+    if (andando) inicioMarcha.current = time;
+    statusAnterior.current = status;
+  }
+  const progresso = andando
+    ? Math.min(1, Math.max(0, (time - inicioMarcha.current) / DURACAO_APROXIMACAO))
+    : 1;
+  const suave = 1 - (1 - progresso) ** 2;   // desacelera ao chegar, não freia seco
+  const recuoHorda = (1 - suave) * ENTRADA_DA_HORDA;
+  const recuoHeroi = (1 - suave) * AVANCO_DO_HEROI;
+
   const sinalVivo = (id?: string) => {
     const s = id ? animations[id] : undefined;
     return s && time - s.epoch < DURACAO_SINAL[s.animation] ? s : undefined;
@@ -172,7 +199,8 @@ export function SkiaScene({ time, status, enemies, animations, hits, partyId, fe
   const animHeroi: Animation = sinalHeroi?.animation ?? (andando ? "walk" : "idle");
   const tHeroi = sinalHeroi ? time - sinalHeroi.epoch : time;
 
-  const posicaoMob = (i: number) => PRIMEIRO_MOB_X + i * VAO_ENTRE_MOBS;
+  const posicaoMob = (i: number) => PRIMEIRO_MOB_X + i * VAO_ENTRE_MOBS + recuoHorda;
+  const heroiX = HEROI_X - recuoHeroi;
 
   return (
     <View style={[styles.host, { width, height }]} accessibilityLabel="Cena do Vestíbulo">
@@ -255,8 +283,8 @@ export function SkiaScene({ time, status, enemies, animations, hits, partyId, fe
           })}
 
           {/* herói */}
-          <Oval x={HEROI_X - 26} y={GROUND - 6} width={52} height={8} color="#000000" opacity={0.45} />
-          <Quadro image={hero[animHeroi]} animation={animHeroi} t={tHeroi} cx={HEROI_X} footY={GROUND} scale={HERO_SCALE} clarao={claraoDe(partyId)} />
+          <Oval x={heroiX - 26} y={GROUND - 6} width={52} height={8} color="#000000" opacity={0.45} />
+          <Quadro image={hero[animHeroi]} animation={animHeroi} t={tHeroi} cx={heroiX} footY={GROUND} scale={HERO_SCALE} clarao={claraoDe(partyId)} />
         </Group>
       </Canvas>
 
@@ -266,8 +294,12 @@ export function SkiaScene({ time, status, enemies, animations, hits, partyId, fe
           const idade = time - item.epoch;
           if (idade < 0 || idade > VIDA_NUMERO) return null;
           const indice = enemies.findIndex((inimigo) => inimigo.id === item.alvo);
-          const mundoX = indice >= 0 ? posicaoMob(indice) : HEROI_X;
-          const mundoY = GROUND - FRAME * MOB_SCALE * 0.78 - idade * 34;
+          const mundoX = indice >= 0 ? posicaoMob(indice) : heroiX;
+          /* Sobe rápido e desacelera, em vez de deslizar linear a 34px/s: com
+             a vida de 0,9s aquilo percorria 30px no total e lia como parado.
+             O ease-out dá o "pop" que o olho reconhece como golpe. */
+          const avanco = 1 - (1 - idade / VIDA_NUMERO) ** 2;
+          const mundoY = GROUND - FRAME * MOB_SCALE * 0.78 - avanco * 78;
           return (
             <Text
               key={item.id}

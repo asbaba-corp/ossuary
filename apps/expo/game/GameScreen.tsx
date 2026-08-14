@@ -3,7 +3,7 @@ import { Modal, Pressable, ScrollView, StyleSheet, Text, View, type DimensionVal
 import { useGameViewModel, type GamePanel, type SceneAnimationState } from "./GameViewModel";
 import { SceneRenderer } from "./SceneRenderer";
 import { Sprite } from "./Sprite";
-import { VESTIBULE_CONTENT } from "@ossuary/core";
+import { WORLD_0_CONTENT } from "@ossuary/core";
 
 const attributeLabels = [
   ["cons", "Constituição"], ["str", "Força"], ["dex", "Destreza"], ["int", "Inteligência"],
@@ -23,9 +23,9 @@ export function GameScreen() {
       </View>
 
       <View style={styles.hud}>
-        <Metric label="NIGHT" value={vm.phaseLabel} />
-        <Metric label="WAVE" value={vm.waveLabel} />
-        <Metric label="GOLD" value={String(vm.gold)} />
+        <Metric label="NIGHT" value={vm.phaseLabel} icon={<Lua />} />
+        <Metric label="WAVE" value={vm.waveLabel} icon={<Ondas />} />
+        <Metric label="GOLD" value={String(vm.gold)} icon={<Moedas />} />
         <View style={styles.hudIcons}>
           <HudButton label="▣ Mochila" onPress={() => vm.openPanel("inventory")} />
           <HudButton label="♙ Atributos" onPress={() => vm.openPanel("stats")} />
@@ -121,7 +121,7 @@ function Panel({ panel, state, inventoryPage, onInventoryPage, onClose }: { pane
   return <Modal visible transparent animationType="fade" onRequestClose={onClose}><View style={styles.scrim}><View style={[styles.modal, panel === "stats" && styles.modalNarrow]}><View style={styles.modalHeader}><Text style={styles.modalTitle}>{panel === "inventory" ? "INVENTÁRIO" : panel === "stats" ? "ATRIBUTOS" : panel === "bestiary" ? "BESTIÁRIO · MUNDO 0, VESTÍBULO" : "SISTEMAS"}</Text><Pressable style={styles.closeButton} onPress={onClose}><Text style={styles.close}>×</Text></Pressable></View><View style={styles.modalBody}>
     {panel === "inventory" && <View><View style={styles.inventoryToolbar}><Pressable style={styles.toolButton}><Text style={styles.toolButtonText}>◍ Poções</Text></Pressable><View style={styles.grow} /><Text style={styles.label}>OCUPADOS</Text><Text style={styles.value}>{state?.inventory.items.length ?? 0} / {state?.inventory.capacity ?? 128}</Text><View style={styles.pager}><Pressable disabled={inventoryPage === 0} onPress={() => onInventoryPage(inventoryPage - 1)}><Text style={[styles.pagerButton, inventoryPage === 0 && styles.pagerDisabled]}>‹</Text></Pressable><Text style={styles.value}>{inventoryPage + 1} / 3</Text><Pressable disabled={inventoryPage === 2} onPress={() => onInventoryPage(inventoryPage + 1)}><Text style={[styles.pagerButton, inventoryPage === 2 && styles.pagerDisabled]}>›</Text></Pressable></View></View><View style={styles.inventoryGrid}>{Array.from({ length: 48 }, (_, index) => { const stack = state?.inventory.items[inventoryPage * 48 + index]; return <View key={index} style={[styles.inventoryCell, stack && styles.inventoryCellFilled]}><Text style={styles.inventoryGlyph}>{stack ? stack.item.kind === "equipment" ? "◆" : "◉" : "·"}</Text></View>; })}</View></View>}
     {panel === "stats" && <View style={styles.statsColumns}><View style={styles.statsColumn}><Text style={styles.helper}>PRIMÁRIOS</Text>{attributeLabels.map(([key, label]) => <View key={key} style={styles.attrRow}><Text style={styles.attrLabel}><Text style={styles.attrKey}>{key.toUpperCase()}</Text> {label}</Text><Text style={styles.statValue}>{primary?.[key] ?? 0}</Text><Text style={styles.plus}>+</Text></View>)}</View><View style={styles.statsColumn}><Text style={styles.helper}>DERIVADOS</Text>{derived.map(({ label, value }) => <View key={label} style={styles.derivedRow}><Text style={styles.derivedLabel}>{label}</Text><Text style={styles.statValue}>{Number(value).toFixed(label === "Cadência" || label === "Crítico" ? 1 : 0)}{label === "Cadência" ? " /s" : label === "Crítico" ? "%" : ""}</Text></View>)}</View></View>}
-    {panel === "bestiary" && <View style={styles.bestiaryGrid}>{VESTIBULE_CONTENT.enemies.map((enemy) => <View key={enemy.id} style={[styles.beastCard, enemy.id === "caronte" && styles.beastBoss]}><Text style={styles.beastGlyph}>{enemy.id === "caronte" ? "♛" : "☠"}</Text><View style={styles.beastInfo}><Text style={styles.beastName}>{enemy.name}</Text><Text style={styles.beastRole}>{enemy.id === "caronte" ? "GUARDIÃO" : "CRIATURA"}</Text><Text style={styles.muted}>DANO {enemy.stats.damage} · DROP —</Text><Text style={styles.muted}>HP {enemy.stats.maxHp} · CADÊNCIA {enemy.stats.attacksPerSecond}/s</Text></View></View>)}</View>}
+    {panel === "bestiary" && <View style={styles.bestiaryGrid}>{WORLD_0_CONTENT.enemies.map((enemy) => <View key={enemy.id} style={[styles.beastCard, enemy.id === "caronte" && styles.beastBoss]}><Text style={styles.beastGlyph}>{enemy.id === "caronte" ? "♛" : "☠"}</Text><View style={styles.beastInfo}><Text style={styles.beastName}>{enemy.name}</Text><Text style={styles.beastRole}>{enemy.id === "caronte" ? "GUARDIÃO" : "CRIATURA"}</Text><Text style={styles.muted}>DANO {enemy.stats.damage} · DROP —</Text><Text style={styles.muted}>HP {enemy.stats.maxHp} · CADÊNCIA {enemy.stats.attacksPerSecond}/s</Text></View></View>)}</View>}
     {panel === "systems" && <View>
       <Text style={styles.helper}>Mecânicas ativas na run real</Text>
       <Text style={styles.item}>Equipamento: {state?.roster.equipmentLoadouts["character-1"]?.equipped.weapon?.name ?? "nenhum"}</Text>
@@ -137,9 +137,50 @@ function Bar({ value, max, color = "#8a2525" }: { value: number; max: number; co
   return <View style={styles.bar}><View style={[styles.barFill, { width: `${Math.max(0, Math.min(100, value / Math.max(1, max) * 100))}%`, backgroundColor: color }]} /></View>;
 }
 
-function Metric({ label, value, tone }: { label: string; value: string; tone?: "pos" | "neg" }) {
+function Metric({ label, value, tone, icon }: { label: string; value: string; tone?: "pos" | "neg"; icon?: React.ReactNode }) {
   const cor = tone === "pos" ? styles.valuePos : tone === "neg" ? styles.valueNeg : undefined;
-  return <View style={styles.metric}><Text style={styles.label}>{label}</Text><Text style={[styles.value, cor]}>{value}</Text></View>;
+  return (
+    <View style={styles.metric}>
+      <Text style={styles.label}>{label}</Text>
+      <View style={styles.metricLinha}>
+        {icon}
+        <Text style={[styles.value, cor]}>{value}</Text>
+      </View>
+    </View>
+  );
+}
+
+/* Ícones desenhados com Views, não com emoji nem fonte de ícone.
+   Emoji renderiza diferente em cada plataforma (e no Android muitos nem
+   existem), e webfont de ícone não sobrevive ao empacotamento nativo. Três
+   formas simples resolvem, e resolvem igual no iOS, no Android e na web. */
+function Lua() {
+  // crescente por subtração: um disco claro com um disco do fundo por cima
+  return (
+    <View style={styles.icone}>
+      <View style={styles.luaDisco} />
+      <View style={styles.luaSombra} />
+    </View>
+  );
+}
+
+function Ondas() {
+  return (
+    <View style={styles.icone}>
+      {[0, 1, 2].map((n) => <View key={n} style={[styles.ondaLinha, { top: 3 + n * 4 }]} />)}
+    </View>
+  );
+}
+
+function Moedas() {
+  // pilha vista de lado: três elipses empilhadas, a de cima mais clara
+  return (
+    <View style={styles.icone}>
+      {[0, 1, 2].map((n) => (
+        <View key={n} style={[styles.moeda, { bottom: 1 + n * 3.5, backgroundColor: n === 2 ? "#f0c04a" : "#c99a2e" }]} />
+      ))}
+    </View>
+  );
 }
 
 /* Tempo de sessão a partir do relógio da simulação, não do de parede: com
@@ -163,4 +204,10 @@ const styles = StyleSheet.create({
   barFill: { height: "100%" }, pagerDisabled: { opacity: 0.35 },
   analyzerHeader: { backgroundColor: "#1b140e", borderColor: "#241b14", borderWidth: 1, borderBottomWidth: 0, paddingHorizontal: 14, paddingVertical: 9 },
   valuePos: { color: "#7fa86b" }, valueNeg: { color: "#b4534b" },
+  metricLinha: { flexDirection: "row", alignItems: "center", gap: 6 },
+  icone: { width: 14, height: 14 },
+  luaDisco: { position: "absolute", left: 0, top: 0, width: 13, height: 13, borderRadius: 7, backgroundColor: "#d9c9a8" },
+  luaSombra: { position: "absolute", left: 4, top: -1, width: 13, height: 13, borderRadius: 7, backgroundColor: "#17110d" },
+  ondaLinha: { position: "absolute", left: 0, width: 14, height: 2, borderRadius: 1, backgroundColor: "#7f9bb0" },
+  moeda: { position: "absolute", left: 0, width: 14, height: 5, borderRadius: 3 },
 });

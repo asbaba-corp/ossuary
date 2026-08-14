@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   GameSession,
-  VESTIBULE_CONTENT,
+  WORLD_0_CONTENT,
   createInitialGameState,
   type GameState,
   type GameEvent,
@@ -75,7 +75,11 @@ export function useGameViewModel(): GameViewModel {
     const session = new GameSession({
       saveStore: new ExpoSaveStore(),
       clock: { nowMs: () => Date.now() },
-      content: VESTIBULE_CONTENT,
+      /* O app joga o Mundo 0, não o fixture do Vestíbulo.
+         `VESTIBULE_CONTENT` tem 10 fases de UMA onda cada — era andaime de
+         teste, e enquanto o app o carregava o HUD só sabia mostrar "WAVE 1"
+         e nenhuma noite tinha as 3 ou 5 ondas que o desenho pede. */
+      content: WORLD_0_CONTENT,
       deviceId: "expo-home",
       createInitialState: (content, deviceId) => createInitialGameState(content, deviceId),
     });
@@ -110,9 +114,25 @@ export function useGameViewModel(): GameViewModel {
              como subir nem desvanecer — ficava congelado na tela; sem o alvo,
              nasce num ponto fixo em vez de sobre quem levou o golpe. */
           const nascidoEm = sceneClockRef.current;
+
+          /* Um número por alvo por tick, com o dano somado.
+             Cercado, o herói leva vários golpes no mesmo tick, e cada um virava
+             um número próprio nascido no mesmo ponto e no mesmo instante: eles
+             se empilhavam parados ao lado do boneco em vez de subir. Somar é
+             também o que o jogador quer ler — quanto a rodada custou, não a
+             parcela de cada mob. */
+          const somaPorAlvo = new Map<string, { dano: number; critico: boolean }>();
+          for (const event of attacks) {
+            const atual = somaPorAlvo.get(event.targetId) ?? { dano: 0, critico: false };
+            somaPorAlvo.set(event.targetId, { dano: atual.dano + event.damage, critico: atual.critico || event.critical });
+          }
+
           setCombatFeedback((anteriores) => [
             ...anteriores.filter((item) => nascidoEm - item.epoch < 1),
-            ...attacks.map((event, i) => ({ id: `d:${nascidoEm.toFixed(3)}:${i}:${event.targetId}`, alvo: event.targetId, epoch: nascidoEm, text: `-${Math.round(event.damage)}`, color: event.critical ? "#ffb648" : "#ff5a48" })),
+            ...[...somaPorAlvo].map(([alvo, { dano, critico }]) => ({
+              id: `d:${nascidoEm.toFixed(3)}:${alvo}`, alvo, epoch: nascidoEm,
+              text: `-${Math.round(dano)}`, color: critico ? "#ffb648" : "#ff5a48",
+            })),
             ...defeats.map((event, i) => ({ id: `m:${nascidoEm.toFixed(3)}:${i}:${event.combatantId}`, alvo: event.combatantId, epoch: nascidoEm, text: "✦", color: "#f0c04a" })),
           ]);
         }
@@ -191,7 +211,7 @@ export function useGameViewModel(): GameViewModel {
   }
 
   const run = state?.run;
-  const phase = run ? VESTIBULE_CONTENT.phases.find(({ id }) => id === run.phaseId) : undefined;
+  const phase = run ? WORLD_0_CONTENT.phases.find(({ id }) => id === run.phaseId) : undefined;
   return {
     state,
     ready,
@@ -206,8 +226,13 @@ export function useGameViewModel(): GameViewModel {
     panel,
     inventoryPage,
     eventMessage,
-    phaseLabel: phase ? `Fase ${phase.order + 1} · Vestíbulo` : "Vestíbulo",
-    waveLabel: run ? String(run.waveIndex + 1) : "—",
+    /* "n / total" nos dois, e não "Fase 3 · Vestíbulo": o HUD é lido de relance
+       durante a luta, e o que importa é quanto falta. O total de ondas vem da
+       fase, não de uma constante — o Mundo 0 tem 3 ondas nas noites 1 a 4 e 5
+       nas noites 5 a 10, então qualquer número fixo aqui mentiria em metade
+       das noites. */
+    phaseLabel: phase ? `${phase.order + 1} / ${WORLD_0_CONTENT.phases.length}` : "—",
+    waveLabel: run && phase ? `${run.waveIndex + 1} / ${phase.waveIds.length}` : "—",
     gold: state?.economy.account.gold ?? 0,
     runIncome: state?.economy.runIncome.gold ?? 0,
     runExpenses: state?.economy.runExpenses.gold ?? 0,

@@ -19,7 +19,17 @@ export class GameSession {
 
   async load(): Promise<GameState> {
     const blob = await this.dependencies.saveStore.load();
-    this.current = blob
+
+    /* Save de outro conteúdo é save de outro jogo, e recarregá-lo aqui não dá
+       "progresso antigo": dá um estado que aponta para fases e itens que não
+       existem mais, e o primeiro tick morre procurando por eles. Trocar o
+       mundo que o app carrega é justamente o caso que produz isso.
+
+       Enquanto não houver migração de conteúdo, o save divergente é
+       descartado e a partida recomeça — perder progresso de teste é barato,
+       um app que não abre não é. */
+    const compativel = blob?.contentVersion === this.dependencies.content.version;
+    this.current = blob && compativel
       ? deserializeGameState(blob)
       : (this.dependencies.createInitialState?.(this.dependencies.content, this.dependencies.deviceId)
         ?? createInitialGameState(this.dependencies.content, this.dependencies.deviceId));
