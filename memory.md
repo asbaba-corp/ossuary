@@ -191,3 +191,12 @@ na segunda o elemento existia mas a sessão do ViewModel ainda era nula, então 
 na tela), nunca por `setTimeout`. Com isso o mesmo harness provou a troca:
 `noite antes=4 depois do clique na lua 2=2`. Fica em `public/clicar.html`.
 
+### Elipse em RN se faz com `scaleX`, não com raio em porcentagem
+**Sintoma:** nenhum ainda — anotado para não ser "simplificado".
+**Causa:** `borderRadius` em porcentagem só existe na web; no iOS e no Android
+o RN aceita apenas número, e um retângulo estreito com raio grande vira
+cápsula, não elipse. A lua em fase precisa de elipse de verdade para o
+terminador.
+**Lição:** círculo com `transform: [{ scaleX: k }]`. Mesmo desenho nas três
+plataformas, que é a razão de todos os ícones do HUD serem Views e não emoji.
+
