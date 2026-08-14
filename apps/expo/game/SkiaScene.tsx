@@ -1,4 +1,4 @@
-import { Canvas, Circle, Group, Image as SkiaImage, Oval, RadialGradient, Rect, rect, useImage, vec } from "@shopify/react-native-skia";
+import { Canvas, Circle, ColorMatrix, Group, Image as SkiaImage, Oval, Paint, RadialGradient, Rect, rect, useImage, vec } from "@shopify/react-native-skia";
 import { StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import type { SceneAnimation, SceneAnimationState } from "./GameViewModel";
 
@@ -19,7 +19,8 @@ const FRAME = 128;                       // lado do quadro nas folhas de sprite
 
 const HERO_SCALE = 1.3;
 const MOB_SCALE = 1.05;
-const VAO_ENTRE_MOBS = 84;
+const VAO_ENTRE_MOBS = 62;
+const PRIMEIRO_MOB_X = 372;      // encostado no alcance do herói, não do outro lado do salão
 const HEROI_X = 250;
 
 /* ------------------------------------------------------------- animações */
@@ -34,6 +35,16 @@ const CICLA: Record<Animation, boolean> = { idle: true, walk: true, attack: fals
 const DURACAO_SINAL: Record<SceneAnimation, number> = { attack: 0.42, hurt: 0.3, dead: 0.5 };
 const FADE_CORPO = 0.4;                  // desvanecer depois da animação de morte
 const VIDA_NUMERO = 0.9;                 // quanto um número flutuante dura
+const VIDA_CLARAO = 0.22;                // quanto o pisca de acerto dura
+
+/** Pinta tudo de branco mantendo o alfa: é o que faz o sprite piscar sem
+    virar um retângulo. */
+const TUDO_BRANCO = [
+  0, 0, 0, 0, 1,
+  0, 0, 0, 0, 1,
+  0, 0, 0, 0, 1,
+  0, 0, 0, 1, 0,
+];
 
 /* --------------------------------------------------------------- sprites */
 
@@ -44,9 +55,9 @@ type Folhas = Record<Animation, ReturnType<typeof useImage>>;
     A contagem de quadros vem de `image.width() / FRAME`, não de uma tabela.
     Quando vinha da tabela, divergir do arquivo esticava a folha inteira e o
     personagem mudava de tamanho ao trocar de animação. */
-function Quadro({ image, animation, t, cx, footY, scale, flip }: {
+function Quadro({ image, animation, t, cx, footY, scale, flip, clarao = 0 }: {
   image: ReturnType<typeof useImage>;
-  animation: Animation; t: number; cx: number; footY: number; scale: number; flip?: boolean;
+  animation: Animation; t: number; cx: number; footY: number; scale: number; flip?: boolean; clarao?: number;
 }) {
   if (!image) return null;
   const total = Math.max(1, Math.round(image.width() / FRAME));
@@ -60,6 +71,11 @@ function Quadro({ image, animation, t, cx, footY, scale, flip }: {
   const desenho = (
     <Group clip={rect(x, y, lado, lado)}>
       <SkiaImage image={image} x={x - indice * lado} y={y} width={lado * total} height={lado} fit="fill" />
+      {clarao > 0 && (
+        <Group opacity={clarao} layer={<Paint><ColorMatrix matrix={TUDO_BRANCO} /></Paint>}>
+          <SkiaImage image={image} x={x - indice * lado} y={y} width={lado * total} height={lado} fit="fill" />
+        </Group>
+      )}
     </Group>
   );
 
@@ -114,10 +130,17 @@ const CICLO_COLUNA = 1720;
 type Enemy = { readonly id: string; readonly name: string; readonly hp: number; readonly maxHp: number };
 type Feedback = { readonly id: string; readonly alvo: string; readonly epoch: number; readonly text: string; readonly color: string };
 
-export function SkiaScene({ time, status, enemies, animations, partyId, feedback }: {
+export function SkiaScene({ time, status, enemies, animations, hits, partyId, feedback }: {
   time: number; status: string; enemies: readonly Enemy[];
-  animations: SceneAnimationState; partyId?: string; feedback: readonly Feedback[];
+  animations: SceneAnimationState; hits?: Readonly<Record<string, number>>;
+  partyId?: string; feedback: readonly Feedback[];
 }) {
+  /** Intensidade do pisca de acerto, 1 no instante do golpe e 0 ao fim. */
+  const claraoDe = (id?: string) => {
+    const quando = id ? hits?.[id] : undefined;
+    if (quando === undefined) return 0;
+    return Math.max(0, 1 - (time - quando) / VIDA_CLARAO) * 0.85;
+  };
   const { width: janela } = useWindowDimensions();
   const width = Math.min(Math.max(320, janela - 36), 1060);
   const escala = width / W;
@@ -149,7 +172,7 @@ export function SkiaScene({ time, status, enemies, animations, partyId, feedback
   const animHeroi: Animation = sinalHeroi?.animation ?? (andando ? "walk" : "idle");
   const tHeroi = sinalHeroi ? time - sinalHeroi.epoch : time;
 
-  const posicaoMob = (i: number) => 520 + i * VAO_ENTRE_MOBS;
+  const posicaoMob = (i: number) => PRIMEIRO_MOB_X + i * VAO_ENTRE_MOBS;
 
   return (
     <View style={[styles.host, { width, height }]} accessibilityLabel="Cena do Vestíbulo">
@@ -220,7 +243,7 @@ export function SkiaScene({ time, status, enemies, animations, partyId, feedback
             return (
               <Group key={inimigo.id} opacity={opacidade}>
                 <Oval x={x - 22} y={GROUND - 6} width={44} height={7} color="#000000" opacity={0.4} />
-                <Quadro image={mob[anim]} animation={anim} t={t} cx={x} footY={GROUND} scale={MOB_SCALE} flip />
+                <Quadro image={mob[anim]} animation={anim} t={t} cx={x} footY={GROUND} scale={MOB_SCALE} flip clarao={morto ? 0 : claraoDe(inimigo.id)} />
                 {!morto && (
                   <Group>
                     <Rect x={x - 22} y={topo} width={44} height={4} color="#1b1410" />
@@ -233,7 +256,7 @@ export function SkiaScene({ time, status, enemies, animations, partyId, feedback
 
           {/* herói */}
           <Oval x={HEROI_X - 26} y={GROUND - 6} width={52} height={8} color="#000000" opacity={0.45} />
-          <Quadro image={hero[animHeroi]} animation={animHeroi} t={tHeroi} cx={HEROI_X} footY={GROUND} scale={HERO_SCALE} />
+          <Quadro image={hero[animHeroi]} animation={animHeroi} t={tHeroi} cx={HEROI_X} footY={GROUND} scale={HERO_SCALE} clarao={claraoDe(partyId)} />
         </Group>
       </Canvas>
 

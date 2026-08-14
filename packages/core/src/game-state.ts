@@ -110,7 +110,16 @@ function resolveVictory(state: GameState, content: GameContentContext, events: G
   for (let n = 1; jaExiste(instanciaId); n++) {
     instanciaId = `${idBase}#${n}`;
   }
-  inventory = addItem(inventory, { item: createEquipmentFromDropTable(instanciaId, `${String(run.seed)}:${rewardId}`, table.entries), quantity: 1 });
+  /* Mochila cheia não pode parar a caça (core-design §5.4). `addItem` lança
+     quando não há slot, e isso derrubava o tick para sempre: quem enchesse o
+     inventário ficava com o jogo travado, sem pista do motivo. A peça sem
+     lugar é vendida na hora e vira ouro — o drop não some, muda de forma. */
+  const peca = createEquipmentFromDropTable(instanciaId, `${String(run.seed)}:${rewardId}`, table.entries);
+  if (inventory.items.length < inventory.capacity) {
+    inventory = addItem(inventory, { item: peca, quantity: 1 });
+  } else {
+    economy = applyEconomyTransaction(economy, { scope: "run", resourceId: GOLD_RESOURCE, direction: "credit", amount: wave.goldReward, reason: `mochila-cheia:${rewardId}` }).state;
+  }
   /* Slot vazio é vestido na hora. Sem isso o drop garantido da fase 3 fica
      parado na mochila e o jogador entra na fase 4 sem o alcance que ela
      pressupõe — num jogo idle, contar com ele abrindo o inventário é apostar

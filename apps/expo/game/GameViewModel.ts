@@ -21,6 +21,7 @@ export interface GameViewModel {
   readonly attackEpoch: number;
   readonly combatFeedback: readonly { readonly id: string; readonly alvo: string; readonly epoch: number; readonly text: string; readonly color: string }[];
   readonly combatAnimations: SceneAnimationState;
+  readonly combatHits: Readonly<Record<string, number>>;
   readonly activeEffects: readonly string[];
   readonly panel: GamePanel;
   readonly inventoryPage: number;
@@ -59,6 +60,8 @@ export function useGameViewModel(): GameViewModel {
   const [speed, setSpeed] = useState<1 | 3>(1);
   const [sceneTime, setSceneTime] = useState(0);
   const [attackEpoch, setAttackEpoch] = useState(0);
+  const [combatHits, setCombatHits] = useState<Readonly<Record<string, number>>>({});
+  const combatHitsRef = useRef<Readonly<Record<string, number>>>({});
   const [combatFeedback, setCombatFeedback] = useState<readonly { readonly id: string; readonly alvo: string; readonly epoch: number; readonly text: string; readonly color: string }[]>([]);
   const [combatAnimations, setCombatAnimations] = useState<SceneAnimationState>({});
   const combatAnimationsRef = useRef<SceneAnimationState>({});
@@ -109,17 +112,31 @@ export function useGameViewModel(): GameViewModel {
           const nascidoEm = sceneClockRef.current;
           setCombatFeedback((anteriores) => [
             ...anteriores.filter((item) => nascidoEm - item.epoch < 1),
-            ...attacks.map((event) => ({ id: `d:${nascidoEm.toFixed(3)}:${event.tick}:${event.targetId}`, alvo: event.targetId, epoch: nascidoEm, text: `-${Math.round(event.damage)}`, color: event.critical ? "#ffb648" : "#ff5a48" })),
-            ...defeats.map((event) => ({ id: `m:${nascidoEm.toFixed(3)}:${event.tick}:${event.combatantId}`, alvo: event.combatantId, epoch: nascidoEm, text: "✦", color: "#f0c04a" })),
+            ...attacks.map((event, i) => ({ id: `d:${nascidoEm.toFixed(3)}:${i}:${event.targetId}`, alvo: event.targetId, epoch: nascidoEm, text: `-${Math.round(event.damage)}`, color: event.critical ? "#ffb648" : "#ff5a48" })),
+            ...defeats.map((event, i) => ({ id: `m:${nascidoEm.toFixed(3)}:${i}:${event.combatantId}`, alvo: event.combatantId, epoch: nascidoEm, text: "✦", color: "#f0c04a" })),
           ]);
         }
         if (attacks.length > 0 || defeats.length > 0) {
           const epoch = sceneClockRef.current;
           const nextAnimations = { ...combatAnimationsRef.current };
+          /* Atacar vence apanhar. No mesmo lote o herói golpeia e é golpeado,
+             e como o alvo era escrito depois, o "hurt" apagava o "attack" —
+             ele nunca chegava a mostrar o golpe. Quem ataga neste tick mantém
+             a animação de ataque; o dano recebido é comunicado pelo clarão,
+             que não disputa o mesmo espaço. */
+          const atacantes = new Set(attacks.map((event) => event.attackerId));
           for (const event of attacks) {
             nextAnimations[event.attackerId] = { animation: "attack", epoch };
-            nextAnimations[event.targetId] = { animation: "hurt", epoch };
+            if (!atacantes.has(event.targetId)) {
+              nextAnimations[event.targetId] = { animation: "hurt", epoch };
+            }
           }
+          /* O clarão de acerto vive à parte da animação: assim quem está no
+             meio do próprio golpe também pisca ao levar dano. */
+          const golpesRecebidos = { ...combatHitsRef.current };
+          for (const event of attacks) golpesRecebidos[event.targetId] = epoch;
+          combatHitsRef.current = golpesRecebidos;
+          setCombatHits(golpesRecebidos);
           for (const event of defeats) nextAnimations[event.combatantId] = { animation: "dead", epoch };
           combatAnimationsRef.current = nextAnimations;
           setCombatAnimations(nextAnimations);
@@ -183,6 +200,7 @@ export function useGameViewModel(): GameViewModel {
     sceneTime,
     attackEpoch,
     combatFeedback,
+    combatHits,
     combatAnimations,
     activeEffects: state?.run?.combat?.combatants.flatMap(({ effects }) => effects.map(({ sourceSpellId }) => sourceSpellId)) ?? [],
     panel,
