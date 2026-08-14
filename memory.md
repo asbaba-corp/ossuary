@@ -162,3 +162,13 @@ teste com `clarao={1}` mostrou os mobs totalmente brancos.
 **Lição:** registrada como *hipótese descartada*, para ninguém refazer o
 caminho. O `layer` externo ao espelhamento ficou porque é mais claro, não
 porque consertou algo.
+
+### Estado que o laço de tick precisa ler tem de ter um ref ao lado
+**Sintoma:** nenhum ainda — anotado para não ser "simplificado" depois.
+**Causa:** o laço de tick vive num `useEffect` e fecha sobre os valores do
+render em que foi criado. Uma flag guardada só em `useState` (o loop de noite,
+por exemplo) ficaria congelada no valor que tinha quando o efeito montou.
+**Lição:** o par `estado + ref` no `GameViewModel` não é redundância. O estado
+pinta a interface, o ref é o que o laço lê. Vale para `loopNight`,
+`combatHits`, `combatAnimations` e os vitais.
+

@@ -35,6 +35,9 @@ export interface GameViewModel {
   readonly upcomingEnemies: readonly { readonly id: string; readonly name: string; readonly hp: number; readonly maxHp: number }[];
   readonly phaseLabel: string;
   readonly waveLabel: string;
+  readonly waveTrack: readonly ("cleared" | "current" | "pending")[];
+  readonly loopNight: boolean;
+  readonly toggleLoop: () => void;
   readonly gold: number;
   readonly runIncome: number;
   readonly runExpenses: number;
@@ -102,6 +105,11 @@ export function useGameViewModel(): GameViewModel {
   const [restos, setRestos] = useState<readonly { id: string; indice: number; epoch: number; camera: number }[]>([]);
   const [panel, setPanel] = useState<GamePanel>(null);
   const [inventoryPage, setInventoryPage] = useState(0);
+  /* Repetir a noite é escolha do jogador, e precisa ser lida de dentro do
+     laço de tick — que fecha sobre o valor do render em que foi criado. Por
+     isso o ref ao lado do estado: o estado pinta o botão, o ref decide. */
+  const [loopNight, setLoopNight] = useState(false);
+  const loopRef = useRef(false);
   const [eventMessage, setEventMessage] = useState("Carregando save local…");
   const sessionRef = useRef<GameSession | null>(null);
 
@@ -147,10 +155,13 @@ export function useGameViewModel(): GameViewModel {
       const corridaAtual = session.state.run;
       if (!corridaAtual || corridaAtual.status === "completed") {
         const fase = WORLD_0_CONTENT.phases.find(({ id }) => id === corridaAtual?.phaseId);
-        const proxima = fase?.nextPhaseId && session.state.world.unlockedPhaseIds.includes(fase.nextPhaseId)
-          ? fase.nextPhaseId
-          // sem próxima (ou ainda trancada), repete a atual: idle não para
-          : session.state.world.selectedFarmPhaseId;
+        const proxima = loopRef.current
+          // em loop o jogador fica na mesma noite, moendo as mesmas ondas
+          ? (corridaAtual?.phaseId ?? session.state.world.selectedFarmPhaseId)
+          : fase?.nextPhaseId && session.state.world.unlockedPhaseIds.includes(fase.nextPhaseId)
+            ? fase.nextPhaseId
+            // sem próxima (ou ainda trancada), repete a atual: idle não para
+            : session.state.world.selectedFarmPhaseId;
         void session.action({ type: "select_farm_phase", phaseId: proxima })
           .then(() => session.action({ type: "start_run", phaseId: proxima }))
           .then(() => { setState(session.state); marchaRef.current = { progresso: 0, relogio: sceneClockRef.current }; })
@@ -376,6 +387,19 @@ export function useGameViewModel(): GameViewModel {
         return { id: `proximo:${enemyId}:${i}`, name: def?.name ?? enemyId, hp: def?.stats.maxHp ?? 1, maxHp: def?.stats.maxHp ?? 1 };
       });
     })(),
+
+    loopNight,
+    toggleLoop: () => { loopRef.current = !loopRef.current; setLoopNight(loopRef.current); },
+
+    /* Uma casa por onda da noite. `cleared` é o que já caiu nesta run,
+       `current` é a que está em jogo e `pending` o que falta — é essa leitura
+       que deixa o jogador saber onde está sem contar no dedo. */
+    waveTrack: phase
+      ? phase.waveIds.map((_, i) => {
+          const atual = run?.waveIndex ?? 0;
+          return i < atual ? "cleared" as const : i === atual ? "current" as const : "pending" as const;
+        })
+      : [],
 
     phaseLabel: phase ? `${phase.order + 1} / ${WORLD_0_CONTENT.phases.length}` : "—",
     waveLabel: run && phase ? `${run.waveIndex + 1} / ${phase.waveIds.length}` : "—",

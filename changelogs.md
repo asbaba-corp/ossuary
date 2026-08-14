@@ -15,6 +15,18 @@ PR #NN · AAAA-MM-DD · @autor
 - ...
 ```
 
+## 0.13 — Trilha de ondas no HUD e loop de noite
+PR #52 · 2026-08-14 · @juniozguedes
+
+### Added
+- a seção WAVE deixa de ser "2 / 3" e passa a mostrar uma casa por onda da
+  noite — três nas noites 1 a 4, cinco nas noites 5 a 10, seguindo o conteúdo.
+  Onda vencida em cinza avermelhado, a que está em jogo acesa com borda, a que
+  falta em cinza apagado. O estado da noite se lê de relance.
+- botão **Loop** no HUD: ligado, a party repete a mesma noite em vez de
+  avançar para a próxima ao terminar. Serve a quem quer farmar uma noite
+  específica.
+
 ## 0.12 — O protótipo vira jogo: Mundo 0 no app, cena fluida e progressão real
 PR #51 · 2026-08-14 · @juniozguedes
 
