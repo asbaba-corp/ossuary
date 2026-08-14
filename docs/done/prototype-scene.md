@@ -34,7 +34,9 @@ Abrir no navegador e confirmar: o ciclo andar → onda → combate → limpar �
 
 ## Entregue
 
-`prototype/scene.html` — arquivo único, sem dependências, roda em qualquer navegador.
+O prototype HTML continua em `prototype/scene.html` como referência visual para
+a migração. A tela Expo em `/` é a aplicação principal e o arquivo não faz parte
+do build do app.
 
 **Além do escopo previsto**, dois sistemas do core design entraram porque o teste headless mostrou que faltavam:
 

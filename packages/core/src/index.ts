@@ -34,4 +34,5 @@ export * from "./save.js";
 export * from "./stores.js";
 export * from "./session.js";
 export * from "./vertical-fixture.js";
+export * from "./vestibule-content.js";
 export * from "./world-0.js";

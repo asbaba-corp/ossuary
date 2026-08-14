@@ -2,62 +2,65 @@
 
 Jogo idle 2D sidescroller de dark fantasy sobre o Inferno de Dante. Sem prestige, com party de até 4, PVP assíncrono e sync entre dispositivos.
 
-**Estado: pré-produção.** O app tem um scaffold Expo multiplataforma e um
-laboratório visual isolado para testar XP, level-up e atributos; a lógica do
-jogo ainda não está conectada ao loop de combate.
+**Estado: pré-produção.** A aplicação Expo é a experiência principal em `/` e
+usa o loop determinístico do core com save local. O laboratório técnico fica em
+`/lab` para inspecionar domínios isoladamente.
 
-## Rodar o protótipo
-
-Arquivo único, sem dependências e sem build:
+## Rodar a aplicação
 
 ```bash
-open prototype/scene.html          # macOS
-xdg-open prototype/scene.html      # Linux
+pnpm web
 ```
 
-**Requisito:** um navegador atual. Só isso.
+A home jogável fica em `http://localhost:8081/`. O laboratório fica em
+`http://localhost:8081/lab`.
 
-### Sprites
+O conteúdo jogado é o **Mundo 0** em `packages/core/src/world-0.ts`: dez
+noites, 3 ondas nas noites 1 a 4 e 5 nas noites 5 a 10, com inimigos que
+escalam por noite. `vestibule-content.ts` é andaime de teste (dez fases de uma
+onda cada) e **não** é o que o app carrega.
+
+Save de conteúdo divergente é descartado na carga: trocar o mundo não deixa o
+app com um save apontando para fases que não existem mais.
+
+O prototype está temporariamente mantido em `prototype/scene.html` para
+comparação lado a lado durante a migração. Ele não é a home nem participa do
+build Expo.
+
+### Medir e reproduzir
+
+Rotas de desenvolvimento servidas pelo Metro, para conferir o jogo **em
+movimento** — captura estática não mostra fluidez, animação nem transbordo:
+
+| Rota | Para quê |
+|---|---|
+| `/?sonda=1` | Mede o rAF do próprio app por 12s e reporta em `127.0.0.1:9333` |
+| `/seed.html` | Semeia um save de jogo avançado (mochila cheia) e entra com a sonda |
+| `/combate.html` | Semeia um save **já em combate** — sem ele a captura gasta a marcha e nunca vê um golpe |
+
+Para receber o resultado da sonda, deixe um receptor ouvindo em 9333 antes de
+abrir a rota.
+
+## Arte e conteúdo
 
 Os PNGs ficam em `sprites/` e vêm no repositório; os `.psd` não, por serem
 fonte de edição.
 
-O canvas só consegue ler as imagens servido por HTTP — abrir o arquivo direto
-faz o protótipo cair na arte procedural de fallback:
-
-```bash
-python3 -m http.server 8765
-# http://localhost:8765/prototype/scene.html
-```
-
 Para atribuir um pack a um personagem, use a skill `sprite-import`.
 
-### Parâmetros de URL (teste)
+Não há spritesheet de mochila no repositório: o ícone de mochila do prototype
+é um SVG inline da interface. A migração deve preservar esse ícone como
+componente, não procurar um PNG inexistente.
 
-| Parâmetro | Efeito |
-|---|---|
-| `?t=SEGUNDOS` | Adianta a simulação antes do primeiro quadro |
-| `?tab=inv\|stats\|best` | Abre direto numa aba |
-| `?pot=1` | Abre o painel de poções |
-| `?auto=1` | Distribui os pontos de atributo sozinho |
-| `?debug=1` | Imprime um resumo em JSON no fim da página |
+## Stack
 
-Captura de tela sem interação — `--virtual-time-budget` não avança o `requestAnimationFrame`, daí o `?t=`:
-
-```bash
-"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
-  --headless --disable-gpu --screenshot=out.png \
-  "file://$PWD/prototype/scene.html?t=11"
-```
-
-## Stack planejada
-
-O scaffold inicial está montado em `apps/expo`; a arquitetura completa ainda é
-o alvo descrito em `plano-tecnico-idle-ios.md`.
+O app multiplataforma fica em `apps/expo`; a arquitetura de servidor e sync
+continua descrita em `plano-tecnico-idle-ios.md`.
 
 - **TypeScript** em tudo, com `packages/core` puro compartilhado por cliente e servidor
 - **iOS/Android/Web:** React Native + Expo — um único codebase (RN Web para a web)
-- **Render:** react-native-skia
+- **Render:** React Native Skia para a cena 2D e componentes React Native para
+  HUD, party e painéis.
 - **Servidor:** Node + TypeScript, Postgres
 - **Monorepo (pnpm):** `packages/core` (TS puro, lógica do jogo) + `apps/expo` (cliente Expo ios/android/web).
 
@@ -71,14 +74,13 @@ pnpm build:core
 pnpm build:web
 ```
 
-`pnpm web` inicia o laboratório Expo em modo web local. Para limpar o cache do
+`pnpm web` inicia a aplicação Expo em modo web local. Para limpar o cache do
 Metro, use `pnpm web -- --clear`. O comando equivalente sem o atalho é
 `pnpm --filter @ossuary/app web`.
 
-O `build:web` exporta o laboratório de mecânicas em `apps/expo/dist`. No
-preview, a tela é identificada por `TESTE` e pelas seções numeradas; o botão
-**Derrotar Ignavo** simula a futura origem de XP. O botão de aplicar XP usa uma
-faixa de 0 a 500 para inspeção, não é regra do jogo.
+O `build:web` exporta a aplicação em `apps/expo/dist`. A rota `/lab` continua
+identificada por `TESTE` e pelas seções numeradas; seus controles são fixtures
+de inspeção e não aparecem na home.
 
 O workflow `CI` executa esses checks em cada PR e em pushes para `main`. O
 workflow `Firebase preview` publica o `apps/expo/dist` em um canal temporário
@@ -95,6 +97,7 @@ são ignorados porque não recebem secrets do GitHub.
 | `plano-tecnico-idle-ios.md` | Stack, arquitetura, sync, PVP, monetização |
 | `world_0_vestibule.md` | Mundo 0, o Vestíbulo — bestiário e fases |
 | `AGENTS.md` | Fluxo de trabalho e convenções do repositório |
+| `memory.md` | Decisões, defeitos de raiz e armadilhas já pagas — leia antes de mexer na cena |
 
 ## Contribuir
 

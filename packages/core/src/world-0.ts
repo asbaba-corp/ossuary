@@ -99,6 +99,17 @@ interface FaseDesenho {
 }
 
 /**
+ * FORMA DO MUNDO 0: dez noites. Noites 1 a 4 têm 3 ondas; noites 5 a 10 têm 5.
+ * A noite curta é a de aprender, a longa é a de sustentar — e como o
+ * checkpoint é por onda, a noite de 5 também é a mais perdoada por onda.
+ *
+ * Ao mexer na contagem de ondas, o TOTAL DE INIMIGOS DA NOITE foi mantido
+ * igual ao calibre anterior, redistribuído entre as ondas novas. Sem cura, o
+ * que mata é o dano somado da noite inteira, não o pico de uma onda: preservar
+ * o total é o que impede a mudança de forma de virar mudança de dificuldade.
+ * `xpPorOnda` e `ouroPorOnda` foram redivididos pela mesma razão — a noite
+ * paga o mesmo que pagava antes.
+ *
  * CALIBRE ATUAL: sem cura de nenhum tipo.
  *
  * O modelo de balanceamento media dificuldade em poções queimadas, porque é
@@ -118,67 +129,62 @@ const DESENHO: readonly FaseDesenho[] = [
     ondas: [{ ignavo: 3 }, { ignavo: 4 }, { ignavo: 5 }],
   },
   {
-    papel: "Apresentação", dropTableId: "w0-drop-inicial", xpPorOnda: 37, ouroPorOnda: 25,
-    ondas: [{ ignavo: 4 }, { ignavo: 5 }, { ignavo: 6 }, { ignavo: 7 }],
+    papel: "Apresentação", dropTableId: "w0-drop-inicial", xpPorOnda: 50, ouroPorOnda: 34,
+    ondas: [{ ignavo: 6 }, { ignavo: 7 }, { ignavo: 9 }],
   },
   {
     // a foice cai aqui, garantida: é ela que abre a multidão das fases seguintes
-    papel: "Escalada", dropTableId: "w0-drop-foice", xpPorOnda: 66, ouroPorOnda: 50,
-    ondas: [
-      { ignavo: 6, moscardo: 3 }, { ignavo: 6, moscardo: 4 },
-      { ignavo: 7, moscardo: 5 }, { moscardo: 9 },
-    ],
+    papel: "Escalada", dropTableId: "w0-drop-foice", xpPorOnda: 88, ouroPorOnda: 67,
+    ondas: [{ ignavo: 7, moscardo: 5 }, { ignavo: 7, moscardo: 7 }, { ignavo: 5, moscardo: 9 }],
   },
   {
-    papel: "Escalada", dropTableId: "w0-drop-vestibulo", xpPorOnda: 99, ouroPorOnda: 75,
-    ondas: [
-      { ignavo: 8, moscardo: 4 }, { ignavo: 9, moscardo: 5 },
-      { ignavo: 10, moscardo: 6 }, { ignavo: 12, moscardo: 6 },
-    ],
+    papel: "Escalada", dropTableId: "w0-drop-vestibulo", xpPorOnda: 132, ouroPorOnda: 100,
+    ondas: [{ ignavo: 12, moscardo: 6 }, { ignavo: 13, moscardo: 7 }, { ignavo: 14, moscardo: 8 }],
   },
   {
-    // miniboss: três ondas para o pico doer sem virar maratona
-    papel: "Miniboss", dropTableId: "w0-drop-vestibulo", xpPorOnda: 180, ouroPorOnda: 134,
+    // miniboss: o Marcado fecha a noite, nunca abre
+    papel: "Miniboss", dropTableId: "w0-drop-vestibulo", xpPorOnda: 108, ouroPorOnda: 81,
     ondas: [
-      { ignavo: 8, moscardo: 5 }, { ignavo: 10, moscardo: 6 },
-      { marcado: 1, ignavo: 8, moscardo: 5 },
+      { ignavo: 5, moscardo: 3 }, { ignavo: 6, moscardo: 3 }, { ignavo: 6, moscardo: 4 },
+      { ignavo: 5, moscardo: 3 }, { marcado: 1, ignavo: 4, moscardo: 3 },
     ],
   },
   {
     // a Gorja estreia sozinha: dreno somado trava o DPS e, sem cura, mata
-    papel: "Pressão", dropTableId: "w0-drop-vestibulo", xpPorOnda: 175, ouroPorOnda: 140,
+    papel: "Pressão", dropTableId: "w0-drop-vestibulo", xpPorOnda: 140, ouroPorOnda: 112,
     ondas: [
-      { gorja: 1, ignavo: 7 }, { gorja: 1, moscardo: 8 },
-      { gorja: 1, ignavo: 9 }, { gorja: 2, moscardo: 7 },
+      { gorja: 1, ignavo: 6 }, { gorja: 1, moscardo: 7 }, { gorja: 1, ignavo: 6 },
+      { gorja: 1, moscardo: 8 }, { gorja: 1, ignavo: 4 },
     ],
   },
   {
     // a ceifa cai aqui, garantida
-    papel: "Pressão", dropTableId: "w0-drop-ceifa", xpPorOnda: 218, ouroPorOnda: 190,
+    papel: "Pressão", dropTableId: "w0-drop-ceifa", xpPorOnda: 175, ouroPorOnda: 152,
     ondas: [
-      { gorja: 2, ignavo: 8 }, { gorja: 2, moscardo: 8 },
-      { gorja: 2, ignavo: 7, moscardo: 5 }, { gorja: 2, moscardo: 7, ignavo: 6 },
+      { gorja: 2, ignavo: 6 }, { gorja: 2, moscardo: 6 }, { gorja: 1, ignavo: 7, moscardo: 4 },
+      { gorja: 2, moscardo: 6, ignavo: 5 }, { gorja: 1, ignavo: 3, moscardo: 4 },
     ],
   },
   {
     // spawn garantido do elite: é o Óbolo que paga o Caronte
-    papel: "Elite", dropTableId: "w0-drop-fundo", xpPorOnda: 264, ouroPorOnda: 220,
+    papel: "Elite", dropTableId: "w0-drop-fundo", xpPorOnda: 212, ouroPorOnda: 176,
     ondas: [
-      { ignavo: 10, moscardo: 7 }, { gorja: 2, moscardo: 8 },
-      { marcado: 1, ignavo: 6 }, { marcado: 1, gorja: 1 },
+      { ignavo: 8, moscardo: 6 }, { gorja: 2, moscardo: 5 }, { marcado: 1, ignavo: 5 },
+      { ignavo: 3, moscardo: 4 }, { marcado: 1, gorja: 1 },
     ],
   },
   {
-    papel: "A parede", dropTableId: "w0-drop-fundo", xpPorOnda: 312, ouroPorOnda: 300,
+    papel: "A parede", dropTableId: "w0-drop-fundo", xpPorOnda: 250, ouroPorOnda: 240,
     ondas: [
-      { encalhado: 2, ignavo: 7 }, { encalhado: 3, moscardo: 8 },
-      { encalhado: 3, gorja: 1 }, { encalhado: 4, ignavo: 8 },
+      { encalhado: 2, ignavo: 6 }, { encalhado: 2, moscardo: 5 }, { encalhado: 3, gorja: 1 },
+      { encalhado: 2, moscardo: 3 }, { encalhado: 3, ignavo: 9 },
     ],
   },
   {
-    papel: "Guardião", dropTableId: "w0-drop-fundo", xpPorOnda: 400, ouroPorOnda: 260,
+    papel: "Guardião", dropTableId: "w0-drop-fundo", xpPorOnda: 240, ouroPorOnda: 156,
     ondas: [
-      { ignavo: 8, moscardo: 6 }, { gorja: 1, encalhado: 2 }, { caronte: 1 },
+      { ignavo: 5, moscardo: 3 }, { ignavo: 3, moscardo: 3 }, { gorja: 1, encalhado: 1 },
+      { encalhado: 1 }, { caronte: 1 },
     ],
   },
 ];
@@ -341,6 +347,6 @@ export const WORLD_0_CONTENT: GameContentContext = {
   consumables: [{ id: "w0-pocao-por-onda", itemId: W0_POCAO.id, quantity: 1, goldCost: 50 }],
   combatRules: { tickSeconds: 0.25, defenseConstant: 100 },
   rewardRules: { goldResourceId: "gold" },
-  runRules: { walkingMs: 2500, offlineCapMs: 12 * 60 * 60 * 1000, checkpointEveryWave: true },
+  runRules: { walkingMs: 6000, offlineCapMs: 12 * 60 * 60 * 1000, checkpointEveryWave: true },
   derivedStatFormulas: FORMULAS,
 };

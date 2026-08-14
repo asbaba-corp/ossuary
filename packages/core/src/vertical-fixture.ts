@@ -1,4 +1,4 @@
-import { createConsumable, createEquipment, createItemStack, type EquipmentDropEntry } from "./equipment/legacy.js";
+import { createConsumable, createEquipment, createItemStack, type EquipmentDropEntry } from "./equipment.js";
 import type { DerivedStatFormulas } from "./progression/derived.js";
 import type { GameContentContext } from "./game-content.js";
 
@@ -52,6 +52,6 @@ export const VERTICAL_FIXTURE_CONTENT: GameContentContext = {
   combatRules: { tickSeconds: 0.25, defenseConstant: 100 }, rewardRules: { goldResourceId: "gold" }, runRules: { walkingMs: 1000, offlineCapMs: 12 * 60 * 60 * 1000, checkpointEveryWave: true }, derivedStatFormulas: formulas,
 };
 
-export function addFixtureStartingItems<T extends { readonly inventory: { readonly capacity: number; readonly items: readonly import("./equipment/legacy.js").ItemStack[] } }>(state: T): T {
+export function addFixtureStartingItems<T extends { readonly inventory: { readonly capacity: number; readonly items: readonly import("./equipment.js").ItemStack[] } }>(state: T): T {
   return { ...state, inventory: { ...state.inventory, items: [createItemStack(VERTICAL_FIXTURE_CONSUMABLE, 2)] } };
 }

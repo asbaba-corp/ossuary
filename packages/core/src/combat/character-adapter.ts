@@ -1,6 +1,6 @@
 import type { Character } from "../character.js";
 import { resolvePartyBuilds, type Party, type RosterState } from "../party.js";
-import { getEffectiveCharacterAttributes, getEffectiveCharacterStats, type CharacterLoadout, type ItemEffectState } from "../equipment/legacy.js";
+import { getEffectiveCharacterAttributes, getEffectiveCharacterStats, type CharacterLoadout, type ItemEffectState } from "../equipment.js";
 import { calculateCharacterDerivedStats, type CharacterDerivedStats, type DerivedStatFormulas } from "../progression/derived.js";
 import type { OssuaryDerivedStat } from "../ossuary.js";
 import type { SpellLoadout } from "../spell-loadout.js";

@@ -116,12 +116,38 @@ What to check each time:
 | `docs/done/<slug>.md` | What was actually delivered, and how it differed from the plan |
 | `AGENTS.md` | New commands, new conventions, new constraints |
 | `changelogs.md` | The version entry for this PR (see *Changelog*) |
+| `memory.md` | Anything worth not rediscovering (see *Memory*) |
 | Open PR body | The change, under `Added` / `Changed` / `Fixed` |
 
 Two rules that carry most of the value:
 
 - **A resolved open question moves out of the open list** and into the resolved table, with the decision recorded. An open question that was silently answered in code is the most expensive kind of stale doc.
 - **When implementation contradicts a doc, the doc is wrong until proven otherwise** — but say so explicitly instead of quietly editing it. The user decides whether the code or the doc was the mistake.
+
+## Memory — obrigatório antes de abrir a PR
+
+**Before opening any PR, append to `memory.md` whatever from that work is worth
+not rediscovering.** This is law, same as the changelog.
+
+`memory.md` is not a second changelog. The changelog says *what changed*;
+`memory.md` says *why*, and *what not to repeat*. Write an entry when:
+
+- a defect took more than one attempt to close, or the first diagnosis was wrong
+- a fix looks arbitrary and would be "cleaned up" by someone who does not know
+  the reason (a magic constant, an odd ordering, a guard that seems redundant)
+- an investigation reached a wrong conclusion from a correct measurement — say
+  what misled you, so the next person does not repeat the route
+- a hypothesis was **discarded**; a wrong path documented is a wrong path
+  nobody walks twice
+- a tool or fixture was added for verifying something (say what it is for)
+
+Each entry carries three things: the **symptom** (what was visible), the
+**cause** (the line or the mechanism), and the **lesson** (what to do
+differently). Append at the end of the relevant section; do not rewrite past
+entries — being wrong earlier is part of the record.
+
+A PR whose work produced none of the above needs no entry. Say so in the PR
+body rather than inventing one.
 
 ## Changelog — obrigatório
 

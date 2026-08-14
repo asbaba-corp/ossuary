@@ -10,7 +10,7 @@ import {
   createCharacter,
   type Character,
 } from "./character.js";
-import type { CharacterLoadout } from "./equipment/legacy.js";
+import type { CharacterLoadout } from "./equipment.js";
 import { createSpellLoadout, type SpellLoadout } from "./spell-loadout.js";
 
 export { createCharacter } from "./character.js";

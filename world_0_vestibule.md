@@ -82,8 +82,8 @@ A borda leste desce para a margem do Aqueronte. É onde Caronte espera.
 
 ## Bestiário
 
-O jogador lê este bestiário dentro do jogo: o protótipo (`prototype/scene.html`)
-expõe as entradas abaixo num pop-up próprio, com figura, dano e drops.
+O jogador lê este bestiário dentro da aplicação Expo, no painel Bestiário da
+home, com figura, dano e drops.
 
 **Os valores de dano são placeholder.** Não há balanceamento por espécie ainda —
 a simulação aplica uma fórmula única a todos os mobs (`2 + rng*3 + onda*0.32`,

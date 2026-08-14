@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Platform } from 'react-native';
 
 import { PhoneFrame } from './PhoneFrame';
+import { GameScreen } from './game/GameScreen';
 import { MechanicsLabScreen } from './MechanicsLabScreen';
 
 const LAB_PATH = '/lab';
@@ -18,19 +19,15 @@ export default function App() {
   const [path, setPath] = useState(currentWebPath);
 
   useEffect(() => {
-    if (Platform.OS === 'web' && path === '/') {
-      window.history.replaceState({}, '', LAB_PATH);
-      setPath(LAB_PATH);
-    }
+    if (Platform.OS !== 'web' || typeof window === 'undefined') return;
+    const onPopState = () => setPath(currentWebPath());
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
   }, [path]);
-
-  if (Platform.OS === 'web' && path !== LAB_PATH) {
-    return null;
-  }
 
   return (
     <PhoneFrame>
-      <MechanicsLabScreen />
+      {Platform.OS === 'web' && path === LAB_PATH ? <MechanicsLabScreen /> : <GameScreen />}
     </PhoneFrame>
   );
 }
