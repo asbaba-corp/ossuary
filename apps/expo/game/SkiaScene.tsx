@@ -275,8 +275,10 @@ export function SkiaScene({ time, status, enemies, animations, hits, partyId, fe
      lados fecham a distância, e o progresso vem do `distanceToWave` do motor
      — o mesmo número que decide quando a luta começa —, então a horda encosta
      no quadro exato em que o combate abre, sem chegar cedo e esperar parada. */
-  const avanco = Math.min(1, Math.max(0, marcha));
-  const suave = 1 - (1 - avanco) ** 2;   // desacelera ao chegar, não freia seco
+  /* Aproximação LINEAR. O ease-out `1-(1-t)²` parte com o dobro da velocidade
+     média e freia em cima do herói: a horda disparava para dentro do quadro e
+     depois arrastava. Um morto-vivo não acelera nem desacelera — anda. */
+  const suave = Math.min(1, Math.max(0, marcha));
   const recuoHorda = (1 - suave) * ENTRADA_DA_HORDA;
 
   /* O HERÓI NÃO SE MOVE NO PALCO — quem se move é o mundo.

@@ -167,7 +167,7 @@ export function useGameViewModel(): GameViewModel {
           }
           /* O clarão de acerto vive à parte da animação: assim quem está no
              meio do próprio golpe também pisca ao levar dano. */
-          const golpesRecebidos = { ...combatHitsRef.current };
+            const golpesRecebidos = { ...combatHitsRef.current };
           for (const event of attacks) golpesRecebidos[event.targetId] = epoch;
           combatHitsRef.current = golpesRecebidos;
           setCombatHits(golpesRecebidos);
