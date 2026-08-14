@@ -159,14 +159,14 @@ export function useGameViewModel(): GameViewModel {
             ...[...somaPorAlvo].map(([alvo, { dano, critico }]) => ({
               id: `d:${nascidoEm.toFixed(3)}:${alvo}`, alvo, epoch: nascidoEm,
               text: `-${Math.round(dano)}`, color: critico ? "#ffb648" : "#ff5a48",
-              dx: desvio(`${alvo}:${nascidoEm.toFixed(2)}`), dy: (Math.abs(Math.round(nascidoEm * 7)) % 3) * -9,
+              dx: 0, dy: (Math.abs(Math.round(nascidoEm * 7)) % 3) * -11,
             })),
             /* A marca de morte sai de cima do número de dano: no golpe que
                mata os dois nascem no mesmo ponto e no mesmo instante, e a
                marca dourada ficava atrás do número, tornando-o ilegível. */
             ...defeats.map((event, i) => ({
               id: `m:${nascidoEm.toFixed(3)}:${i}:${event.combatantId}`, alvo: event.combatantId,
-              epoch: nascidoEm, text: "✦", color: "#f0c04a", dx: 26, dy: -20,
+              epoch: nascidoEm, text: "✦", color: "#f0c04a", dx: 20, dy: -26,
             })),
           ]);
         }

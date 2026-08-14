@@ -410,7 +410,10 @@ export function SkiaScene({ time, status, enemies, animations, hits, partyId, fe
              a vida de 0,9s aquilo percorria 30px no total e lia como parado.
              O ease-out dá o "pop" que o olho reconhece como golpe. */
           const avanco = 1 - (1 - idade / VIDA_NUMERO) ** 2;
-          const mundoY = GROUND - FRAME * MOB_SCALE * 0.78 - avanco * 78 + (item.dy ?? 0);
+          /* A altura sai da escala de QUEM levou o golpe. Usar sempre a do
+             mob punha o número no meio do peito do herói, que é maior. */
+          const escalaAlvo = indice >= 0 ? MOB_SCALE : HERO_SCALE;
+          const mundoY = GROUND - FRAME * escalaAlvo * 0.84 - avanco * 78 + (item.dy ?? 0);
           return (
             <Text
               key={item.id}
