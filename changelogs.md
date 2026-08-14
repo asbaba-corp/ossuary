@@ -24,6 +24,22 @@ o arquivo mexido. "Ataques agora acertam no quadro do golpe" vale mais que
 
 ---
 
+## 0.11 — Traduz e dobra as citações do Inferno na tela de morte
+PR #50 · 2026-08-13 · @thipintop
+
+### Changed
+- As dez citações do Inferno na tela de morte (#49) estavam no italiano
+  original. Viram tradução livre para português — mesma citação, mesmo
+  personagem, mesma referência, só em PT-BR.
+
+### Added
+- Mais dez citações, de dez para vinte no total — inclui Ugolino como novo
+  personagem, e uma linha sobre quem "viveu sem honra e sem louvor", a
+  descrição de Dante para os habitantes do vestíbulo do Inferno (mesmo nome
+  da zona inicial do jogo).
+
+---
+
 ## 0.10 — Citações do Inferno na tela de morte
 PR #49 · 2026-08-13 · @thipintop
 
