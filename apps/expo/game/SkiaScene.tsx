@@ -325,7 +325,10 @@ export function SkiaScene({ time, status, enemies, animations, hits, partyId, fe
   const animHeroi: Animation = sinalHeroi?.animation ?? (andando ? "walk" : "idle");
   const tHeroi = sinalHeroi ? time - sinalHeroi.epoch : time;
 
-  const posicaoMob = (i: number) => PRIMEIRO_MOB_X + i * VAO_ENTRE_MOBS + recuoHorda;
+  /** Onde um inimigo PARA para lutar. Sem o recuo de entrada. */
+  const slotMob = (i: number) => PRIMEIRO_MOB_X + i * VAO_ENTRE_MOBS;
+  /** Onde um inimegio VIVO está agora, contando a entrada em curso. */
+  const posicaoMob = (i: number) => slotMob(i) + recuoHorda;
   const heroiX = HEROI_X;
 
   return (
@@ -386,7 +389,12 @@ export function SkiaScene({ time, status, enemies, animations, hits, partyId, fe
             /* Fica onde caiu e o mundo o deixa para trás. A animação de morte
                roda uma vez e o último quadro PERMANECE: o corpo não desvanece,
                some por sair de cena. */
-            const x = posicaoMob(corpo.indice) - (camera - corpo.camera);
+            /* Do SLOT, não de `posicaoMob`: esta última soma o recuo da horda
+               que está entrando, e com isso os corpos eram empurrados para a
+               frente junto com ela — o jogador via cadáveres adiante, de
+               monstros que ainda nem tinha enfrentado. O corpo não anda: o
+               mundo é que passa por ele. */
+            const x = slotMob(corpo.indice) - (camera - corpo.camera);
             if (x < LIMITE_DO_CORPO || x > W + 420) return null;
             return (
               <Group key={`corpo:${corpo.id}`}>

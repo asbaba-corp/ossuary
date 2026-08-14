@@ -76,7 +76,12 @@ export function useGameViewModel(): GameViewModel {
   const cameraRef = useRef(0);
   /* Âncora da marcha: o progresso do motor mais o instante em que ele chegou.
      Entre um tick e outro a cena interpola a partir daqui. */
-  const marchaRef = useRef({ progresso: 1, relogio: 0 });
+  /* Nasce em ZERO, não em um. Antes do primeiro tick não há âncora do motor, e
+     começar em 1 fazia a cena concluir que a marcha já tinha acabado: a horda
+     era plantada no lugar de combate no primeiro quadro e sumia no tick
+     seguinte, quando o progresso real chegava. Era o "aparecem e somem" ao
+     abrir o jogo. */
+  const marchaRef = useRef({ progresso: 0, relogio: 0 });
   /* Os mortos sobrevivem à onda que os matou.
      Quando o último inimigo cai, o motor fecha a onda NO MESMO TICK: `combat`
      vira null e a cena perdia o corpo antes de ele piscar ou tombar — daí "o
