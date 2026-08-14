@@ -206,8 +206,8 @@ const CICLO_COLUNA = 1720;
 type Enemy = { readonly id: string; readonly name: string; readonly hp: number; readonly maxHp: number };
 type Feedback = { readonly id: string; readonly alvo: string; readonly epoch: number; readonly text: string; readonly color: string };
 
-export function SkiaScene({ time, status, enemies, animations, hits, partyId, feedback, marcha = 1 }: {
-  time: number; status: string; enemies: readonly Enemy[]; marcha?: number;
+export function SkiaScene({ time, status, enemies, animations, hits, partyId, feedback, marcha = 1, camera = 0 }: {
+  time: number; status: string; enemies: readonly Enemy[]; marcha?: number; camera?: number;
   animations: SceneAnimationState; hits?: Readonly<Record<string, number>>;
   partyId?: string; feedback: readonly Feedback[];
 }) {
@@ -268,7 +268,6 @@ export function SkiaScene({ time, status, enemies, animations, hits, partyId, fe
   const mob: Folhas = { idle: mobIdle, walk: mobWalk, attack: mobAttack, hurt: mobHurt, dead: mobDead };
 
   const andando = status === "walking" || status === "retreating";
-  const camera = andando ? time * 34 : 0;
 
   /* Encontro, não teletransporte.
      Antes o herói e a horda ficavam em x fixo e só o fundo corria: a marcha

@@ -8,6 +8,9 @@ import {
 } from "@ossuary/core";
 import { ExpoSaveStore } from "../storage";
 
+/** Pixels por segundo que o mundo desliza enquanto a party marcha. */
+const VELOCIDADE_DA_MARCHA = 62;
+
 export type GamePanel = "inventory" | "stats" | "bestiary" | "systems" | null;
 export type SceneAnimation = "attack" | "hurt" | "dead";
 export type SceneAnimationState = Readonly<Record<string, { readonly animation: SceneAnimation; readonly epoch: number }>>;
@@ -27,6 +30,7 @@ export interface GameViewModel {
   readonly inventoryPage: number;
   readonly eventMessage: string;
   readonly marchProgress: number;
+  readonly camera: number;
   readonly upcomingEnemies: readonly { readonly id: string; readonly name: string; readonly hp: number; readonly maxHp: number }[];
   readonly phaseLabel: string;
   readonly waveLabel: string;
@@ -68,6 +72,10 @@ export function useGameViewModel(): GameViewModel {
   const [combatAnimations, setCombatAnimations] = useState<SceneAnimationState>({});
   const combatAnimationsRef = useRef<SceneAnimationState>({});
   const sceneClockRef = useRef(0);
+  const cameraRef = useRef(0);
+  /* Âncora da marcha: o progresso do motor mais o instante em que ele chegou.
+     Entre um tick e outro a cena interpola a partir daqui. */
+  const marchaRef = useRef({ progresso: 1, relogio: 0 });
   const [panel, setPanel] = useState<GamePanel>(null);
   const [inventoryPage, setInventoryPage] = useState(0);
   const [eventMessage, setEventMessage] = useState("Carregando save local…");
@@ -108,6 +116,10 @@ export function useGameViewModel(): GameViewModel {
       const session = sessionRef.current;
       if (!session || !session.state.run || session.state.run.status === "completed") return;
       void session.tick(250 * speed).then((events) => {
+        const corrida = session.state.run;
+        marchaRef.current = corrida && corrida.status !== "combat"
+          ? { progresso: 1 - Math.min(1, Math.max(0, corrida.distanceToWave / WORLD_0_CONTENT.runRules.walkingMs)), relogio: sceneClockRef.current }
+          : { progresso: 1, relogio: sceneClockRef.current };
         const combatEvents = events.filter((event): event is Extract<GameEvent, { type: "combat" }> => event.type === "combat").map((event) => event.event);
         const attacks = combatEvents.filter((event): event is Extract<typeof combatEvents[number], { type: "attack" }> => event.type === "attack");
         const defeats = combatEvents.filter((event): event is Extract<typeof combatEvents[number], { type: "combatant_defeated" }> => event.type === "combatant_defeated");
@@ -191,13 +203,32 @@ export function useGameViewModel(): GameViewModel {
     return () => clearInterval(timer);
   }, [paused, ready, speed]);
 
+  /* Relógio da cena no rAF, não num intervalo de 50ms.
+     A 20Hz cada posição dava 20 saltos por segundo: o herói parecia fluido
+     porque o ciclo de andar dele é uma folha de sprites, mas a horda, cuja
+     posição é calculada, andava em degraus. O rAF acompanha o monitor.
+
+     Junto vai a CÂMERA, acumulada. Ela era `time * 34` durante a marcha e 0 no
+     combate: ao virar a onda o fundo saltava do zero para o tempo absoluto e
+     dava o corte brusco. Distância caminhada só cresce, e só enquanto anda. */
   useEffect(() => {
     if (!ready || paused) return;
-    const timer = setInterval(() => {
-      sceneClockRef.current += 0.05 * speed;
+    let vivo = true;
+    let anterior = performance.now();
+    const passo = (agora: number) => {
+      if (!vivo) return;
+      const delta = Math.min(0.05, (agora - anterior) / 1000) * speed;  // limita o salto ao voltar de aba oculta
+      anterior = agora;
+      sceneClockRef.current += delta;
+      const andando = sessionRef.current?.state.run?.status;
+      if (andando === "walking" || andando === "retreating") {
+        cameraRef.current += delta * VELOCIDADE_DA_MARCHA;
+      }
       setSceneTime(sceneClockRef.current);
-    }, 50);
-    return () => clearInterval(timer);
+      requestAnimationFrame(passo);
+    };
+    const id = requestAnimationFrame(passo);
+    return () => { vivo = false; cancelAnimationFrame(id); };
   }, [paused, ready, speed]);
 
   function reset() {
@@ -238,9 +269,14 @@ export function useGameViewModel(): GameViewModel {
        mesmo número que decide quando o combate começa, então a horda chega
        exatamente no quadro em que a luta começa. Um relógio próprio na cena
        chegava cedo e a horda ficava esperando parada. */
+    /* Interpolado entre os ticks. `distanceToWave` só muda 4 vezes por segundo,
+       e ler direto dele fazia a horda andar em degraus de 250ms. A âncora vem
+       do motor — então nada de drift acumulado — e o resto é o relógio da cena. */
     marchProgress: run && run.status !== "combat"
-      ? 1 - Math.min(1, Math.max(0, run.distanceToWave / WORLD_0_CONTENT.runRules.walkingMs))
+      ? Math.min(1, marchaRef.current.progresso
+          + (sceneTime - marchaRef.current.relogio) / (WORLD_0_CONTENT.runRules.walkingMs / 1000))
       : 1,
+    camera: cameraRef.current,
 
     /* A horda da onda que está por vir, montada a partir do conteúdo.
        Durante a marcha `run.combat` é null, então a cena não tinha ninguém
