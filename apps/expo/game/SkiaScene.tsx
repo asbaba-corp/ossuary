@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { useMemo } from "react";
 import { Canvas, Circle, ColorMatrix, Group, Image as SkiaImage, Oval, Paint, RadialGradient, Rect, Skia, rect, useImage, vec } from "@shopify/react-native-skia";
 import type { SkCanvas, SkPaint } from "@shopify/react-native-skia";
@@ -40,8 +41,8 @@ const CICLA: Record<Animation, boolean> = { idle: true, walk: true, attack: fals
 
 const DURACAO_SINAL: Record<SceneAnimation, number> = { attack: 0.42, hurt: 0.3, dead: 0.5 };
 const FADE_CORPO = 0.4;                  // desvanecer depois da animação de morte
-const VIDA_NUMERO = 0.9;                 // quanto um número flutuante dura
-const VIDA_CLARAO = 0.22;                // quanto o pisca de acerto dura
+const VIDA_NUMERO = 0.7;                 // quanto um número flutuante dura
+const VIDA_CLARAO = 0.32;                // quanto o pisca de acerto dura
 
 /** Pinta tudo de branco mantendo o alfa: é o que faz o sprite piscar sem
     virar um retângulo. */
@@ -74,21 +75,32 @@ function Quadro({ image, animation, t, cx, footY, scale, flip, clarao = 0 }: {
   const x = Math.round(cx - lado / 2);
   const y = Math.round(footY - lado);
 
-  const desenho = (
+  /* Espelha em torno do próprio centro; sem isto o inimigo marchava de costas. */
+  const espelha = (conteudo: ReactNode) => flip
+    ? <Group transform={[{ translateX: 2 * (x + lado / 2) }, { scaleX: -1 }]}>{conteudo}</Group>
+    : <>{conteudo}</>;
+
+  const recorte = (
     <Group clip={rect(x, y, lado, lado)}>
       <SkiaImage image={image} x={x - indice * lado} y={y} width={lado * total} height={lado} fit="fill" />
-      {clarao > 0 && (
-        <Group opacity={clarao} layer={<Paint><ColorMatrix matrix={TUDO_BRANCO} /></Paint>}>
-          <SkiaImage image={image} x={x - indice * lado} y={y} width={lado * total} height={lado} fit="fill" />
-        </Group>
-      )}
     </Group>
   );
 
-  // espelha em torno do próprio centro; sem isto o inimigo marchava de costas
-  return flip
-    ? <Group transform={[{ translateX: 2 * (x + lado / 2) }, { scaleX: -1 }]}>{desenho}</Group>
-    : desenho;
+  /* O clarão é uma SEGUNDA passada do mesmo quadro, pintada de branco por uma
+     camada. A camada fica POR FORA do espelhamento de propósito: quando ela
+     ficava dentro do grupo com `scaleX: -1`, o clarão não aparecia — o herói,
+     que não espelha, piscava, e os inimigos, que espelham, nunca. Era essa a
+     diferença entre os dois, e não a fiação dos ids. */
+  return (
+    <>
+      {espelha(recorte)}
+      {clarao > 0 && (
+        <Group opacity={clarao} layer={<Paint><ColorMatrix matrix={TUDO_BRANCO} /></Paint>}>
+          {espelha(recorte)}
+        </Group>
+      )}
+    </>
+  );
 }
 
 /* ----------------------------------------------------------------- parede */
@@ -204,7 +216,7 @@ const CICLO_COLUNA = 1720;
 /* ------------------------------------------------------------------ cena */
 
 type Enemy = { readonly id: string; readonly name: string; readonly hp: number; readonly maxHp: number };
-type Feedback = { readonly id: string; readonly alvo: string; readonly epoch: number; readonly text: string; readonly color: string };
+type Feedback = { readonly id: string; readonly alvo: string; readonly epoch: number; readonly text: string; readonly color: string; readonly dx?: number; readonly dy?: number };
 
 export function SkiaScene({ time, status, enemies, animations, hits, partyId, feedback, marcha = 1, camera = 0 }: {
   time: number; status: string; enemies: readonly Enemy[]; marcha?: number; camera?: number;
@@ -215,7 +227,7 @@ export function SkiaScene({ time, status, enemies, animations, hits, partyId, fe
   const claraoDe = (id?: string) => {
     const quando = id ? hits?.[id] : undefined;
     if (quando === undefined) return 0;
-    return Math.max(0, 1 - (time - quando) / VIDA_CLARAO) * 0.85;
+    return Math.max(0, 1 - (time - quando) / VIDA_CLARAO);
   };
   /* A parede é RASTERIZADA uma vez, para uma imagem, e depois só transladada.
      Duas etapas foram necessárias, e a primeira não bastou:
@@ -398,13 +410,13 @@ export function SkiaScene({ time, status, enemies, animations, hits, partyId, fe
              a vida de 0,9s aquilo percorria 30px no total e lia como parado.
              O ease-out dá o "pop" que o olho reconhece como golpe. */
           const avanco = 1 - (1 - idade / VIDA_NUMERO) ** 2;
-          const mundoY = GROUND - FRAME * MOB_SCALE * 0.78 - avanco * 78;
+          const mundoY = GROUND - FRAME * MOB_SCALE * 0.78 - avanco * 78 + (item.dy ?? 0);
           return (
             <Text
               key={item.id}
               style={[styles.numero, {
                 color: item.color,
-                left: mundoX * escala - 26,
+                left: (mundoX + (item.dx ?? 0)) * escala - 26,
                 top: mundoY * escala,
                 opacity: Math.max(0, 1 - idade / VIDA_NUMERO),
               }]}

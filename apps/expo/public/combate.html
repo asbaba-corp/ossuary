@@ -1,0 +1,11 @@
+<!doctype html>
+<!-- Semeia um save JÁ EM COMBATE. Sem isto, uma captura de tempo virtual gasta
+     os 4,8s de marcha e nunca chega a ver um golpe — foi o que me impediu de
+     conferir o clarão dos inimigos na rodada anterior. -->
+<meta charset="utf-8"><title>semeando combate…</title>
+<script>
+fetch("/save-combate.json").then((r) => r.text()).then((raw) => {
+  localStorage.setItem("ossuary:game-state:v1", raw);
+  location.replace("/");
+});
+</script>

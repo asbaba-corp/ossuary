@@ -22,7 +22,7 @@ export interface GameViewModel {
   readonly speed: 1 | 3;
   readonly sceneTime: number;
   readonly attackEpoch: number;
-  readonly combatFeedback: readonly { readonly id: string; readonly alvo: string; readonly epoch: number; readonly text: string; readonly color: string }[];
+  readonly combatFeedback: readonly { readonly id: string; readonly alvo: string; readonly epoch: number; readonly text: string; readonly color: string; readonly dx: number; readonly dy: number }[];
   readonly combatAnimations: SceneAnimationState;
   readonly combatHits: Readonly<Record<string, number>>;
   readonly activeEffects: readonly string[];
@@ -68,7 +68,7 @@ export function useGameViewModel(): GameViewModel {
   const [attackEpoch, setAttackEpoch] = useState(0);
   const [combatHits, setCombatHits] = useState<Readonly<Record<string, number>>>({});
   const combatHitsRef = useRef<Readonly<Record<string, number>>>({});
-  const [combatFeedback, setCombatFeedback] = useState<readonly { readonly id: string; readonly alvo: string; readonly epoch: number; readonly text: string; readonly color: string }[]>([]);
+  const [combatFeedback, setCombatFeedback] = useState<readonly { readonly id: string; readonly alvo: string; readonly epoch: number; readonly text: string; readonly color: string; readonly dx: number; readonly dy: number }[]>([]);
   const [combatAnimations, setCombatAnimations] = useState<SceneAnimationState>({});
   const combatAnimationsRef = useRef<SceneAnimationState>({});
   const sceneClockRef = useRef(0);
@@ -141,13 +141,33 @@ export function useGameViewModel(): GameViewModel {
             somaPorAlvo.set(event.targetId, { dano: atual.dano + event.damage, critico: atual.critico || event.critical });
           }
 
+          /* Desvio lateral por alvo e por instante.
+             Sem ele, cercado, o herói ganhava um número novo a cada 250ms
+             exatamente no mesmo ponto enquanto os anteriores ainda
+             desvaneciam por 0,9s: lia como um borrão parado em cima do
+             boneco, não como dano subindo. O desvio é determinístico — mesmo
+             alvo no mesmo instante cai sempre no mesmo lugar —, então nada
+             tremula entre um quadro e outro. */
+          const desvio = (semente: string) => {
+            let h = 0;
+            for (let i = 0; i < semente.length; i += 1) h = (h * 31 + semente.charCodeAt(i)) | 0;
+            return ((Math.abs(h) % 73) - 36);
+          };
+
           setCombatFeedback((anteriores) => [
             ...anteriores.filter((item) => nascidoEm - item.epoch < 1),
             ...[...somaPorAlvo].map(([alvo, { dano, critico }]) => ({
               id: `d:${nascidoEm.toFixed(3)}:${alvo}`, alvo, epoch: nascidoEm,
               text: `-${Math.round(dano)}`, color: critico ? "#ffb648" : "#ff5a48",
+              dx: desvio(`${alvo}:${nascidoEm.toFixed(2)}`), dy: (Math.abs(Math.round(nascidoEm * 7)) % 3) * -9,
             })),
-            ...defeats.map((event, i) => ({ id: `m:${nascidoEm.toFixed(3)}:${i}:${event.combatantId}`, alvo: event.combatantId, epoch: nascidoEm, text: "✦", color: "#f0c04a" })),
+            /* A marca de morte sai de cima do número de dano: no golpe que
+               mata os dois nascem no mesmo ponto e no mesmo instante, e a
+               marca dourada ficava atrás do número, tornando-o ilegível. */
+            ...defeats.map((event, i) => ({
+              id: `m:${nascidoEm.toFixed(3)}:${i}:${event.combatantId}`, alvo: event.combatantId,
+              epoch: nascidoEm, text: "✦", color: "#f0c04a", dx: 26, dy: -20,
+            })),
           ]);
         }
         if (attacks.length > 0 || defeats.length > 0) {
