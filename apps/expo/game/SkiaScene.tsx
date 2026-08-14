@@ -24,8 +24,10 @@ const MOB_SCALE = 1.05;
 const VAO_ENTRE_MOBS = 62;
 const PRIMEIRO_MOB_X = 372;      // encostado no alcance do herói, não do outro lado do salão
 const HEROI_X = 250;
-const ENTRADA_DA_HORDA = 300;     // de quanto à direita a horda entra na cena
-const AVANCO_DO_HEROI = 46;       // o herói também caminha, senão só a horda se move
+/* A horda entra de FORA do palco (960 de largura): o primeiro mob começa em
+   372+660=1032, além da borda direita. Com 300 ela nascia em 672, dentro do
+   quadro — a onda seguinte aparecia do nada no meio da cena. */
+const ENTRADA_DA_HORDA = 660;
 
 /* ------------------------------------------------------------- animações */
 
@@ -277,7 +279,13 @@ export function SkiaScene({ time, status, enemies, animations, hits, partyId, fe
   const avanco = Math.min(1, Math.max(0, marcha));
   const suave = 1 - (1 - avanco) ** 2;   // desacelera ao chegar, não freia seco
   const recuoHorda = (1 - suave) * ENTRADA_DA_HORDA;
-  const recuoHeroi = (1 - suave) * AVANCO_DO_HEROI;
+
+  /* O HERÓI NÃO SE MOVE NO PALCO — quem se move é o mundo.
+     Ele tinha um avanço próprio que ia a zero ao fim da marcha; quando a onda
+     acabava e a marcha recomeçava, esse avanço voltava ao início e o boneco
+     SALTAVA para trás. Era esse o teleporte a cada onda.
+     A sensação de caminhada já vem do fundo correndo e da horda entrando pela
+     direita, que é como o protótipo faz: câmera presa no herói. */
 
   const sinalVivo = (id?: string) => {
     const s = id ? animations[id] : undefined;
@@ -289,7 +297,7 @@ export function SkiaScene({ time, status, enemies, animations, hits, partyId, fe
   const tHeroi = sinalHeroi ? time - sinalHeroi.epoch : time;
 
   const posicaoMob = (i: number) => PRIMEIRO_MOB_X + i * VAO_ENTRE_MOBS + recuoHorda;
-  const heroiX = HEROI_X - recuoHeroi;
+  const heroiX = HEROI_X;
 
   return (
     <View style={[styles.host, { width, height }]} accessibilityLabel="Cena do Vestíbulo">

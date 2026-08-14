@@ -1,0 +1,12 @@
+<!doctype html>
+<!-- Semeia o localStorage com um save de jogo avançado (mochila cheia) e vai
+     para o app com a sonda ligada. Reproduz a condição de quem já jogou, que
+     é diferente da de um perfil novo — e era essa a diferença entre a minha
+     medição e a do usuário. -->
+<meta charset="utf-8"><title>semeando…</title>
+<script>
+fetch("/save-teste.json").then((r) => r.text()).then((raw) => {
+  localStorage.setItem("ossuary:game-state:v1", raw);
+  location.replace("/?sonda=1");
+});
+</script>
