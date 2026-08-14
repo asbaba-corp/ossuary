@@ -41,7 +41,10 @@ export function GameScreen() {
         feedback={vm.combatFeedback}
         partyId={vm.partyCombatants[0]?.id}
         status={vm.state?.run?.status ?? "walking"}
-        enemies={enemies.map(({ snapshot, hp }) => ({ id: snapshot.id, name: snapshot.name, hp, maxHp: snapshot.stats.maxHp }))}
+        marcha={vm.marchProgress}
+        enemies={enemies.length > 0
+          ? enemies.map(({ snapshot, hp }) => ({ id: snapshot.id, name: snapshot.name, hp, maxHp: snapshot.stats.maxHp }))
+          : vm.upcomingEnemies}
       />
 
       <View style={styles.partyBar}>

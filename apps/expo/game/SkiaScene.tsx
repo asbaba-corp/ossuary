@@ -1,4 +1,3 @@
-import { useRef } from "react";
 import { Canvas, Circle, ColorMatrix, Group, Image as SkiaImage, Oval, Paint, RadialGradient, Rect, rect, useImage, vec } from "@shopify/react-native-skia";
 import { StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import type { SceneAnimation, SceneAnimationState } from "./GameViewModel";
@@ -23,7 +22,6 @@ const MOB_SCALE = 1.05;
 const VAO_ENTRE_MOBS = 62;
 const PRIMEIRO_MOB_X = 372;      // encostado no alcance do herói, não do outro lado do salão
 const HEROI_X = 250;
-const DURACAO_APROXIMACAO = 1.6;  // segundos de marcha até os dois lados se encontrarem
 const ENTRADA_DA_HORDA = 300;     // de quanto à direita a horda entra na cena
 const AVANCO_DO_HEROI = 46;       // o herói também caminha, senão só a horda se move
 
@@ -91,38 +89,105 @@ function Quadro({ image, animation, t, cx, footY, scale, flip, clarao = 0 }: {
 
 /* ----------------------------------------------------------------- parede */
 
-/** Caveira do ossuário: calota, maxilar, órbitas fundas e nasal.
-    Formas cheias em vez de círculos soltos — círculos liam como bolhas. */
-function Caveira({ cx, cy, r, tom }: { cx: number; cy: number; r: number; tom: string }) {
+/* Paleta do ossuário, a mesma do protótipo: crânio em três tons (aceso, meio,
+   fundo) sobre parede quente escura, órbitas quase pretas. Chapar tudo num tom
+   só era o que fazia a parede ler como bolhas claras em vez de osso. */
+const TONS = [
+  { lit: "#8e8079", mid: "#5f544f", dim: "#2f2827" },
+  { lit: "#9c8d84", mid: "#695d57", dim: "#352d2b" },
+  { lit: "#82746e", mid: "#564b47", dim: "#2a2423" },
+  { lit: "#96877f", mid: "#635751", dim: "#312a28" },
+] as const;
+
+const PAREDE_FUNDO = "#3a3230";
+const ORBITA = "#100d0d";
+const FENDA = "#26201f";
+
+/** Mistura duas cores hex. Serve ao recuo: quanto mais fundo o crânio está na
+    pilha, mais ele tende à cor da parede — é isso que dá profundidade sem
+    precisar desenhar sombra para cada um. */
+function mistura(a: string, b: string, k: number) {
+  const ler = (c: string) => [1, 3, 5].map((i) => parseInt(c.slice(i, i + 2), 16));
+  const [ar, ag, ab] = ler(a);
+  const [br, bg, bb] = ler(b);
+  const canal = (x: number, y: number) => Math.round(x + (y - x) * k).toString(16).padStart(2, "0");
+  return `#${canal(ar!, br!)}${canal(ag!, bg!)}${canal(ab!, bb!)}`;
+}
+
+type Tom = { lit: string; mid: string; dim: string };
+const recua = (tom: Tom, k: number): Tom => ({
+  lit: mistura(tom.lit, PAREDE_FUNDO, k),
+  mid: mistura(tom.mid, PAREDE_FUNDO, k),
+  dim: mistura(tom.dim, PAREDE_FUNDO, k),
+});
+
+/** Um crânio da pilha.
+
+    A forma segue o protótipo: caixa mais ALTA que larga, maxilar recuado,
+    afunilamento abaixo das órbitas e prateleira supraciliar. Cinco elipses
+    chapadas do mesmo tom liam como cabeça — ou como bolha —, não como crânio.
+
+    `nuca` desenha o crânio virado: sutura, sem rosto. Sem ele a parede vira
+    uma grade de caras encarando o jogador, que é o que tirava a seriedade. */
+function Caveira({ cx, cy, r, tom, nuca }: { cx: number; cy: number; r: number; tom: Tom; nuca: boolean }) {
   return (
     <Group>
-      <Oval x={cx - r * 0.62} y={cy + r * 0.42} width={r * 1.24} height={r * 0.95} color={tom} />
-      <Oval x={cx - r} y={cy - r * 1.05} width={r * 2} height={r * 2} color={tom} />
-      <Oval x={cx - r * 0.6} y={cy - r * 0.14} width={r * 0.5} height={r * 0.42} color="#15100e" />
-      <Oval x={cx + r * 0.1} y={cy - r * 0.14} width={r * 0.5} height={r * 0.42} color="#15100e" />
-      <Oval x={cx - r * 0.1} y={cy + r * 0.3} width={r * 0.2} height={r * 0.28} color="#15100e" />
+      {/* vão escuro atrás: separa este crânio do que está embaixo */}
+      <Oval x={cx - r * 1.22} y={cy - r * 0.96} width={r * 2.44} height={r * 2.52} color={FENDA} opacity={0.62} />
+
+      {!nuca && <Oval x={cx - r * 0.52} y={cy + r * 0.3} width={r * 1.04} height={r * 0.8} color={tom.dim} />}
+
+      {/* calota: alta e estreita, não esférica */}
+      <Oval x={cx - r * 0.82} y={cy - r * 1.18} width={r * 1.64} height={r * 2.16} color={tom.mid} />
+      {/* luz vem de cima à esquerda, como os castiçais */}
+      <Oval x={cx - r * 0.62} y={cy - r * 1.0} width={r * 0.86} height={r * 1.0} color={tom.lit} opacity={0.5} />
+
+      {nuca ? (
+        <Oval x={cx - r * 0.05} y={cy - r * 0.62} width={r * 0.1} height={r * 1.44} color={tom.dim} opacity={0.5} />
+      ) : (
+        <>
+          {/* prateleira supraciliar: uma sombra contínua, não duas sobrancelhas */}
+          <Oval x={cx - r * 0.66} y={cy - r * 0.46} width={r * 1.32} height={r * 0.3} color={tom.dim} opacity={0.75} />
+          <Oval x={cx - r * 0.57} y={cy - r * 0.25} width={r * 0.48} height={r * 0.42} color={ORBITA} />
+          <Oval x={cx + r * 0.09} y={cy - r * 0.25} width={r * 0.48} height={r * 0.42} color={ORBITA} />
+          <Oval x={cx - r * 0.09} y={cy + r * 0.24} width={r * 0.18} height={r * 0.3} color={ORBITA} opacity={0.85} />
+          {/* afunilamento: come a silhueta dos dois lados abaixo das órbitas */}
+          <Oval x={cx - r * 1.04} y={cy + r * 0.18} width={r * 0.56} height={r * 0.72} color={FENDA} opacity={0.8} />
+          <Oval x={cx + r * 0.48} y={cy + r * 0.18} width={r * 0.56} height={r * 0.72} color={FENDA} opacity={0.8} />
+        </>
+      )}
     </Group>
   );
 }
 
-/** Empilhamento determinístico: a mesma parede a cada render, sem sortear. */
+/** Empilhamento determinístico: a mesma parede a cada render, sem sortear.
+
+    Duas camadas. A de trás é menor, mais densa e muito recuada — é ela que dá
+    o fundo de ossos sem forma definida; a da frente traz os crânios legíveis.
+    Uma camada só, todos do mesmo tamanho, lia como padrão de papel de parede. */
 const PAREDE = (() => {
-  const itens: { cx: number; cy: number; r: number; tom: string }[] = [];
-  const tons = ["#584f4a", "#635a54", "#4c4540", "#5d544e"];
+  const itens: { cx: number; cy: number; r: number; tom: Tom; nuca: boolean }[] = [];
   let semente = 7;
   const passo = () => (semente = (semente * 1103515245 + 12345) % 2147483648) / 2147483648;
-  for (let linha = 0; WALL_TOP + linha * 23 < GROUND + 24; linha++) {
-    const y = WALL_TOP + 12 + linha * 23;
-    const desloca = (linha % 2) * 13;
-    for (let x = -20; x < W + 360; x += 26) {
-      itens.push({
-        cx: x + desloca + passo() * 8,
-        cy: y + passo() * 7,
-        r: 8 + passo() * 3.5,
-        tom: tons[Math.floor(passo() * tons.length)] ?? tons[0],
-      });
+
+  const camada = (passoY: number, passoX: number, rBase: number, recuo: number, chanceNuca: number) => {
+    for (let linha = 0; WALL_TOP + linha * passoY < GROUND + 26; linha++) {
+      const y = WALL_TOP + 10 + linha * passoY;
+      const desloca = (linha % 2) * (passoX / 2);
+      for (let x = -24; x < W + 380; x += passoX) {
+        itens.push({
+          cx: x + desloca + passo() * 7,
+          cy: y + passo() * 6,
+          r: rBase + passo() * (rBase * 0.35),
+          tom: recua(TONS[Math.floor(passo() * TONS.length)] ?? TONS[0]!, recuo),
+          nuca: passo() < chanceNuca,
+        });
+      }
     }
-  }
+  };
+
+  camada(19, 21, 6.2, 0.62, 0.5);   // fundo: quase sem rosto, quase cor de parede
+  camada(27, 30, 9.4, 0.14, 0.32);  // frente: os crânios que se leem
   return itens;
 })();
 
@@ -134,8 +199,8 @@ const CICLO_COLUNA = 1720;
 type Enemy = { readonly id: string; readonly name: string; readonly hp: number; readonly maxHp: number };
 type Feedback = { readonly id: string; readonly alvo: string; readonly epoch: number; readonly text: string; readonly color: string };
 
-export function SkiaScene({ time, status, enemies, animations, hits, partyId, feedback }: {
-  time: number; status: string; enemies: readonly Enemy[];
+export function SkiaScene({ time, status, enemies, animations, hits, partyId, feedback, marcha = 1 }: {
+  time: number; status: string; enemies: readonly Enemy[]; marcha?: number;
   animations: SceneAnimationState; hits?: Readonly<Record<string, number>>;
   partyId?: string; feedback: readonly Feedback[];
 }) {
@@ -168,25 +233,13 @@ export function SkiaScene({ time, status, enemies, animations, hits, partyId, fe
   const camera = andando ? time * 34 : 0;
 
   /* Encontro, não teletransporte.
-     Antes o herói e os mobs ficavam em x fixo e só o fundo corria: a marcha
-     terminava e a horda simplesmente ESTAVA ali, do nada, já no alcance. O que
-     o jogo quer mostrar é os dois lados fechando a distância — o herói avança
-     um pouco, a horda entra pela direita, e eles se encontram no ponto em que
-     o combate começa.
-
-     O progresso é medido a partir do instante em que a marcha começou, não do
-     relógio absoluto: `time` nunca zera, então usá-lo direto faria a horda
-     nascer já no lugar a partir da segunda onda. */
-  const inicioMarcha = useRef(0);
-  const statusAnterior = useRef(status);
-  if (statusAnterior.current !== status) {
-    if (andando) inicioMarcha.current = time;
-    statusAnterior.current = status;
-  }
-  const progresso = andando
-    ? Math.min(1, Math.max(0, (time - inicioMarcha.current) / DURACAO_APROXIMACAO))
-    : 1;
-  const suave = 1 - (1 - progresso) ** 2;   // desacelera ao chegar, não freia seco
+     Antes o herói e a horda ficavam em x fixo e só o fundo corria: a marcha
+     acabava e a horda simplesmente ESTAVA ali, já no alcance. Agora os dois
+     lados fecham a distância, e o progresso vem do `distanceToWave` do motor
+     — o mesmo número que decide quando a luta começa —, então a horda encosta
+     no quadro exato em que o combate abre, sem chegar cedo e esperar parada. */
+  const avanco = Math.min(1, Math.max(0, marcha));
+  const suave = 1 - (1 - avanco) ** 2;   // desacelera ao chegar, não freia seco
   const recuoHorda = (1 - suave) * ENTRADA_DA_HORDA;
   const recuoHeroi = (1 - suave) * AVANCO_DO_HEROI;
 
@@ -214,8 +267,8 @@ export function SkiaScene({ time, status, enemies, animations, hits, partyId, fe
 
           {/* ossuário, com parallax lento */}
           <Group transform={[{ translateX: -((camera * 0.25) % 340) }]}>
-            <Rect x={-40} y={WALL_TOP} width={W + 400} height={GROUND - WALL_TOP} color="#2b2421" />
-            {PAREDE.map((c, i) => <Caveira key={i} cx={c.cx} cy={c.cy} r={c.r} tom={c.tom} />)}
+            <Rect x={-40} y={WALL_TOP} width={W + 400} height={GROUND - WALL_TOP} color="#1e1a18" />
+            {PAREDE.map((c, i) => <Caveira key={i} cx={c.cx} cy={c.cy} r={c.r} tom={c.tom} nuca={c.nuca} />)}
           </Group>
 
           {/* a parede vive na penumbra; a luz vem dos castiçais */}
@@ -263,7 +316,7 @@ export function SkiaScene({ time, status, enemies, animations, hits, partyId, fe
             const opacidade = morto && desdeMorte > 0 ? Math.max(0, 1 - desdeMorte / FADE_CORPO) : 1;
 
             const vivo = sinalVivo(inimigo.id);
-            const anim: Animation = morto ? "dead" : vivo?.animation ?? (andando ? "walk" : "idle");
+            const anim: Animation = morto ? "dead" : vivo?.animation ?? (andando || suave < 1 ? "walk" : "idle");
             const t = vivo || morto ? time - (sinal?.epoch ?? 0) : time + i * 0.17;
             const x = posicaoMob(i);
             const topo = GROUND - FRAME * MOB_SCALE * 0.62;

@@ -26,6 +26,8 @@ export interface GameViewModel {
   readonly panel: GamePanel;
   readonly inventoryPage: number;
   readonly eventMessage: string;
+  readonly marchProgress: number;
+  readonly upcomingEnemies: readonly { readonly id: string; readonly name: string; readonly hp: number; readonly maxHp: number }[];
   readonly phaseLabel: string;
   readonly waveLabel: string;
   readonly gold: number;
@@ -231,6 +233,29 @@ export function useGameViewModel(): GameViewModel {
        fase, não de uma constante — o Mundo 0 tem 3 ondas nas noites 1 a 4 e 5
        nas noites 5 a 10, então qualquer número fixo aqui mentiria em metade
        das noites. */
+    /* Progresso da marcha, 0 ao sair e 1 ao encostar na horda.
+       Vem do `distanceToWave` do motor, não de um cronômetro da cena: é o
+       mesmo número que decide quando o combate começa, então a horda chega
+       exatamente no quadro em que a luta começa. Um relógio próprio na cena
+       chegava cedo e a horda ficava esperando parada. */
+    marchProgress: run && run.status !== "combat"
+      ? 1 - Math.min(1, Math.max(0, run.distanceToWave / WORLD_0_CONTENT.runRules.walkingMs))
+      : 1,
+
+    /* A horda da onda que está por vir, montada a partir do conteúdo.
+       Durante a marcha `run.combat` é null, então a cena não tinha ninguém
+       para desenhar entrando: os mobs simplesmente existiam no primeiro quadro
+       de combate. Aqui eles passam a existir antes, ainda fora do alcance. */
+    upcomingEnemies: (() => {
+      if (!run || run.status === "combat" || !phase) return [];
+      const onda = WORLD_0_CONTENT.waves.find(({ id }) => id === phase.waveIds[run.waveIndex]);
+      if (!onda) return [];
+      return onda.enemyIds.map((enemyId, i) => {
+        const def = WORLD_0_CONTENT.enemies.find(({ id }) => id === enemyId);
+        return { id: `proximo:${enemyId}:${i}`, name: def?.name ?? enemyId, hp: def?.stats.maxHp ?? 1, maxHp: def?.stats.maxHp ?? 1 };
+      });
+    })(),
+
     phaseLabel: phase ? `${phase.order + 1} / ${WORLD_0_CONTENT.phases.length}` : "—",
     waveLabel: run && phase ? `${run.waveIndex + 1} / ${phase.waveIds.length}` : "—",
     gold: state?.economy.account.gold ?? 0,
