@@ -29,6 +29,12 @@ const HEROI_X = 250;
    372+660=1032, além da borda direita. Com 300 ela nascia em 672, dentro do
    quadro — a onda seguinte aparecia do nada no meio da cena. */
 const ENTRADA_DA_HORDA = 660;
+/* A horda só entra depois da metade da marcha. Antes dela o corredor corre
+   vazio, com os corpos da onda passada ficando para trás — é o trecho de
+   caminhada que dá o ar de cenário sem fim. */
+const INICIO_DA_ENTRADA = 0.5;
+/* Corpo sai da lista quando já passou bem da borda esquerda. */
+const LIMITE_DO_CORPO = -160;
 
 /* ------------------------------------------------------------- animações */
 
@@ -218,8 +224,9 @@ const CICLO_COLUNA = 1720;
 type Enemy = { readonly id: string; readonly name: string; readonly hp: number; readonly maxHp: number };
 type Feedback = { readonly id: string; readonly alvo: string; readonly epoch: number; readonly text: string; readonly color: string; readonly dx?: number; readonly dy?: number };
 
-export function SkiaScene({ time, status, enemies, animations, hits, partyId, feedback, marcha = 1, camera = 0 }: {
+export function SkiaScene({ time, status, enemies, animations, hits, partyId, feedback, marcha = 1, camera = 0, corpses = [] }: {
   time: number; status: string; enemies: readonly Enemy[]; marcha?: number; camera?: number;
+  corpses?: readonly { readonly id: string; readonly indice: number; readonly epoch: number; readonly camera: number }[];
   animations: SceneAnimationState; hits?: Readonly<Record<string, number>>;
   partyId?: string; feedback: readonly Feedback[];
 }) {
@@ -296,7 +303,10 @@ export function SkiaScene({ time, status, enemies, animations, hits, partyId, fe
   /* Aproximação LINEAR. O ease-out `1-(1-t)²` parte com o dobro da velocidade
      média e freia em cima do herói: a horda disparava para dentro do quadro e
      depois arrastava. Um morto-vivo não acelera nem desacelera — anda. */
-  const suave = Math.min(1, Math.max(0, marcha));
+  const bruto = Math.min(1, Math.max(0, marcha));
+  const suave = bruto <= INICIO_DA_ENTRADA
+    ? 0
+    : (bruto - INICIO_DA_ENTRADA) / (1 - INICIO_DA_ENTRADA);
   const recuoHorda = (1 - suave) * ENTRADA_DA_HORDA;
 
   /* O HERÓI NÃO SE MOVE NO PALCO — quem se move é o mundo.
@@ -372,12 +382,29 @@ export function SkiaScene({ time, status, enemies, animations, hits, partyId, fe
           <Rect x={0} y={GROUND + FLOOR_H} width={W} height={H - GROUND - FLOOR_H} color="#0a0b0d" />
 
           {/* inimigos: encaram a party, então vão espelhados */}
-          {enemies.map((inimigo, i) => {
+          {corpses.map((corpo) => {
+            /* Fica onde caiu e o mundo o deixa para trás. A animação de morte
+               roda uma vez e o último quadro PERMANECE: o corpo não desvanece,
+               some por sair de cena. */
+            const x = posicaoMob(corpo.indice) - (camera - corpo.camera);
+            if (x < LIMITE_DO_CORPO || x > W + 420) return null;
+            return (
+              <Group key={`corpo:${corpo.id}`}>
+                <Oval x={x - 24} y={GROUND - 5} width={48} height={6} color="#000000" opacity={0.32} />
+                <Quadro image={mob.dead} animation="dead" t={time - corpo.epoch} cx={x} footY={GROUND}
+                  scale={MOB_SCALE} flip clarao={claraoDe(corpo.id)} />
+              </Group>
+            );
+          })}
+
+          {(status === "combat" || suave > 0) && enemies.map((inimigo, i) => {
             const sinal = animations[inimigo.id];
-            const morto = sinal?.animation === "dead";
-            const desdeMorte = morto ? time - sinal.epoch - DURACAO_SINAL.dead : 0;
-            if (morto && desdeMorte > FADE_CORPO) return null;      // corpo já sumiu
-            const opacidade = morto && desdeMorte > 0 ? Math.max(0, 1 - desdeMorte / FADE_CORPO) : 1;
+            /* O morto sai daqui assim que entra na lista de corpos, que é
+               quem o desenha daí em diante — inclusive depois de a onda
+               fechar, que é justamente quando esta lista deixa de existir. */
+            const morto = animations[inimigo.id]?.animation === "dead";
+            if (morto) return null;
+            const opacidade = 1;
 
             const vivo = sinalVivo(inimigo.id);
             const anim: Animation = morto ? "dead" : vivo?.animation ?? (andando || suave < 1 ? "walk" : "idle");

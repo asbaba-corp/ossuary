@@ -31,6 +31,7 @@ export interface GameViewModel {
   readonly eventMessage: string;
   readonly marchProgress: number;
   readonly camera: number;
+  readonly corpses: readonly { readonly id: string; readonly indice: number; readonly epoch: number; readonly camera: number }[];
   readonly upcomingEnemies: readonly { readonly id: string; readonly name: string; readonly hp: number; readonly maxHp: number }[];
   readonly phaseLabel: string;
   readonly waveLabel: string;
@@ -76,6 +77,13 @@ export function useGameViewModel(): GameViewModel {
   /* Âncora da marcha: o progresso do motor mais o instante em que ele chegou.
      Entre um tick e outro a cena interpola a partir daqui. */
   const marchaRef = useRef({ progresso: 1, relogio: 0 });
+  /* Os mortos sobrevivem à onda que os matou.
+     Quando o último inimigo cai, o motor fecha a onda NO MESMO TICK: `combat`
+     vira null e a cena perdia o corpo antes de ele piscar ou tombar — daí "o
+     último hit nem pega". O corpo passa a viver aqui, guardando onde estava e
+     quanto o mundo já tinha rolado, para depois ficar para trás sozinho. */
+  const restosRef = useRef<readonly { id: string; indice: number; epoch: number; camera: number }[]>([]);
+  const [restos, setRestos] = useState<readonly { id: string; indice: number; epoch: number; camera: number }[]>([]);
   const [panel, setPanel] = useState<GamePanel>(null);
   const [inventoryPage, setInventoryPage] = useState(0);
   const [eventMessage, setEventMessage] = useState("Carregando save local…");
@@ -192,6 +200,20 @@ export function useGameViewModel(): GameViewModel {
           combatHitsRef.current = golpesRecebidos;
           setCombatHits(golpesRecebidos);
           for (const event of defeats) nextAnimations[event.combatantId] = { animation: "dead", epoch };
+
+          if (defeats.length > 0) {
+            const ordem = (session.state.run?.combat?.combatants ?? [])
+              .filter(({ snapshot }) => snapshot.side === "enemy").map(({ snapshot }) => snapshot.id);
+            const anteriores = restosRef.current.filter((r) => epoch - r.epoch < 60);
+            const novos = defeats.map((event) => ({
+              id: event.combatantId,
+              // se já saiu da lista de combatentes, usa a posição que ocupava
+              indice: Math.max(0, ordem.indexOf(event.combatantId)),
+              epoch, camera: cameraRef.current,
+            }));
+            restosRef.current = [...anteriores, ...novos];
+            setRestos(restosRef.current);
+          }
           combatAnimationsRef.current = nextAnimations;
           setCombatAnimations(nextAnimations);
         }
@@ -297,6 +319,7 @@ export function useGameViewModel(): GameViewModel {
           + (sceneTime - marchaRef.current.relogio) / (WORLD_0_CONTENT.runRules.walkingMs / 1000))
       : 1,
     camera: cameraRef.current,
+    corpses: restos,
 
     /* A horda da onda que está por vir, montada a partir do conteúdo.
        Durante a marcha `run.combat` é null, então a cena não tinha ninguém

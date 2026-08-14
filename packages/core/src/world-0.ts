@@ -347,6 +347,6 @@ export const WORLD_0_CONTENT: GameContentContext = {
   consumables: [{ id: "w0-pocao-por-onda", itemId: W0_POCAO.id, quantity: 1, goldCost: 50 }],
   combatRules: { tickSeconds: 0.25, defenseConstant: 100 },
   rewardRules: { goldResourceId: "gold" },
-  runRules: { walkingMs: 4800, offlineCapMs: 12 * 60 * 60 * 1000, checkpointEveryWave: true },
+  runRules: { walkingMs: 6000, offlineCapMs: 12 * 60 * 60 * 1000, checkpointEveryWave: true },
   derivedStatFormulas: FORMULAS,
 };
