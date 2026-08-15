@@ -15,6 +15,30 @@ PR #NN · AAAA-MM-DD · @autor
 - ...
 ```
 
+## 0.15 — A horda deixa de ser desfile
+PR #54 · 2026-08-15 · @juniozguedes
+
+### Changed
+- cada ignavo anda no seu passo. O ritmo sai de um hash do id, então é sempre
+  o mesmo bicho no mesmo passo; o mais rápido mantém a velocidade que todos
+  tinham antes, e os outros ficam para trás no caminho e chegam junto no fim.
+- a horda ocupa **fileiras**, não fila: quatro brigam lado a lado e o resto se
+  empilha atrás, cada fileira mais recuada e mais funda, com ordem de desenho
+  pela profundidade. Dezoito bichos deixam de atravessar a tela.
+- os inimigos param mais perto do herói (334 contra 372), dentro do alcance do
+  golpe em vez de a meio salão.
+- o herói **freia** ao chegar: no último quarto da marcha a velocidade do mundo
+  cai a zero, então quando a horda encosta ele já está quase parado. Antes o
+  cenário corria a plena velocidade e travava seco no primeiro quadro de luta.
+- barra de vida só em inimigo já ferido. Com a horda amontoada, vinte barras
+  cheias viravam um emaranhado vermelho que escondia os bichos e não
+  distinguia nada.
+
+### Notas
+Nada disso toca o motor: posição, ritmo e profundidade são de apresentação. O
+combate continua resolvido pelo core, que decide quando a luta começa — por
+isso os lentos chegam junto no fim em vez de atrasar a onda.
+
 ## 0.14 — Cada noite tem a sua fase da lua
 PR #53 · 2026-08-14 · @juniozguedes
 

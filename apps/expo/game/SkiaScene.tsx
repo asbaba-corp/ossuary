@@ -22,8 +22,11 @@ const FRAME = 128;                       // lado do quadro nas folhas de sprite
 
 const HERO_SCALE = 1.3;
 const MOB_SCALE = 1.05;
-const VAO_ENTRE_MOBS = 62;
-const PRIMEIRO_MOB_X = 372;      // encostado no alcance do herói, não do outro lado do salão
+const VAO_ENTRE_MOBS = 46;       // vão entre vizinhos da MESMA fileira
+const POR_FILEIRA = 4;           // quantos cabem lado a lado antes de empilhar atrás
+const RECUO_DA_FILEIRA = 26;     // cada fileira atrás fica um pouco mais longe
+const PROFUNDIDADE_DA_FILEIRA = 9;
+const PRIMEIRO_MOB_X = 334;      // encostado no herói de verdade, dentro do alcance do golpe
 const HEROI_X = 250;
 /* O cavaleiro é desenhado à esquerda do centro do seu quadro; sem isto o
    número de dano dele sobe deslocado para a direita. */
@@ -38,6 +41,30 @@ const ENTRADA_DA_HORDA = 660;
 const INICIO_DA_ENTRADA = 0.5;
 /* Corpo sai da lista quando já passou bem da borda esquerda. */
 const LIMITE_DO_CORPO = -160;
+
+/** Perfil de cada inimigo: ritmo de caminhada e lugar na horda.
+
+    Ignavo é gente, e gente não anda toda no mesmo passo nem em fila indiana.
+    O perfil sai de um hash do id, então é sempre o mesmo para o mesmo bicho —
+    sortear a cada quadro faria a horda tremer.
+
+    `ritmo` 1 é o passo mais rápido, que era o de todos antes; abaixo disso o
+    bicho fica para trás durante a aproximação e chega junto no fim, porque é o
+    motor que decide quando a luta começa. `desvioX` e `profundidade` tiram a
+    horda da linha reta: eles se amontoam com alguma folga, uns meio passo à
+    frente dos outros. */
+function perfilDoMob(id: string) {
+  let h = 2166136261;
+  for (let i = 0; i < id.length; i += 1) { h ^= id.charCodeAt(i); h = Math.imul(h, 16777619); }
+  const a = ((h >>> 0) % 1000) / 1000;
+  const b = ((h >>> 11) % 1000) / 1000;
+  const c = ((h >>> 21) % 1000) / 1000;
+  return {
+    ritmo: 0.55 + a * 0.45,
+    desvioX: (b - 0.5) * 30,
+    profundidade: (c - 0.5) * 16,   // desloca o pé: dá amontoado com profundidade
+  };
+}
 
 /* ------------------------------------------------------------- animações */
 
@@ -310,7 +337,6 @@ export function SkiaScene({ time, status, enemies, animations, hits, partyId, fe
   const suave = bruto <= INICIO_DA_ENTRADA
     ? 0
     : (bruto - INICIO_DA_ENTRADA) / (1 - INICIO_DA_ENTRADA);
-  const recuoHorda = (1 - suave) * ENTRADA_DA_HORDA;
 
   /* O HERÓI NÃO SE MOVE NO PALCO — quem se move é o mundo.
      Ele tinha um avanço próprio que ia a zero ao fim da marcha; quando a onda
@@ -329,9 +355,23 @@ export function SkiaScene({ time, status, enemies, animations, hits, partyId, fe
   const tHeroi = sinalHeroi ? time - sinalHeroi.epoch : time;
 
   /** Onde um inimigo PARA para lutar. Sem o recuo de entrada. */
-  const slotMob = (i: number) => PRIMEIRO_MOB_X + i * VAO_ENTRE_MOBS;
-  /** Onde um inimegio VIVO está agora, contando a entrada em curso. */
-  const posicaoMob = (i: number) => slotMob(i) + recuoHorda;
+  /* A horda ocupa fileiras, não uma fila.
+     Com dezoito bichos, `i * vão` esticava a onda por mais de uma tela e
+     virava desfile. Agora quatro brigam lado a lado e o resto se empilha
+     atrás, cada fileira um pouco mais recuada e mais funda — que é como uma
+     multidão de fato se comporta contra um alvo só. */
+  const fileiraDe = (i: number) => Math.floor(i / POR_FILEIRA);
+  const slotMob = (i: number) =>
+    PRIMEIRO_MOB_X + (i % POR_FILEIRA) * VAO_ENTRE_MOBS + fileiraDe(i) * RECUO_DA_FILEIRA;
+  /** Onde um inimigo VIVO está agora: o passo dele mais o desvio na horda.
+
+      `suave ** (1/ritmo)` deixa o mais lento para trás no meio do caminho e o
+      traz junto no fim — é o motor que decide quando a luta começa. */
+  const posicaoMob = (i: number, id?: string) => {
+    const perfil = id ? perfilDoMob(id) : { ritmo: 1, desvioX: 0, profundidade: 0 };
+    const andado = suave <= 0 ? 0 : suave ** (1 / perfil.ritmo);
+    return slotMob(i) + perfil.desvioX + (1 - andado) * ENTRADA_DA_HORDA;
+  };
   const heroiX = HEROI_X;
 
   return (
@@ -408,34 +448,43 @@ export function SkiaScene({ time, status, enemies, animations, hits, partyId, fe
             );
           })}
 
-          {(status === "combat" || suave > 0) && enemies.map((inimigo, i) => {
-            const sinal = animations[inimigo.id];
-            /* O morto sai daqui assim que entra na lista de corpos, que é
-               quem o desenha daí em diante — inclusive depois de a onda
-               fechar, que é justamente quando esta lista deixa de existir. */
-            const morto = animations[inimigo.id]?.animation === "dead";
-            if (morto) return null;
-            const opacidade = 1;
+          {(status === "combat" || suave > 0) && enemies
+            .map((inimigo, i) => ({ inimigo, i, perfil: perfilDoMob(inimigo.id) }))
+            /* quem está mais à frente desenha por último e cobre os de trás;
+               sem isto o amontoado vira recorte plano */
+            .sort((a, b) =>
+              (a.perfil.profundidade + fileiraDe(a.i) * PROFUNDIDADE_DA_FILEIRA)
+              - (b.perfil.profundidade + fileiraDe(b.i) * PROFUNDIDADE_DA_FILEIRA))
+            .map(({ inimigo, i, perfil }) => {
+              /* O morto sai daqui assim que entra na lista de corpos, que é
+                 quem o desenha daí em diante. */
+              if (animations[inimigo.id]?.animation === "dead") return null;
 
-            const vivo = sinalVivo(inimigo.id);
-            const anim: Animation = morto ? "dead" : vivo?.animation ?? (andando || suave < 1 ? "walk" : "idle");
-            const t = vivo || morto ? time - (sinal?.epoch ?? 0) : time + i * 0.17;
-            const x = posicaoMob(i);
-            const topo = GROUND - FRAME * MOB_SCALE * 0.62;
+              const sinal = animations[inimigo.id];
+              const vivo = sinalVivo(inimigo.id);
+              const anim: Animation = vivo?.animation ?? (andando || suave < 1 ? "walk" : "idle");
+              const quadro = vivo ? time - (sinal?.epoch ?? 0) : time + i * 0.17;
+              const x = posicaoMob(i, inimigo.id);
+              const chao = GROUND + perfil.profundidade + fileiraDe(i) * PROFUNDIDADE_DA_FILEIRA;
+              const topo = chao - FRAME * MOB_SCALE * 0.62;
 
-            return (
-              <Group key={inimigo.id} opacity={opacidade}>
-                <Oval x={x - 22} y={GROUND - 6} width={44} height={7} color="#000000" opacity={0.4} />
-                <Quadro image={mob[anim]} animation={anim} t={t} cx={x} footY={GROUND} scale={MOB_SCALE} flip clarao={claraoDe(inimigo.id)} />
-                {!morto && (
-                  <Group>
-                    <Rect x={x - 22} y={topo} width={44} height={4} color="#1b1410" />
-                    <Rect x={x - 22} y={topo} width={44 * Math.max(0, Math.min(1, inimigo.hp / Math.max(1, inimigo.maxHp)))} height={4} color="#7a2222" />
-                  </Group>
-                )}
-              </Group>
-            );
-          })}
+              return (
+                <Group key={inimigo.id}>
+                  <Oval x={x - 22} y={chao - 6} width={44} height={7} color="#000000" opacity={0.4} />
+                  <Quadro image={mob[anim]} animation={anim} t={quadro} cx={x} footY={chao} scale={MOB_SCALE} flip clarao={claraoDe(inimigo.id)} />
+                  {/* Barra só em quem já foi ferido. Com a horda amontoada,
+                      dezoito barras cheias viravam um emaranhado vermelho que
+                      escondia os bichos e não dizia nada — todas iguais. Assim
+                      a barra vira sinal: quem tem, está sangrando. */}
+                  {inimigo.hp < inimigo.maxHp && (
+                    <Group>
+                      <Rect x={x - 22} y={topo} width={44} height={4} color="#1b1410" />
+                      <Rect x={x - 22} y={topo} width={44 * Math.max(0, Math.min(1, inimigo.hp / Math.max(1, inimigo.maxHp)))} height={4} color="#7a2222" />
+                    </Group>
+                  )}
+                </Group>
+              );
+            })}
 
           {/* herói */}
           <Oval x={heroiX - 26} y={GROUND - 6} width={52} height={8} color="#000000" opacity={0.45} />
@@ -455,7 +504,7 @@ export function SkiaScene({ time, status, enemies, animations, hits, partyId, fe
           const indice = enemies.findIndex((inimigo) => inimigo.id === item.alvo);
           const noHeroi = item.alvo === partyId;
           if (indice < 0 && !noHeroi) return null;
-          const mundoX = indice >= 0 ? posicaoMob(indice) : heroiX + DESVIO_NUMERO_HEROI;
+          const mundoX = indice >= 0 ? posicaoMob(indice, item.alvo) : heroiX + DESVIO_NUMERO_HEROI;
           /* Sobe rápido e desacelera, em vez de deslizar linear a 34px/s: com
              a vida de 0,9s aquilo percorria 30px no total e lia como parado.
              O ease-out dá o "pop" que o olho reconhece como golpe. */

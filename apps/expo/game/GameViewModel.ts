@@ -10,6 +10,8 @@ import { ExpoSaveStore } from "../storage";
 
 /** Pixels por segundo que o mundo desliza enquanto a party marcha. */
 const VELOCIDADE_DA_MARCHA = 62;
+/** Fração da marcha a partir da qual o herói começa a frear. */
+const FREIO_COMECA = 0.72;
 
 export type GamePanel = "inventory" | "stats" | "bestiary" | "systems" | null;
 export type SceneAnimation = "attack" | "hurt" | "dead";
@@ -327,7 +329,15 @@ export function useGameViewModel(): GameViewModel {
       sceneClockRef.current += delta;
       const andando = sessionRef.current?.state.run?.status;
       if (andando === "walking" || andando === "retreating") {
-        cameraRef.current += delta * VELOCIDADE_DA_MARCHA;
+        /* O herói FREIA ao chegar, em vez de parar de um quadro para o outro.
+           A câmera é a velocidade dele: no último quarto da marcha ela cai a
+           zero, então quando a horda encosta ele já está quase parado. Sem
+           isto o mundo corria a plena velocidade e travava seco no primeiro
+           quadro de combate. */
+        const p = Math.min(1, Math.max(0, marchaRef.current.progresso
+          + (sceneClockRef.current - marchaRef.current.relogio) / (WORLD_0_CONTENT.runRules.walkingMs / 1000)));
+        const freio = p > FREIO_COMECA ? Math.max(0, (1 - p) / (1 - FREIO_COMECA)) : 1;
+        cameraRef.current += delta * VELOCIDADE_DA_MARCHA * freio;
       }
       setSceneTime(sceneClockRef.current);
       requestAnimationFrame(passo);
