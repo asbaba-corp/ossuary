@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { useMemo } from "react";
-import { Canvas, Circle, ColorMatrix, Group, Image as SkiaImage, Oval, Paint, RadialGradient, Rect, Skia, rect, useImage, vec } from "@shopify/react-native-skia";
+import { Canvas, Circle, ColorMatrix, FilterMode, Group, Image as SkiaImage, MipmapMode, Oval, Paint, RadialGradient, Rect, Skia, rect, useImage, vec } from "@shopify/react-native-skia";
 import type { SkCanvas, SkPaint } from "@shopify/react-native-skia";
 import { StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import type { SceneAnimation, SceneAnimationState } from "./GameViewModel";
@@ -20,7 +20,13 @@ const GROUND = 300;
 const FLOOR_H = 44;
 const FRAME = 128;                       // lado do quadro nas folhas de sprite
 
-const HERO_SCALE = 1.3;
+/* O pack do herói tem quadro 128x64, não 128x128: a escala precisa ser maior
+   para o boneco manter a altura na cena, e a largura do quadro passa a ser o
+   dobro da altura — sobra transparente dos dois lados, que é normal em folha
+   feita para golpe com alcance. */
+const HEROI_QW = 128;
+const HEROI_QH = 64;
+const HERO_SCALE = 1.85;
 const MOB_SCALE = 1.05;
 const VAO_ENTRE_MOBS = 46;       // vão entre vizinhos da MESMA fileira
 const POR_FILEIRA = 4;           // quantos cabem lado a lado antes de empilhar atrás
@@ -82,6 +88,12 @@ const VIDA_CLARAO = 0.32;                // quanto o pisca de acerto dura
 
 /** Pinta tudo de branco mantendo o alfa: é o que faz o sprite piscar sem
     virar um retângulo. */
+/* Pixel art ampliada tem de continuar dura. O filtro padrão interpola, e a
+   folha do herói tem quadro de 64px de altura desenhado a mais que o dobro:
+   com interpolação o cavaleiro saía embaçado, lido como "perdeu qualidade".
+   Nearest mantém o pixel quadrado; sem mipmap porque não há redução. */
+const AMOSTRAGEM = { filter: FilterMode.Nearest, mipmap: MipmapMode.None } as const;
+
 const TUDO_BRANCO = [
   0, 0, 0, 0, 1,
   0, 0, 0, 0, 1,
@@ -98,35 +110,53 @@ type Folhas = Record<Animation, ReturnType<typeof useImage>>;
     A contagem de quadros vem de `image.width() / FRAME`, não de uma tabela.
     Quando vinha da tabela, divergir do arquivo esticava a folha inteira e o
     personagem mudava de tamanho ao trocar de animação. */
-function Quadro({ image, animation, t, cx, footY, scale, flip, clarao = 0 }: {
+function Quadro({ image, animation, t, cx, footY, scale, flip, clarao = 0, qw = FRAME, qh = FRAME, limite }: {
   image: ReturnType<typeof useImage>;
-  animation: Animation; t: number; cx: number; footY: number; scale: number; flip?: boolean; clarao?: number;
+  animation: Animation; t: number; cx: number; footY: number; scale: number;
+  flip?: boolean; clarao?: number;
+  qw?: number; qh?: number; limite?: number;
 }) {
   if (!image) return null;
-  const total = Math.max(1, Math.round(image.width() / FRAME));
+
+  /* Grade, não fileira. O primeiro pack tinha quadros quadrados numa linha só;
+     o 2D SL Knight vem em blocos de 128x64 espalhados por várias linhas, lidos
+     da esquerda para a direita e de cima para baixo. Contar por
+     `largura / 128` só funcionava para o primeiro caso.
+
+     `limite` existe porque uma folha pode guardar VÁRIAS animações — o
+     `Attacks.png` traz cinco golpes de oito quadros em cinco linhas, e o jogo
+     usa um. Sem o limite a animação percorreria os cinco. */
+  const colunas = Math.max(1, Math.round(image.width() / qw));
+  const linhas = Math.max(1, Math.round(image.height() / qh));
+  const total = Math.max(1, Math.min(limite ?? colunas * linhas, colunas * linhas));
+
   const bruto = Math.floor(Math.max(0, t) * FPS[animation]);
   const indice = CICLA[animation] ? bruto % total : Math.min(bruto, total - 1);
+  const coluna = indice % colunas;
+  const linha = Math.floor(indice / colunas);
 
-  const lado = FRAME * scale;
-  const x = Math.round(cx - lado / 2);
-  const y = Math.round(footY - lado);
+  const largura = qw * scale;
+  const altura = qh * scale;
+  const x = Math.round(cx - largura / 2);
+  const y = Math.round(footY - altura);
 
-  /* Espelha em torno do próprio centro; sem isto o inimigo marchava de costas. */
   const espelha = (conteudo: ReactNode) => flip
-    ? <Group transform={[{ translateX: 2 * (x + lado / 2) }, { scaleX: -1 }]}>{conteudo}</Group>
+    ? <Group transform={[{ translateX: 2 * (x + largura / 2) }, { scaleX: -1 }]}>{conteudo}</Group>
     : <>{conteudo}</>;
 
   const recorte = (
-    <Group clip={rect(x, y, lado, lado)}>
-      <SkiaImage image={image} x={x - indice * lado} y={y} width={lado * total} height={lado} fit="fill" />
+    <Group clip={rect(x, y, largura, altura)}>
+      <SkiaImage
+        image={image}
+        x={x - coluna * largura} y={y - linha * altura}
+        width={largura * colunas} height={altura * linhas}
+        fit="fill" sampling={AMOSTRAGEM}
+      />
     </Group>
   );
 
   /* O clarão é uma SEGUNDA passada do mesmo quadro, pintada de branco por uma
-     camada. A camada fica POR FORA do espelhamento de propósito: quando ela
-     ficava dentro do grupo com `scaleX: -1`, o clarão não aparecia — o herói,
-     que não espelha, piscava, e os inimigos, que espelham, nunca. Era essa a
-     diferença entre os dois, e não a fiação dos ids. */
+     camada, e a camada fica POR FORA do espelhamento. */
   return (
     <>
       {espelha(recorte)}
@@ -308,11 +338,14 @@ export function SkiaScene({ time, status, enemies, animations, hits, partyId, fe
   const escala = width / W;
   const height = H * escala;
 
-  const heroIdle = useImage(require("../../../sprites/knight-character-sprites-pixel-art/Spritesheet 128/Knight_1/Idle.png"));
-  const heroWalk = useImage(require("../../../sprites/knight-character-sprites-pixel-art/Spritesheet 128/Knight_1/Walk.png"));
-  const heroAttack = useImage(require("../../../sprites/knight-character-sprites-pixel-art/Spritesheet 128/Knight_1/Attack 1.png"));
-  const heroHurt = useImage(require("../../../sprites/knight-character-sprites-pixel-art/Spritesheet 128/Knight_1/Hurt.png"));
-  const heroDead = useImage(require("../../../sprites/knight-character-sprites-pixel-art/Spritesheet 128/Knight_1/Dead.png"));
+  /* Herói: pack 2D SL Knight, blocos de 128x64 em grade (ver `_Info.txt` do
+     pack). `Attacks.png` guarda cinco golpes de oito quadros, um por linha;
+     usamos o primeiro, daí o limite de 8. */
+  const heroIdle = useImage(require("../../../sprites/2D_SL_Knight_v1.0/Idle.png"));
+  const heroWalk = useImage(require("../../../sprites/2D_SL_Knight_v1.0/Run.png"));
+  const heroAttack = useImage(require("../../../sprites/2D_SL_Knight_v1.0/Attacks.png"));
+  const heroHurt = useImage(require("../../../sprites/2D_SL_Knight_v1.0/Hurt.png"));
+  const heroDead = useImage(require("../../../sprites/2D_SL_Knight_v1.0/Death.png"));
   const mobIdle = useImage(require("../../../sprites/Free-Urban-Zombie-Sprite-Sheet-Pixel-Art-Pack/Zombie_5/Idle.png"));
   const mobWalk = useImage(require("../../../sprites/Free-Urban-Zombie-Sprite-Sheet-Pixel-Art-Pack/Zombie_5/Walk.png"));
   const mobAttack = useImage(require("../../../sprites/Free-Urban-Zombie-Sprite-Sheet-Pixel-Art-Pack/Zombie_5/Attack.png"));
@@ -488,7 +521,8 @@ export function SkiaScene({ time, status, enemies, animations, hits, partyId, fe
 
           {/* herói */}
           <Oval x={heroiX - 26} y={GROUND - 6} width={52} height={8} color="#000000" opacity={0.45} />
-          <Quadro image={hero[animHeroi]} animation={animHeroi} t={tHeroi} cx={heroiX} footY={GROUND} scale={HERO_SCALE} clarao={claraoDe(partyId)} />
+          <Quadro image={hero[animHeroi]} animation={animHeroi} t={tHeroi} cx={heroiX} footY={GROUND} scale={HERO_SCALE}
+            qw={HEROI_QW} qh={HEROI_QH} limite={animHeroi === "attack" ? 8 : undefined} clarao={claraoDe(partyId)} />
         </Group>
       </Canvas>
 

@@ -217,3 +217,29 @@ que escondia os bichos.
 **Lição:** só quem já foi ferido mostra barra. Aí ela vira sinal — quem tem,
 está sangrando.
 
+### Folha de sprite pode ser grade, não fileira
+**Sintoma:** o pack 2D SL Knight não era substituição direta do anterior.
+**Causa:** `Quadro` contava quadros por `largura / 128` e assumia uma linha só
+de quadros QUADRADOS. O pack novo vem em blocos de **128x64** espalhados por
+várias linhas, lidos da esquerda para a direita e de cima para baixo.
+**Lição:** medir a folha antes (`_Info.txt` e as dimensões reais), e o
+renderizador aceitar `qw`/`qh`/`limite`. O `limite` importa porque uma folha
+pode guardar VÁRIAS animações — o `Attacks.png` tem cinco golpes de oito
+quadros, um por linha, e o jogo usa um.
+
+### Abrir o PNG resolve em um passo o que a dedução não resolve
+**Sintoma:** a cena mostrou o cavaleiro com uma espada solta embaixo, e eu ia
+tratar como corte errado.
+**Causa:** era a arte — o cavaleiro segura a espada apontada para baixo.
+**Lição:** quando a dúvida é sobre o conteúdo de uma imagem, abrir a imagem
+custa uma leitura e mata a especulação. Vale para folha de sprite, captura de
+tela e diff visual.
+
+### Pixel art ampliada precisa de amostragem nearest
+**Sintoma:** "ficou grande e perdeu qualidade" — o cavaleiro saía embaçado.
+**Causa:** duas somadas. Escala alta (2,6) sobre um quadro de 64px de altura, e
+o filtro padrão do Skia, que **interpola** ao ampliar.
+**Lição:** diminuir a escala resolve metade; a outra metade é
+`sampling={{ filter: FilterMode.Nearest, mipmap: MipmapMode.None }}`. Sem
+mipmap porque não há redução. Vale para todo sprite do jogo, não só o herói.
+
