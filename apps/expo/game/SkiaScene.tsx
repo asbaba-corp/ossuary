@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { useMemo } from "react";
-import { Canvas, Circle, ColorMatrix, Group, Image as SkiaImage, Oval, Paint, RadialGradient, Rect, Skia, rect, useImage, vec } from "@shopify/react-native-skia";
+import { Canvas, Circle, ColorMatrix, FilterMode, Group, Image as SkiaImage, MipmapMode, Oval, Paint, RadialGradient, Rect, Skia, rect, useImage, vec } from "@shopify/react-native-skia";
 import type { SkCanvas, SkPaint } from "@shopify/react-native-skia";
 import { StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import type { SceneAnimation, SceneAnimationState } from "./GameViewModel";
@@ -26,7 +26,7 @@ const FRAME = 128;                       // lado do quadro nas folhas de sprite
    feita para golpe com alcance. */
 const HEROI_QW = 128;
 const HEROI_QH = 64;
-const HERO_SCALE = 2.6;
+const HERO_SCALE = 2.05;
 const MOB_SCALE = 1.05;
 const VAO_ENTRE_MOBS = 46;       // vão entre vizinhos da MESMA fileira
 const POR_FILEIRA = 4;           // quantos cabem lado a lado antes de empilhar atrás
@@ -88,6 +88,12 @@ const VIDA_CLARAO = 0.32;                // quanto o pisca de acerto dura
 
 /** Pinta tudo de branco mantendo o alfa: é o que faz o sprite piscar sem
     virar um retângulo. */
+/* Pixel art ampliada tem de continuar dura. O filtro padrão interpola, e a
+   folha do herói tem quadro de 64px de altura desenhado a mais que o dobro:
+   com interpolação o cavaleiro saía embaçado, lido como "perdeu qualidade".
+   Nearest mantém o pixel quadrado; sem mipmap porque não há redução. */
+const AMOSTRAGEM = { filter: FilterMode.Nearest, mipmap: MipmapMode.None } as const;
+
 const TUDO_BRANCO = [
   0, 0, 0, 0, 1,
   0, 0, 0, 0, 1,
@@ -144,7 +150,7 @@ function Quadro({ image, animation, t, cx, footY, scale, flip, clarao = 0, qw = 
         image={image}
         x={x - coluna * largura} y={y - linha * altura}
         width={largura * colunas} height={altura * linhas}
-        fit="fill"
+        fit="fill" sampling={AMOSTRAGEM}
       />
     </Group>
   );

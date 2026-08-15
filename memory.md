@@ -235,3 +235,11 @@ tratar como corte errado.
 custa uma leitura e mata a especulação. Vale para folha de sprite, captura de
 tela e diff visual.
 
+### Pixel art ampliada precisa de amostragem nearest
+**Sintoma:** "ficou grande e perdeu qualidade" — o cavaleiro saía embaçado.
+**Causa:** duas somadas. Escala alta (2,6) sobre um quadro de 64px de altura, e
+o filtro padrão do Skia, que **interpola** ao ampliar.
+**Lição:** diminuir a escala resolve metade; a outra metade é
+`sampling={{ filter: FilterMode.Nearest, mipmap: MipmapMode.None }}`. Sem
+mipmap porque não há redução. Vale para todo sprite do jogo, não só o herói.
+
