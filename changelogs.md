@@ -30,7 +30,7 @@ PR #55 · 2026-08-15 · @juniozguedes
   primeiro (`limite = 8`). Trocar de golpe é escolher outra linha.
 - A licença do pack permite uso comercial, edição e publicação; proíbe revenda
   e uso em marca. Diferente do pack anterior, não há conflito em versioná-lo.
-- Escala em `HERO_SCALE = 2.05`, ajustada por captura.
+- Escala em `HERO_SCALE = 1.95`, ajustada por captura.
 - Amostragem **nearest** nos sprites: o filtro padrão interpola, e ampliar um
   quadro de 64px de altura a mais que o dobro deixava o cavaleiro embaçado. Com
   nearest o pixel continua quadrado — é o que a arte pede.

@@ -26,7 +26,7 @@ const FRAME = 128;                       // lado do quadro nas folhas de sprite
    feita para golpe com alcance. */
 const HEROI_QW = 128;
 const HEROI_QH = 64;
-const HERO_SCALE = 2.05;
+const HERO_SCALE = 1.95;
 const MOB_SCALE = 1.05;
 const VAO_ENTRE_MOBS = 46;       // vão entre vizinhos da MESMA fileira
 const POR_FILEIRA = 4;           // quantos cabem lado a lado antes de empilhar atrás
