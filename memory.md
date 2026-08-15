@@ -200,3 +200,20 @@ terminador.
 **Lição:** círculo com `transform: [{ scaleX: k }]`. Mesmo desenho nas três
 plataformas, que é a razão de todos os ícones do HUD serem Views e não emoji.
 
+### Multidão em sidescroller se resolve em fileiras, não em fila
+**Sintoma:** dezoito bichos numa onda viravam um desfile que atravessava a tela.
+**Causa:** a posição era `PRIMEIRO_MOB_X + i * vão` — linear, então o
+comprimento crescia com o tamanho da onda.
+**Lição:** quatro brigam lado a lado e o resto se empilha atrás, cada fileira
+mais recuada e mais funda, com a ordem de desenho pela profundidade. A horda
+ganha largura e volume em vez de comprimento. E o perfil de cada bicho (ritmo,
+desvio, profundidade) vem de um hash do id, nunca de sorteio por quadro —
+sortear a cada render faz a horda tremer.
+
+### Barra de vida cheia em todo mundo é ruído, não informação
+**Sintoma:** com a horda amontoada, as barras viraram um emaranhado vermelho
+que escondia os bichos.
+**Causa:** a barra aparecia sempre, e vinte barras iguais não distinguem nada.
+**Lição:** só quem já foi ferido mostra barra. Aí ela vira sinal — quem tem,
+está sangrando.
+
