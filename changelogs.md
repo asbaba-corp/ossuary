@@ -15,6 +15,25 @@ PR #NN · AAAA-MM-DD · @autor
 - ...
 ```
 
+## 0.16 — Herói passa a usar o pack 2D SL Knight
+PR #55 · 2026-08-15 · @juniozguedes
+
+### Changed
+- o cavaleiro do jogo vem agora de `sprites/2D_SL_Knight_v1.0`.
+- `Quadro` aprende **grade**: aceita `qw`/`qh` e um `limite` de quadros. Antes
+  contava por `largura / 128` e só sabia ler uma fileira de quadros quadrados.
+  O pack novo vem em blocos de 128x64 em várias linhas — não era substituição
+  direta.
+
+### Notas
+- `Attacks.png` guarda cinco golpes de oito quadros, um por linha; o jogo usa o
+  primeiro (`limite = 8`). Trocar de golpe é escolher outra linha.
+- A licença do pack permite uso comercial, edição e publicação; proíbe revenda
+  e uso em marca. Diferente do pack anterior, não há conflito em versioná-lo.
+- Escala e linha dos pés foram ajustadas por captura, não calculadas. Se o
+  cavaleiro parecer grande ou pequeno demais em tela cheia, `HERO_SCALE` é o
+  número a mexer.
+
 ## 0.15 — A horda deixa de ser desfile
 PR #54 · 2026-08-15 · @juniozguedes
 
