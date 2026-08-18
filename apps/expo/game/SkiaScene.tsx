@@ -16,8 +16,20 @@ const H = 384;
 const CEILING_Y = 34;
 const CEILING_H = 38;
 const WALL_TOP = CEILING_Y + CEILING_H;
+/* Antes a parede encontrava o chão numa única linha reta (`GROUND`), como
+   se a cena fosse vista de lado, sem ângulo — o "corredor de papelão". Agora
+   o chão tem uma SUPERFÍCIE, não uma linha: `GROUND_BACK` é onde ela nasce,
+   junto da parede, mais alta na tela porque é mais longe do jogador;
+   `GROUND` continua sendo a beirada da frente, onde herói e mobs pisam —
+   nada na lógica de combate ou posicionamento muda, só o desenho por trás
+   deles ganha profundidade. */
+const GROUND_BACK = 266;
 const GROUND = 300;
 const FLOOR_H = 44;
+/* As colunas plantam a base DENTRO do chão, não em cima da linha onde os
+   pés pisam — é o que as tira do "recorte flutuante" e dá espaço para mob e
+   sombra circularem por baixo delas sem cortar de forma estranha. */
+const COLUNA_BASE_Y = GROUND + 18;
 const FRAME = 128;                       // lado do quadro nas folhas de sprite
 
 /* O pack do herói tem quadro 128x64, não 128x128: a escala precisa ser maior
@@ -259,7 +271,7 @@ const PAREDE = (() => {
   const passo = () => (semente = (semente * 1103515245 + 12345) % 2147483648) / 2147483648;
 
   const camada = (passoY: number, passoX: number, rBase: number, recuo: number, chanceNuca: number) => {
-    for (let linha = 0; WALL_TOP + linha * passoY < GROUND + 26; linha++) {
+    for (let linha = 0; WALL_TOP + linha * passoY < GROUND_BACK + 26; linha++) {
       const y = WALL_TOP + 10 + linha * passoY;
       const desloca = (linha % 2) * (passoX / 2);
       for (let x = -24; x < W + 380; x += passoX) {
@@ -280,7 +292,7 @@ const PAREDE = (() => {
 })();
 
 const PAREDE_L = W + 400;
-const PAREDE_A = GROUND - WALL_TOP;
+const PAREDE_A = GROUND_BACK - WALL_TOP;
 
 const COLUNAS = [90, 520, 950, 1380];
 const CICLO_COLUNA = 1720;
@@ -431,7 +443,7 @@ export function SkiaScene({ time, status, enemies, animations, hits, partyId, fe
           </Group>
 
           {/* a parede vive na penumbra; a luz vem dos castiçais */}
-          <Rect x={0} y={WALL_TOP} width={W} height={GROUND - WALL_TOP} color="#0a0806" opacity={0.80} />
+          <Rect x={0} y={WALL_TOP} width={W} height={GROUND_BACK - WALL_TOP} color="#0a0806" opacity={0.80} />
           {/* poça de luz com degradê: disco chapado lia como mancha marrom */}
           {COLUNAS.map((wx) => {
             const cx = wx - ((camera * 0.55) % CICLO_COLUNA) + 9;
@@ -447,21 +459,37 @@ export function SkiaScene({ time, status, enemies, animations, hits, partyId, fe
             );
           })}
 
-          {/* colunas e castiçais */}
+          {/* superfície do chão: onde antes parede e chão se tocavam numa
+              linha reta, agora há uma faixa entre GROUND_BACK (junto da
+              parede) e GROUND (a beirada da frente, onde herói e mobs
+              pisam). As réguas ficam mais espaçadas perto da frente e mais
+              apertadas perto do fundo — o mesmo truque de pixel art que faz
+              um piso de ladrilhos parecer se afastar do jogador. */}
+          <Rect x={0} y={GROUND_BACK} width={W} height={GROUND - GROUND_BACK} color="#241e19" />
+          <Rect x={0} y={GROUND_BACK} width={W} height={2} color="#40331f" opacity={0.55} />
+          {[0.32, 0.62, 0.86].map((f) => (
+            <Rect key={`regua-${f}`} x={0} y={GROUND_BACK + (GROUND - GROUND_BACK) * f}
+              width={W} height={1} color="#141110" opacity={0.5} />
+          ))}
+
+          {/* colunas: base plantada DENTRO do chão (COLUNA_BASE_Y), não em
+              cima da linha onde os pés pisam — o "recorte flutuante" some, e
+              mob e sombra passam por baixo da base sem cortar estranho. */}
           {COLUNAS.map((wx) => {
             const x = wx - ((camera * 0.55) % CICLO_COLUNA);
             return (
               <Group key={`col-${wx}`}>
-                <Rect x={x} y={CEILING_Y + 6} width={18} height={GROUND - CEILING_Y - 6} color="#3f362a" />
-                <Rect x={x + 3} y={CEILING_Y + 6} width={5} height={GROUND - CEILING_Y - 6} color="#6d5a3c" />
+                <Rect x={x} y={CEILING_Y + 6} width={18} height={COLUNA_BASE_Y - CEILING_Y - 6} color="#3f362a" />
+                <Rect x={x + 3} y={CEILING_Y + 6} width={5} height={COLUNA_BASE_Y - CEILING_Y - 6} color="#6d5a3c" />
                 <Rect x={x - 6} y={CEILING_Y + 1} width={30} height={9} color="#7d6746" />
-                <Rect x={x - 6} y={GROUND - 14} width={30} height={14} color="#6d5a3c" />
+                <Oval x={x - 10} y={COLUNA_BASE_Y - 4} width={38} height={9} color="#000000" opacity={0.35} />
+                <Rect x={x - 6} y={COLUNA_BASE_Y - 14} width={30} height={14} color="#6d5a3c" />
                 <Circle cx={x + 9} cy={150} r={4} color="#ffe0a8" />
               </Group>
             );
           })}
 
-          {/* chão */}
+          {/* chão: beirada da frente, onde herói e mobs pisam */}
           <Rect x={0} y={GROUND} width={W} height={FLOOR_H} color="#1b1715" />
           <Rect x={0} y={GROUND} width={W} height={2} color="#0a0806" />
           <Rect x={0} y={GROUND + FLOOR_H} width={W} height={H - GROUND - FLOOR_H} color="#0a0b0d" />

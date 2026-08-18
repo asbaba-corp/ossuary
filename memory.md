@@ -276,3 +276,17 @@ acima; verificar sempre com uma aba de console **limpa** — a ferramenta de
 console deste ambiente mantém histórico entre navegações, e reexibir erros
 antigos como se fossem novos quase levou a uma falsa negativa.
 
+### A parede rasterizada depende de `GROUND` por fora do componente
+**Sintoma:** nenhum ainda — anotado para não ser "simplificado".
+**Causa:** a parede de caveiras (`PAREDE`, gerada uma vez no módulo, fora do
+componente) e sua superfície rasterizada (`PAREDE_A = GROUND - WALL_TOP`)
+usam `GROUND` para saber onde parar de desenhar. Mexer na geometria do chão
+sem lembrar dessas duas linhas deixa a parede desenhada curta ou passando por
+cima do chão novo — o bug não aparece no typecheck, só no visual.
+**Lição:** ao introduzir `GROUND_BACK` (chão com profundidade, #57), a
+parede passou a parar em `GROUND_BACK`, não mais em `GROUND` — ela some onde
+a SUPERFÍCIE do chão começa, não onde os pés pisam. Qualquer constante de
+geometria vertical usada por conteúdo pré-rasterizado merece um comentário
+apontando pra isso, porque o acoplamento não aparece na leitura do bloco que
+desenha por quadro.
+

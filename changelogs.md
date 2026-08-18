@@ -15,6 +15,27 @@ PR #NN · AAAA-MM-DD · @autor
 - ...
 ```
 
+## 0.18 — Chão ganha profundidade; colunas plantadas no chão
+PR #57 · 2026-08-18 · @thipintop
+
+### Changed
+- Parede e chão se tocavam numa linha reta só, como se a cena não tivesse
+  ângulo nenhum. Agora o chão é uma superfície: `GROUND_BACK`, junto da
+  parede, mais alta na tela porque é mais longe do jogador; `GROUND`
+  continua a beirada da frente, onde herói e mobs pisam. Réguas horizontais
+  mais espaçadas perto da frente e mais apertadas perto do fundo reforçam a
+  leitura de que o chão se afasta.
+- Colunas plantam a base dentro do chão (`COLUNA_BASE_Y`, abaixo de
+  `GROUND`), não mais em cima da linha onde os pés pisam — some o "recorte
+  flutuante", e sombra e mob passam por baixo da base sem cortar estranho.
+
+### Notas
+Nada na lógica de combate, posicionamento ou animação muda — `GROUND`
+continua a referência de todo o resto do jogo. Só o desenho por trás dos
+personagens ganhou profundidade.
+
+---
+
 ## 0.17 — Corpos e números de dano deixam de acumular
 PR #56 · 2026-08-18 · @thipintop
 
