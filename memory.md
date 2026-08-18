@@ -276,6 +276,26 @@ acima; verificar sempre com uma aba de console **limpa** — a ferramenta de
 console deste ambiente mantém histórico entre navegações, e reexibir erros
 antigos como se fossem novos quase levou a uma falsa negativa.
 
+### `${combatantId}:${epoch}` ainda colide quando o epoch fica travado em 0
+**Sintoma:** "Encountered two children with the same key" para `corpo:…:0` em
+sessão normal, **sem Loop** — contradizendo a entrada acima ("só aparecendo
+com Loop ligado"), que descrevia a causa raiz mas não esgotava os gatilhos.
+**Causa:** `sceneClockRef` (o `epoch`) só anda dentro do loop de rAF; o tick
+do motor roda num `setInterval` de 250ms à parte. Logo depois do mount, antes
+do primeiro quadro pintar, o `setInterval` pode disparar várias vezes em
+sequência rápida — e como cada noite desta fase (`vestibule-home`, conteúdo
+trivial) termina em poucos ticks, várias ondas inteiras se resolvem com o
+epoch ainda em 0. O mesmo slot de combatente morre de novo dentro dessa
+janela, e `${combatantId}:${epoch}` colide de novo mesmo já levando o epoch.
+Esse é o mesmo mecanismo do PR #58 (número de dano com `d:${epoch}:${alvo}`),
+que ganhou um contador (`feedbackSeqRef`) — o corpo (`restos`) não tinha
+ganhado o equivalente.
+**Lição:** qualquer chave derivada de `sceneClockRef` precisa de um contador
+monotônico como desempate, não só o epoch — o epoch por si só só garante
+unicidade **depois** do primeiro rAF. Ao investigar colisão de chave que
+envolve `epoch`, reproduzir tanto com quanto sem Loop; o Loop não é
+pré-requisito, só um jeito mais fácil de repetir o mesmo slot.
+
 ### A parede rasterizada depende de `GROUND` por fora do componente
 **Sintoma:** nenhum ainda — anotado para não ser "simplificado".
 **Causa:** a parede de caveiras (`PAREDE`, gerada uma vez no módulo, fora do
