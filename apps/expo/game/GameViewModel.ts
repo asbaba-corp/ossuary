@@ -93,6 +93,12 @@ export function useGameViewModel(): GameViewModel {
      quadro. Sem esse contador, duas dessas iterações geravam o mesmo
      `d:0.000:<alvo>` e o React acusava chave duplicada logo no início da run. */
   const feedbackSeqRef = useRef(0);
+  /* Mesmo problema do contador acima, mas para os corpos: o id de combatente
+     se repete entre ondas (é o slot, não o bicho — ver comentário mais
+     abaixo), e antes do primeiro rAF várias ondas inteiras podem se resolver
+     dentro do mesmo `epoch` travado em 0. Duas mortes do mesmo slot nessa
+     janela colidiam na chave React mesmo já levando o epoch no id. */
+  const defeatSeqRef = useRef(0);
   /* Âncora da marcha: o progresso do motor mais o instante em que ele chegou.
      Entre um tick e outro a cena interpola a partir daqui. */
   /* Nasce em ZERO, não em um. Antes do primeiro tick não há âncora do motor, e
@@ -289,9 +295,16 @@ export function useGameViewModel(): GameViewModel {
                colidiam na lista e o React reclamava de chave duplicada.
                O epoch da morte torna a chave única; o id do combatente
                continua guardado à parte para o clarão de acerto encontrar
-               o corpo certo. */
+               o corpo certo.
+
+               Só que o epoch sozinho não bastava: antes do primeiro rAF ele
+               fica travado em 0 (ver defeatSeqRef acima), e várias ondas
+               inteiras podem se resolver nessa janela — o mesmo slot morre
+               de novo com o epoch ainda em 0, e a chave colide de novo. O
+               contador crescente garante id único mesmo quando o epoch não
+               anda. */
             const novos = defeats.map((event) => ({
-              id: `${event.combatantId}:${epoch}`,
+              id: `${event.combatantId}:${epoch}:${defeatSeqRef.current++}`,
               combatantId: event.combatantId,
               indice: indicesRef.current[event.combatantId] ?? 0,
               epoch, camera: cameraRef.current,
