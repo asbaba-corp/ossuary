@@ -27,11 +27,11 @@ PR #57 · 2026-08-18 · @thipintop
   entre onde os pés pisam e o fundo. Réguas horizontais mais espaçadas
   perto da frente e mais apertadas perto do fundo reforçam a leitura de
   perspectiva sem quebrar a textura em pedaços.
-- Colunas plantam a base dentro do chão (`COLUNA_BASE_Y`, abaixo de
-  `GROUND`), não mais em cima da linha onde os pés pisam — some o "recorte
-  flutuante", e sombra e mob passam por baixo da base sem cortar estranho.
-  Continuam desenhadas como segundo plano: adereço de cenário, sem
-  interagir com herói nem mob.
+- Coluna vira adereço de fundo puro: a base para em `GROUND_BACK`, onde a
+  parede encontra o chão — do tamanho do fundo, não do chão. Herói e mob
+  caminham na faixa abaixo dela, mais perto do jogador. Uma primeira
+  tentativa tinha plantado a base *dentro* do chão (abaixo de `GROUND`), o
+  que colocava a coluna na mesma linha do personagem em vez de atrás dele.
 
 ### Notas
 Nada na lógica de combate, posicionamento ou animação muda — `GROUND`

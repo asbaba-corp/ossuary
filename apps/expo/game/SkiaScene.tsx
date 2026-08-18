@@ -26,10 +26,13 @@ const WALL_TOP = CEILING_Y + CEILING_H;
 const GROUND_BACK = 266;
 const GROUND = 300;
 const FLOOR_H = 44;
-/* As colunas plantam a base DENTRO do chão, não em cima da linha onde os
-   pés pisam — é o que as tira do "recorte flutuante" e dá espaço para mob e
-   sombra circularem por baixo delas sem cortar de forma estranha. */
-const COLUNA_BASE_Y = GROUND + 18;
+/* A coluna é adereço do FUNDO (segundo plano): do teto até onde a parede
+   encontra o chão, e nada além disso — ela não pisa no chão que herói e
+   mob pisam, ela é parte do pano de trás. Herói e mob caminham na frente e
+   ABAIXO dela, na faixa de chão entre `GROUND_BACK` e `GROUND`. Uma coluna
+   que descesse até `GROUND` ficaria na mesma linha do personagem em vez de
+   atrás dele. */
+const COLUNA_BASE_Y = GROUND_BACK;
 const FRAME = 128;                       // lado do quadro nas folhas de sprite
 
 /* O pack do herói tem quadro 128x64, não 128x128: a escala precisa ser maior
@@ -489,8 +492,9 @@ export function SkiaScene({ time, status, enemies, animations, hits, partyId, fe
           <Rect x={0} y={GROUND + FLOOR_H} width={W} height={H - GROUND - FLOOR_H} color="#0a0b0d" />
 
           {/* colunas: segundo plano — adereço do cenário, não interage com
-              herói nem mob. Base plantada DENTRO do chão (COLUNA_BASE_Y),
-              não em cima da linha onde os pés pisam. */}
+              herói nem mob. A base para em GROUND_BACK, onde a parede
+              encontra o chão — a coluna é do tamanho do fundo, não do
+              chão. Herói e mob caminham na faixa abaixo dela. */}
           {COLUNAS.map((wx) => {
             const x = wx - ((camera * 0.55) % CICLO_COLUNA);
             return (
