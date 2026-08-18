@@ -22,11 +22,19 @@ PR #57 · 2026-08-18 · @thipintop
 - Parede e chão se tocavam numa linha reta só, como se a cena não tivesse
   ângulo nenhum. Agora o chão é uma superfície: `GROUND_BACK`, junto da
   parede, mais alta na tela porque é mais longe do jogador; `GROUND`
-  continua a beirada da frente, onde herói e mobs pisam. Um degradê — não
-  duas cores chapadas — cobre a superfície inteira, sem costura visível
-  entre onde os pés pisam e o fundo. Réguas horizontais mais espaçadas
-  perto da frente e mais apertadas perto do fundo reforçam a leitura de
-  perspectiva sem quebrar a textura em pedaços.
+  continua a beirada da frente, onde herói e mobs pisam. Um degradê cobre
+  a superfície inteira, sem costura visível entre onde os pés pisam e o
+  fundo.
+- Chão vira lajes de pedra irregulares — dungeon, não tábua corrida. A
+  primeira tentativa marcava a perspectiva com réguas horizontais lisas
+  por cima do degradê, e aquilo lia como piso de madeira listrado. Agora é
+  uma grade de pedras (`PEDRAS`) com junta de argamassa e tom variando
+  laje a laje, em fileiras mais altas perto do jogador — a própria pedra
+  vende a profundidade, não uma linha por cima dela. O chão é onde o herói
+  pisa, não pano de fundo: rola com a câmera em velocidade cheia, e a
+  ladrilhagem (`CHAO_TILE_L`) é perfeita porque cada fileira usa slots de
+  largura fixa — a pedra balança de tamanho só dentro do próprio slot,
+  nunca cruza a borda dele.
 - Coluna vira adereço de fundo puro: a base para em `GROUND_BACK`, onde a
   parede encontra o chão — do tamanho do fundo, não do chão. Herói e mob
   caminham na faixa abaixo dela, mais perto do jogador. Uma primeira

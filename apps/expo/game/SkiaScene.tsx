@@ -300,6 +300,51 @@ const PAREDE_A = GROUND_BACK - WALL_TOP;
 const COLUNAS = [90, 520, 950, 1380];
 const CICLO_COLUNA = 1720;
 
+/** Lajes de pedra irregulares para o chão — dungeon, não tábua corrida.
+    Régua horizontal repetida lia como piso de madeira; pedra pede uma
+    grade quebrada, com junta de argamassa e leve variação de tom por laje.
+
+    Cada fileira tem `slots` de largura FIXA e igual (`CHAO_TILE_L / slots`)
+    — é o que garante ladrilhagem perfeita, sem costura, ao repetir a
+    unidade lado a lado. A pedra em si é menor que o slot (a folga vira
+    junta) e balança de tamanho e tom só DENTRO do próprio slot — nunca
+    cruza a borda dele. */
+type Pedra = { x: number; y: number; w: number; h: number; tom: string };
+const CHAO_TILE_L = 480;
+const TONS_PEDRA = ["#332c22", "#26211a", "#3a3222", "#221d17", "#2c2519", "#302a1e"];
+const PEDRAS = (() => {
+  let semente = 41;
+  const passo = () => (semente = (semente * 1103515245 + 12345) % 2147483648) / 2147483648;
+  const itens: Pedra[] = [];
+  /* Do fundo (junto da parede) para a frente: fileiras mais altas perto do
+     jogador — o mesmo truque que já fazia as réguas venderem profundidade,
+     só que agora É a própria pedra que se afasta, não uma linha por cima. */
+  const fileiras = [
+    { h: 16, slots: 10 },
+    { h: 18, slots: 8 },
+    { h: 20, slots: 7 },
+    { h: 24, slots: 6 },
+  ];
+  let y = GROUND_BACK;
+  for (const fileira of fileiras) {
+    const passoX = CHAO_TILE_L / fileira.slots;
+    for (let i = 0; i < fileira.slots; i++) {
+      const junta = 2;
+      const folgaW = passo() * 5 - 2.5;
+      const folgaH = passo() * 3 - 1.5;
+      itens.push({
+        x: i * passoX + junta / 2,
+        y: y + junta / 2,
+        w: passoX - junta + folgaW,
+        h: fileira.h - junta + folgaH,
+        tom: TONS_PEDRA[Math.floor(passo() * TONS_PEDRA.length)] ?? TONS_PEDRA[0]!,
+      });
+    }
+    y += fileira.h;
+  }
+  return itens;
+})();
+
 /* ------------------------------------------------------------------ cena */
 
 type Enemy = { readonly id: string; readonly name: string; readonly hp: number; readonly maxHp: number };
@@ -462,14 +507,9 @@ export function SkiaScene({ time, status, enemies, animations, hits, partyId, fe
             );
           })}
 
-          {/* chão: UMA superfície só, de GROUND_BACK (junto da parede) até o
-              fim da beirada da frente — sem costura no meio. A primeira
-              versão desenhava duas cores chapadas (a "superfície" e a
-              "beirada") com uma linha dura entre elas, e lia como dois
-              materiais diferentes em vez de um piso só se afastando. Um
-              degradê faz o mesmo trabalho — mais claro junto da parede
-              (onde a luz dos castiçais bate), mais escuro perto do jogador —
-              sem nenhuma emenda visível. */}
+          {/* chão: base contínua (argamassa/junta) de GROUND_BACK até o fim
+              da beirada da frente, com o mesmo degradê de antes — mais claro
+              junto da parede, onde a luz dos castiçais bate. */}
           <Rect x={0} y={GROUND_BACK} width={W} height={GROUND + FLOOR_H - GROUND_BACK}>
             <LinearGradient
               start={vec(0, GROUND_BACK)}
@@ -478,17 +518,25 @@ export function SkiaScene({ time, status, enemies, animations, hits, partyId, fe
               positions={[0, 0.55, 1]}
             />
           </Rect>
-          {/* linha bem sutil no horizonte — onde a parede encontra o chão —,
-              não uma costura entre duas texturas */}
+          {/* linha bem sutil no horizonte — onde a parede encontra o chão */}
           <Rect x={0} y={GROUND_BACK} width={W} height={1} color="#3a2f1f" opacity={0.4} />
-          {/* réguas de perspectiva: mais apertadas perto do fundo, mais
-              espaçadas perto da frente — o mesmo truque de pixel art que faz
-              um piso parecer se afastar do jogador sem desenhar ladrilho
-              nenhum de verdade. */}
-          {[0.16, 0.36, 0.6, 0.88].map((f) => (
-            <Rect key={`regua-${f}`} x={0} y={GROUND_BACK + (GROUND + FLOOR_H - GROUND_BACK) * f}
-              width={W} height={1} color="#0d0a09" opacity={0.35} />
-          ))}
+
+          {/* lajes de pedra por cima da base: réguas horizontais lisas liam
+              como tábua corrida (piso de madeira); pedra pede grade
+              quebrada, com junta entre lajes e tom variando laje a laje. O
+              chão é onde o herói pisa, não pano de fundo — rola junto com a
+              câmera na velocidade cheia, não em parallax. */}
+          {(() => {
+            const deslocamento = camera % CHAO_TILE_L;
+            return [-1, 0, 1, 2].map((copia) => (
+              <Group key={`chao-copia-${copia}`} transform={[{ translateX: copia * CHAO_TILE_L - deslocamento }]}>
+                {PEDRAS.map((p, i) => (
+                  <Rect key={i} x={p.x} y={p.y} width={p.w} height={p.h} color={p.tom} opacity={0.82} />
+                ))}
+              </Group>
+            ));
+          })()}
+
           <Rect x={0} y={GROUND + FLOOR_H} width={W} height={H - GROUND - FLOOR_H} color="#0a0b0d" />
 
           {/* colunas: segundo plano — adereço do cenário, não interage com
