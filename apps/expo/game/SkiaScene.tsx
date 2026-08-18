@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { useMemo } from "react";
-import { Canvas, Circle, ColorMatrix, FilterMode, Group, Image as SkiaImage, MipmapMode, Oval, Paint, RadialGradient, Rect, Skia, rect, useImage, vec } from "@shopify/react-native-skia";
+import { Canvas, Circle, ColorMatrix, FilterMode, Group, Image as SkiaImage, LinearGradient, MipmapMode, Oval, Paint, RadialGradient, Rect, Skia, rect, useImage, vec } from "@shopify/react-native-skia";
 import type { SkCanvas, SkPaint } from "@shopify/react-native-skia";
 import { StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import type { SceneAnimation, SceneAnimationState } from "./GameViewModel";
@@ -459,22 +459,38 @@ export function SkiaScene({ time, status, enemies, animations, hits, partyId, fe
             );
           })}
 
-          {/* superfície do chão: onde antes parede e chão se tocavam numa
-              linha reta, agora há uma faixa entre GROUND_BACK (junto da
-              parede) e GROUND (a beirada da frente, onde herói e mobs
-              pisam). As réguas ficam mais espaçadas perto da frente e mais
-              apertadas perto do fundo — o mesmo truque de pixel art que faz
-              um piso de ladrilhos parecer se afastar do jogador. */}
-          <Rect x={0} y={GROUND_BACK} width={W} height={GROUND - GROUND_BACK} color="#241e19" />
-          <Rect x={0} y={GROUND_BACK} width={W} height={2} color="#40331f" opacity={0.55} />
-          {[0.32, 0.62, 0.86].map((f) => (
-            <Rect key={`regua-${f}`} x={0} y={GROUND_BACK + (GROUND - GROUND_BACK) * f}
-              width={W} height={1} color="#141110" opacity={0.5} />
+          {/* chão: UMA superfície só, de GROUND_BACK (junto da parede) até o
+              fim da beirada da frente — sem costura no meio. A primeira
+              versão desenhava duas cores chapadas (a "superfície" e a
+              "beirada") com uma linha dura entre elas, e lia como dois
+              materiais diferentes em vez de um piso só se afastando. Um
+              degradê faz o mesmo trabalho — mais claro junto da parede
+              (onde a luz dos castiçais bate), mais escuro perto do jogador —
+              sem nenhuma emenda visível. */}
+          <Rect x={0} y={GROUND_BACK} width={W} height={GROUND + FLOOR_H - GROUND_BACK}>
+            <LinearGradient
+              start={vec(0, GROUND_BACK)}
+              end={vec(0, GROUND + FLOOR_H)}
+              colors={["#241e19", "#1c1713", "#141110"]}
+              positions={[0, 0.55, 1]}
+            />
+          </Rect>
+          {/* linha bem sutil no horizonte — onde a parede encontra o chão —,
+              não uma costura entre duas texturas */}
+          <Rect x={0} y={GROUND_BACK} width={W} height={1} color="#3a2f1f" opacity={0.4} />
+          {/* réguas de perspectiva: mais apertadas perto do fundo, mais
+              espaçadas perto da frente — o mesmo truque de pixel art que faz
+              um piso parecer se afastar do jogador sem desenhar ladrilho
+              nenhum de verdade. */}
+          {[0.16, 0.36, 0.6, 0.88].map((f) => (
+            <Rect key={`regua-${f}`} x={0} y={GROUND_BACK + (GROUND + FLOOR_H - GROUND_BACK) * f}
+              width={W} height={1} color="#0d0a09" opacity={0.35} />
           ))}
+          <Rect x={0} y={GROUND + FLOOR_H} width={W} height={H - GROUND - FLOOR_H} color="#0a0b0d" />
 
-          {/* colunas: base plantada DENTRO do chão (COLUNA_BASE_Y), não em
-              cima da linha onde os pés pisam — o "recorte flutuante" some, e
-              mob e sombra passam por baixo da base sem cortar estranho. */}
+          {/* colunas: segundo plano — adereço do cenário, não interage com
+              herói nem mob. Base plantada DENTRO do chão (COLUNA_BASE_Y),
+              não em cima da linha onde os pés pisam. */}
           {COLUNAS.map((wx) => {
             const x = wx - ((camera * 0.55) % CICLO_COLUNA);
             return (
@@ -488,11 +504,6 @@ export function SkiaScene({ time, status, enemies, animations, hits, partyId, fe
               </Group>
             );
           })}
-
-          {/* chão: beirada da frente, onde herói e mobs pisam */}
-          <Rect x={0} y={GROUND} width={W} height={FLOOR_H} color="#1b1715" />
-          <Rect x={0} y={GROUND} width={W} height={2} color="#0a0806" />
-          <Rect x={0} y={GROUND + FLOOR_H} width={W} height={H - GROUND - FLOOR_H} color="#0a0b0d" />
 
           {/* inimigos: encaram a party, então vão espelhados */}
           {corpses.map((corpo) => {

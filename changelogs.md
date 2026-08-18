@@ -22,12 +22,16 @@ PR #57 · 2026-08-18 · @thipintop
 - Parede e chão se tocavam numa linha reta só, como se a cena não tivesse
   ângulo nenhum. Agora o chão é uma superfície: `GROUND_BACK`, junto da
   parede, mais alta na tela porque é mais longe do jogador; `GROUND`
-  continua a beirada da frente, onde herói e mobs pisam. Réguas horizontais
-  mais espaçadas perto da frente e mais apertadas perto do fundo reforçam a
-  leitura de que o chão se afasta.
+  continua a beirada da frente, onde herói e mobs pisam. Um degradê — não
+  duas cores chapadas — cobre a superfície inteira, sem costura visível
+  entre onde os pés pisam e o fundo. Réguas horizontais mais espaçadas
+  perto da frente e mais apertadas perto do fundo reforçam a leitura de
+  perspectiva sem quebrar a textura em pedaços.
 - Colunas plantam a base dentro do chão (`COLUNA_BASE_Y`, abaixo de
   `GROUND`), não mais em cima da linha onde os pés pisam — some o "recorte
   flutuante", e sombra e mob passam por baixo da base sem cortar estranho.
+  Continuam desenhadas como segundo plano: adereço de cenário, sem
+  interagir com herói nem mob.
 
 ### Notas
 Nada na lógica de combate, posicionamento ou animação muda — `GROUND`
