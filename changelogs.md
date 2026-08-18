@@ -15,7 +15,7 @@ PR #NN · AAAA-MM-DD · @autor
 - ...
 ```
 
-## 0.18 — Chão ganha profundidade; colunas plantadas no chão
+## 0.19 — Chão ganha profundidade; colunas plantadas no chão
 PR #57 · 2026-08-18 · @thipintop
 
 ### Changed
@@ -37,6 +37,21 @@ PR #57 · 2026-08-18 · @thipintop
 Nada na lógica de combate, posicionamento ou animação muda — `GROUND`
 continua a referência de todo o resto do jogo. Só o desenho por trás dos
 personagens ganhou profundidade.
+
+---
+
+## 0.18 — Número de dano ganha desempate próprio, sem depender do relógio da cena
+PR #58 · 2026-08-18 · @thipintop
+
+### Fixed
+- Feedback de dano usava o relógio da cena (`sceneClockRef`) como parte da
+  chave React. Esse relógio só anda dentro do loop de rAF, mas o tick do
+  motor roda num `setInterval` à parte — no início de uma run, várias
+  iterações desse setInterval processavam ataques contra o mesmo alvo antes
+  do primeiro quadro de rAF, todas com o relógio travado em 0, gerando o
+  mesmo id e disparando "Encountered two children with the same key" logo no
+  começo de toda run nova. O id agora carrega um contador incremental por
+  push que desempata quando o relógio ainda não andou.
 
 ---
 

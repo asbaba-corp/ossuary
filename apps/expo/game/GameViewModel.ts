@@ -87,6 +87,12 @@ export function useGameViewModel(): GameViewModel {
   const combatAnimationsRef = useRef<SceneAnimationState>({});
   const sceneClockRef = useRef(0);
   const cameraRef = useRef(0);
+  /* Antes do primeiro requestAnimationFrame, sceneClockRef fica travado em 0 —
+     o relógio da cena só anda dentro do loop de rAF, mas o tick do motor roda
+     num setInterval à parte e pode disparar várias vezes antes do primeiro
+     quadro. Sem esse contador, duas dessas iterações geravam o mesmo
+     `d:0.000:<alvo>` e o React acusava chave duplicada logo no início da run. */
+  const feedbackSeqRef = useRef(0);
   /* Âncora da marcha: o progresso do motor mais o instante em que ele chegou.
      Entre um tick e outro a cena interpola a partir daqui. */
   /* Nasce em ZERO, não em um. Antes do primeiro tick não há âncora do motor, e
@@ -241,7 +247,7 @@ export function useGameViewModel(): GameViewModel {
           setCombatFeedback((anteriores) => [
             ...anteriores.filter((item) => nascidoEm - item.epoch < 1),
             ...[...somaPorAlvo].map(([alvo, { dano, critico }]) => ({
-              id: `d:${nascidoEm.toFixed(3)}:${alvo}`, alvo, epoch: nascidoEm,
+              id: `d:${nascidoEm.toFixed(3)}:${alvo}:${feedbackSeqRef.current++}`, alvo, epoch: nascidoEm,
               text: `-${Math.round(dano)}`, color: critico ? "#ffb648" : "#ff5a48",
               dx: 0, dy: (Math.abs(Math.round(nascidoEm * 7)) % 3) * -11,
             })),
