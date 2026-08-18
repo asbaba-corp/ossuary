@@ -15,6 +15,20 @@ PR #NN · AAAA-MM-DD · @autor
 - ...
 ```
 
+## 0.20 — Corpo ganha desempate próprio, sem depender só do epoch travado
+PR #59 · 2026-08-18 · @thipintop
+
+### Fixed
+- O id de cada corpo (`restos`) já levava o epoch da morte para não colidir
+  com mortes antigas do mesmo slot de combatente. Mas antes do primeiro
+  `requestAnimationFrame` o epoch fica travado em 0 (só anda no loop de
+  rAF), enquanto o tick do motor roda num `setInterval` à parte e pode
+  resolver várias ondas inteiras nessa janela — o mesmo slot morrendo de
+  novo com o epoch ainda em 0 colidia na chave e o React acusava
+  "Encountered two children with the same key" logo no início da run. Um
+  contador crescente, no mesmo padrão já usado pelo número de dano
+  (`feedbackSeqRef`, PR #58), resolve.
+
 ## 0.19 — Chão ganha profundidade; colunas plantadas no chão
 PR #57 · 2026-08-18 · @thipintop
 
