@@ -243,3 +243,36 @@ o filtro padrão do Skia, que **interpola** ao ampliar.
 `sampling={{ filter: FilterMode.Nearest, mipmap: MipmapMode.None }}`. Sem
 mipmap porque não há redução. Vale para todo sprite do jogo, não só o herói.
 
+### Corpo sem prazo de validade pesa o quadro
+**Sintoma:** jogando por um tempo (ou com Loop farmando a mesma noite), os
+corpos se acumulavam em cena e o jogo ficava visivelmente pesado; o jogador
+relatou também números de dano "acumulados" — mas isso era sintoma do mesmo
+travamento, não um leak à parte: `combatFeedback` já expira sozinho por idade
+no render (`VIDA_NUMERO`), a lentidão só fazia o fade parecer congelado.
+**Causa:** o corpo só saía da cena por `x < LIMITE_DO_CORPO` (scroll para fora
+da tela). Sem marcha — combate, farm numa mesma noite via Loop — a câmera não
+anda, e o corpo não tinha por onde sumir. Havia até uma constante `FADE_CORPO`
+já declarada, mas nunca lida em lugar nenhum — meia implementação que ninguém
+terminou de ligar. A lista de origem (`restosRef`) também guardava tudo por
+60s, dez vezes mais que qualquer corpo precisa ficar visível.
+**Lição:** todo elemento efêmero de cena precisa de saída **por idade**, não só
+por geometria — a mesma regra que já valia para `combatFeedback`
+(`VIDA_NUMERO`) não tinha sido aplicada ao corpo. Uma constante declarada e
+nunca usada é sinal de fix pela metade; vale grep por declarações órfãs ao
+revisar uma área.
+
+### Id de combatente se repete entre ondas — chave de lista não pode reusá-lo
+**Sintoma:** "Encountered two children with the same key" no console, em
+sequência de `corpo:w0-ignavo-f1:…`, só aparecendo com Loop ligado.
+**Causa:** `w0-ignavo-f1` é o **slot** da onda, não o bicho — cada vez que a
+noite é refeita (Loop), o motor reusa o mesmo id para o próximo ocupante
+daquele slot. A lista de corpos usava esse id como chave React direto; duas
+mortes do mesmo slot dentro da janela de retenção colidiam.
+**Lição:** chave de lista precisa ser única por **evento**, não por entidade
+reaproveitável — `${combatantId}:${epoch}` resolve, mas o lookup do clarão de
+acerto (`combatHits`) continua precisando do id "puro" do combatente, então o
+registro guarda os dois campos separados. Achado enquanto investigava o corpo
+acima; verificar sempre com uma aba de console **limpa** — a ferramenta de
+console deste ambiente mantém histórico entre navegações, e reexibir erros
+antigos como se fossem novos quase levou a uma falsa negativa.
+

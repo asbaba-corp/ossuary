@@ -82,6 +82,12 @@ const FPS: Record<Animation, number> = { idle: 6, walk: 11, attack: 13, hurt: 14
 const CICLA: Record<Animation, boolean> = { idle: true, walk: true, attack: false, hurt: false, dead: false };
 
 const DURACAO_SINAL: Record<SceneAnimation, number> = { attack: 0.42, hurt: 0.3, dead: 0.5 };
+/* O corpo ficava só por conta do scroll para sumir — sem marcha (combate,
+   Loop numa mesma noite) ele nunca saía de cena, e as ondas foram ficando
+   maiores (fileiras, #54), então os corpos empilhavam e pesavam o quadro.
+   Agora ele para visível um instante (dá tempo do jogador registrar a
+   queda) e desvanece sozinho, sem depender de a câmera andar. */
+const ATRASO_CORPO = 1.4;                // segundos parado antes de começar a sumir
 const FADE_CORPO = 0.4;                  // desvanecer depois da animação de morte
 const VIDA_NUMERO = 0.7;                 // quanto um número flutuante dura
 const VIDA_CLARAO = 0.32;                // quanto o pisca de acerto dura
@@ -286,7 +292,7 @@ type Feedback = { readonly id: string; readonly alvo: string; readonly epoch: nu
 
 export function SkiaScene({ time, status, enemies, animations, hits, partyId, feedback, marcha = 1, camera = 0, corpses = [] }: {
   time: number; status: string; enemies: readonly Enemy[]; marcha?: number; camera?: number;
-  corpses?: readonly { readonly id: string; readonly indice: number; readonly epoch: number; readonly camera: number }[];
+  corpses?: readonly { readonly id: string; readonly combatantId: string; readonly indice: number; readonly epoch: number; readonly camera: number }[];
   animations: SceneAnimationState; hits?: Readonly<Record<string, number>>;
   partyId?: string; feedback: readonly Feedback[];
 }) {
@@ -462,9 +468,11 @@ export function SkiaScene({ time, status, enemies, animations, hits, partyId, fe
 
           {/* inimigos: encaram a party, então vão espelhados */}
           {corpses.map((corpo) => {
-            /* Fica onde caiu e o mundo o deixa para trás. A animação de morte
-               roda uma vez e o último quadro PERMANECE: o corpo não desvanece,
-               some por sair de cena. */
+            const idade = time - corpo.epoch;
+            /* Some pela idade, não só por sair de cena — combate e farm numa
+               mesma noite não fazem a câmera andar, e sem isto o corpo ficava
+               para sempre. */
+            if (idade > ATRASO_CORPO + FADE_CORPO) return null;
             /* Do SLOT, não de `posicaoMob`: esta última soma o recuo da horda
                que está entrando, e com isso os corpos eram empurrados para a
                frente junto com ela — o jogador via cadáveres adiante, de
@@ -472,11 +480,12 @@ export function SkiaScene({ time, status, enemies, animations, hits, partyId, fe
                mundo é que passa por ele. */
             const x = slotMob(corpo.indice) - (camera - corpo.camera);
             if (x < LIMITE_DO_CORPO || x > W + 420) return null;
+            const opacidade = idade <= ATRASO_CORPO ? 1 : Math.max(0, 1 - (idade - ATRASO_CORPO) / FADE_CORPO);
             return (
-              <Group key={`corpo:${corpo.id}`}>
+              <Group key={`corpo:${corpo.id}`} opacity={opacidade}>
                 <Oval x={x - 24} y={GROUND - 5} width={48} height={6} color="#000000" opacity={0.32} />
                 <Quadro image={mob.dead} animation="dead" t={time - corpo.epoch} cx={x} footY={GROUND}
-                  scale={MOB_SCALE} flip clarao={claraoDe(corpo.id)} />
+                  scale={MOB_SCALE} flip clarao={claraoDe(corpo.combatantId)} />
               </Group>
             );
           })}
