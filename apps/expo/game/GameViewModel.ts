@@ -12,6 +12,12 @@ import { ExpoSaveStore } from "../storage";
 const VELOCIDADE_DA_MARCHA = 62;
 /** Fração da marcha a partir da qual o herói começa a frear. */
 const FREIO_COMECA = 0.72;
+/* Quanto tempo um corpo sobrevive NESTA lista antes de ser podado daqui.
+   A cena (SkiaScene) já some com ele visualmente por volta de 1,8s de vida
+   (atraso + fade); esta janela só existe para o array não crescer sem fim
+   entre uma morte e outra — generosa o bastante para nunca cortar um corpo
+   que a cena ainda está desenhando. */
+const VIDA_DO_CORPO_NA_LISTA = 3;
 
 export type GamePanel = "inventory" | "stats" | "bestiary" | "systems" | null;
 export type SceneAnimation = "attack" | "hurt" | "dead";
@@ -33,7 +39,7 @@ export interface GameViewModel {
   readonly eventMessage: string;
   readonly marchProgress: number;
   readonly camera: number;
-  readonly corpses: readonly { readonly id: string; readonly indice: number; readonly epoch: number; readonly camera: number }[];
+  readonly corpses: readonly { readonly id: string; readonly combatantId: string; readonly indice: number; readonly epoch: number; readonly camera: number }[];
   readonly upcomingEnemies: readonly { readonly id: string; readonly name: string; readonly hp: number; readonly maxHp: number }[];
   readonly phaseLabel: string;
   readonly waveLabel: string;
@@ -105,8 +111,8 @@ export function useGameViewModel(): GameViewModel {
      A vida não some junto com o combate — o que some é a fonte de leitura. */
   const vitaisRef = useRef<readonly { id: string; name: string; hp: number; maxHp: number; mana: number; maxMana: number }[]>([]);
   const indicesRef = useRef<Record<string, number>>({});
-  const restosRef = useRef<readonly { id: string; indice: number; epoch: number; camera: number }[]>([]);
-  const [restos, setRestos] = useState<readonly { id: string; indice: number; epoch: number; camera: number }[]>([]);
+  const restosRef = useRef<readonly { id: string; combatantId: string; indice: number; epoch: number; camera: number }[]>([]);
+  const [restos, setRestos] = useState<readonly { id: string; combatantId: string; indice: number; epoch: number; camera: number }[]>([]);
   const [panel, setPanel] = useState<GamePanel>(null);
   const [inventoryPage, setInventoryPage] = useState(0);
   /* Repetir a noite é escolha do jogador, e precisa ser lida de dentro do
@@ -270,9 +276,17 @@ export function useGameViewModel(): GameViewModel {
           for (const event of defeats) nextAnimations[event.combatantId] = { animation: "dead", epoch };
 
           if (defeats.length > 0) {
-            const anteriores = restosRef.current.filter((r) => epoch - r.epoch < 60);
+            const anteriores = restosRef.current.filter((r) => epoch - r.epoch < VIDA_DO_CORPO_NA_LISTA);
+            /* O id do combatente se repete entre ondas — "w0-ignavo-f1" é o
+               slot, não o bicho — e o Loop refaz a mesma noite sem parar.
+               Duas mortes daquele slot em menos de VIDA_DO_CORPO_NA_LISTA
+               colidiam na lista e o React reclamava de chave duplicada.
+               O epoch da morte torna a chave única; o id do combatente
+               continua guardado à parte para o clarão de acerto encontrar
+               o corpo certo. */
             const novos = defeats.map((event) => ({
-              id: event.combatantId,
+              id: `${event.combatantId}:${epoch}`,
+              combatantId: event.combatantId,
               indice: indicesRef.current[event.combatantId] ?? 0,
               epoch, camera: cameraRef.current,
             }));
