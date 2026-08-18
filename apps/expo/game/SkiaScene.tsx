@@ -300,47 +300,51 @@ const PAREDE_A = GROUND_BACK - WALL_TOP;
 const COLUNAS = [90, 520, 950, 1380];
 const CICLO_COLUNA = 1720;
 
-/** Lajes de pedra irregulares para o chão — dungeon, não tábua corrida.
-    Régua horizontal repetida lia como piso de madeira; pedra pede uma
-    grade quebrada, com junta de argamassa e leve variação de tom por laje.
+/** Chão rústico, quase limpo: nada de grade regular por cima do degradê.
+    A primeira tentativa (lajes num grid de slots fixos) lia como azulejo —
+    regular demais para "rústico". A segunda vira só umas poucas manchas de
+    desgaste e rachaduras finas, espalhadas sem padrão, bem discretas
+    (opacidade baixa) — a maior parte do chão continua o degradê liso, só
+    com uns respingos de imperfeição por cima. */
+const CHAO_TILE_L = 560;
+const ALTURA_CHAO = GROUND + FLOOR_H - GROUND_BACK;
 
-    Cada fileira tem `slots` de largura FIXA e igual (`CHAO_TILE_L / slots`)
-    — é o que garante ladrilhagem perfeita, sem costura, ao repetir a
-    unidade lado a lado. A pedra em si é menor que o slot (a folga vira
-    junta) e balança de tamanho e tom só DENTRO do próprio slot — nunca
-    cruza a borda dele. */
-type Pedra = { x: number; y: number; w: number; h: number; tom: string };
-const CHAO_TILE_L = 480;
-const TONS_PEDRA = ["#332c22", "#26211a", "#3a3222", "#221d17", "#2c2519", "#302a1e"];
-const PEDRAS = (() => {
-  let semente = 41;
+type Mancha = { cx: number; cy: number; rx: number; ry: number; tom: string; opacidade: number };
+const MANCHAS: Mancha[] = (() => {
+  let semente = 71;
   const passo = () => (semente = (semente * 1103515245 + 12345) % 2147483648) / 2147483648;
-  const itens: Pedra[] = [];
-  /* Do fundo (junto da parede) para a frente: fileiras mais altas perto do
-     jogador — o mesmo truque que já fazia as réguas venderem profundidade,
-     só que agora É a própria pedra que se afasta, não uma linha por cima. */
-  const fileiras = [
-    { h: 16, slots: 10 },
-    { h: 18, slots: 8 },
-    { h: 20, slots: 7 },
-    { h: 24, slots: 6 },
-  ];
-  let y = GROUND_BACK;
-  for (const fileira of fileiras) {
-    const passoX = CHAO_TILE_L / fileira.slots;
-    for (let i = 0; i < fileira.slots; i++) {
-      const junta = 2;
-      const folgaW = passo() * 5 - 2.5;
-      const folgaH = passo() * 3 - 1.5;
-      itens.push({
-        x: i * passoX + junta / 2,
-        y: y + junta / 2,
-        w: passoX - junta + folgaW,
-        h: fileira.h - junta + folgaH,
-        tom: TONS_PEDRA[Math.floor(passo() * TONS_PEDRA.length)] ?? TONS_PEDRA[0]!,
-      });
+  const tons = ["#100d0b", "#332b1c", "#1c1712"];
+  const itens: Mancha[] = [];
+  for (let i = 0; i < 8; i++) {
+    itens.push({
+      cx: passo() * CHAO_TILE_L,
+      cy: GROUND_BACK + passo() * ALTURA_CHAO,
+      rx: 14 + passo() * 22,
+      ry: 4 + passo() * 7,
+      tom: tons[Math.floor(passo() * tons.length)] ?? tons[0]!,
+      opacidade: 0.1 + passo() * 0.12,
+    });
+  }
+  return itens;
+})();
+
+type Rachadura = { segmentos: { x: number; y: number; w: number }[]; opacidade: number };
+const RACHADURAS: Rachadura[] = (() => {
+  let semente = 133;
+  const passo = () => (semente = (semente * 1103515245 + 12345) % 2147483648) / 2147483648;
+  const itens: Rachadura[] = [];
+  for (let i = 0; i < 6; i++) {
+    let x = passo() * CHAO_TILE_L;
+    let y = GROUND_BACK + passo() * ALTURA_CHAO;
+    const segmentos: { x: number; y: number; w: number }[] = [];
+    const partes = 2 + Math.floor(passo() * 3);
+    for (let s = 0; s < partes; s++) {
+      const w = 5 + passo() * 8;
+      segmentos.push({ x, y, w });
+      x += w * (passo() < 0.5 ? 1 : 0.4);
+      y += (passo() - 0.5) * 3;
     }
-    y += fileira.h;
+    itens.push({ segmentos, opacidade: 0.16 + passo() * 0.12 });
   }
   return itens;
 })();
@@ -521,17 +525,27 @@ export function SkiaScene({ time, status, enemies, animations, hits, partyId, fe
           {/* linha bem sutil no horizonte — onde a parede encontra o chão */}
           <Rect x={0} y={GROUND_BACK} width={W} height={1} color="#3a2f1f" opacity={0.4} />
 
-          {/* lajes de pedra por cima da base: réguas horizontais lisas liam
-              como tábua corrida (piso de madeira); pedra pede grade
-              quebrada, com junta entre lajes e tom variando laje a laje. O
-              chão é onde o herói pisa, não pano de fundo — rola junto com a
-              câmera na velocidade cheia, não em parallax. */}
+          {/* imperfeições por cima da base: uma grade regular de lajes lia
+              como azulejo — regular demais para rústico. Só umas poucas
+              manchas de desgaste e rachaduras finas, espalhadas sem
+              padrão e discretas — o chão continua limpo, com uns respingos
+              de sujeira em vez de uma textura desenhada por cima inteira.
+              Rola com a câmera em velocidade cheia: é onde o herói pisa,
+              não pano de fundo em parallax. */}
           {(() => {
             const deslocamento = camera % CHAO_TILE_L;
             return [-1, 0, 1, 2].map((copia) => (
               <Group key={`chao-copia-${copia}`} transform={[{ translateX: copia * CHAO_TILE_L - deslocamento }]}>
-                {PEDRAS.map((p, i) => (
-                  <Rect key={i} x={p.x} y={p.y} width={p.w} height={p.h} color={p.tom} opacity={0.82} />
+                {MANCHAS.map((m, i) => (
+                  <Oval key={`m${i}`} x={m.cx - m.rx / 2} y={m.cy - m.ry / 2} width={m.rx} height={m.ry}
+                    color={m.tom} opacity={m.opacidade} />
+                ))}
+                {RACHADURAS.map((r, ri) => (
+                  <Group key={`r${ri}`} opacity={r.opacidade}>
+                    {r.segmentos.map((s, si) => (
+                      <Rect key={si} x={s.x} y={s.y} width={s.w} height={1} color="#0a0806" />
+                    ))}
+                  </Group>
                 ))}
               </Group>
             ));

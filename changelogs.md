@@ -25,16 +25,16 @@ PR #57 · 2026-08-18 · @thipintop
   continua a beirada da frente, onde herói e mobs pisam. Um degradê cobre
   a superfície inteira, sem costura visível entre onde os pés pisam e o
   fundo.
-- Chão vira lajes de pedra irregulares — dungeon, não tábua corrida. A
-  primeira tentativa marcava a perspectiva com réguas horizontais lisas
-  por cima do degradê, e aquilo lia como piso de madeira listrado. Agora é
-  uma grade de pedras (`PEDRAS`) com junta de argamassa e tom variando
-  laje a laje, em fileiras mais altas perto do jogador — a própria pedra
-  vende a profundidade, não uma linha por cima dela. O chão é onde o herói
-  pisa, não pano de fundo: rola com a câmera em velocidade cheia, e a
-  ladrilhagem (`CHAO_TILE_L`) é perfeita porque cada fileira usa slots de
-  largura fixa — a pedra balança de tamanho só dentro do próprio slot,
-  nunca cruza a borda dele.
+- Chão ganha um pouco de sujeira rústica por cima do degradê, sem virar
+  textura pesada. Duas tentativas anteriores erraram para lados opostos:
+  réguas horizontais lisas liam como tábua de madeira; uma grade regular
+  de lajes (`PEDRAS`, num grid de slots fixos) ficou regular demais e leu
+  como azulejo. A versão final é só umas poucas manchas de desgaste
+  (`MANCHAS`) e rachaduras finas (`RACHADURAS`), espalhadas sem padrão e
+  bem discretas — o chão continua limpo, com uns respingos de imperfeição
+  em vez de uma textura desenhada por inteiro. Continua rolando com a
+  câmera em velocidade cheia — é onde o herói pisa, não pano de fundo em
+  parallax.
 - Coluna vira adereço de fundo puro: a base para em `GROUND_BACK`, onde a
   parede encontra o chão — do tamanho do fundo, não do chão. Herói e mob
   caminham na faixa abaixo dela, mais perto do jogador. Uma primeira
