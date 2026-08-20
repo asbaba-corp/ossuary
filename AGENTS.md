@@ -172,6 +172,17 @@ rtk proxy gh pr view <última> --json body --jq .body | head -20
 
 Increment the last digit: `0.07` → `0.08`. Check `changelogs.md` too — if a number is already taken, someone merged while you were working, so take the next free one.
 
+**Read the number from `main`, not from memory, and read it again right before you push.** The gap between picking a number and opening the PR is exactly where someone else's merge lands. This has already produced one conflict:
+
+```bash
+rtk git fetch -q origin main
+rtk proxy git show origin/main:changelogs.md | grep -m1 -E '^## [0-9]'
+```
+
+The `[0-9]` matters: the file opens with a `## X.YY` template heading, and a bare `^## ` matches that instead of the real version.
+
+Whatever that prints is the last version *actually on `main`*. Yours is the next one. Running this costs a second; resolving the conflict afterwards costs a rebase and a renumber of every heading you already wrote.
+
 ### 2. Write it in the PR body
 
 The changelog **lives in the PR description**, under the version heading, and mirrors what goes into `changelogs.md`:

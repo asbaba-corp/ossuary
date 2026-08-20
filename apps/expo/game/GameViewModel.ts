@@ -12,6 +12,41 @@ import { ExpoSaveStore } from "../storage";
 const VELOCIDADE_DA_MARCHA = 62;
 /** Fração da marcha a partir da qual o herói começa a frear. */
 const FREIO_COMECA = 0.72;
+
+/* Morte do herói: queda, breu, retorno — portado do protótipo (PRs 0.06 e
+   0.08 a 0.11 do Thiago, que nunca chegaram ao app).
+
+   O breu não é só estética: é o corte que esconde o reposicionamento. Quando o
+   herói cai, o motor recua a party para uma fase mais rasa, e é durante o breu
+   que essa troca acontece sem o jogador ver a cena saltar. */
+const MORTE_QUEDA = 0.95;   // colapso, e tempo de ler a queda antes do breu cobrir
+const MORTE_BREU = 0.85;    // breu total com a citação — tempo de leitura
+const MORTE_RETORNO = 0.55; // cena e herói reaparecem juntos
+
+/** Vinte citações do Inferno de Dante Alighieri (Divina Comédia, ~1320),
+    as mesmas do protótipo. */
+const CITACOES_DA_MORTE = [
+  "“Abandonai toda esperança” — A Porta do Inferno",
+  "“Por mim se vai entre a gente perdida” — A Porta do Inferno",
+  "“Vi-me perdido numa selva escura” — Dante",
+  "“Ai de vós, almas más” — Caronte",
+  "“Homem não sou, homem já fui” — Virgílio",
+  "“Estes não têm esperança de morte” — Virgílio",
+  "“Não falemos deles: olha e passa” — Virgílio",
+  "“Não há dor maior” — Francesca da Rimini",
+  "“Não nascemos para viver como brutos” — Ulisses",
+  "“Dali saímos a rever as estrelas” — Dante",
+  "“Tão amarga que a morte é pouco mais” — Dante",
+  "“Por mim se vai à cidade do sofrimento” — A Porta do Inferno",
+  "“Justiça moveu meu sublime criador” — A Porta do Inferno",
+  "“Sem honra e sem louvor viveram” — Virgílio",
+  "“Amor não isenta quem é amado” — Francesca da Rimini",
+  "“Considerai de onde viestes” — Ulisses",
+  "“Mais que a dor, pôde o jejum” — Ugolino",
+  "“O imperador do reino doloroso” — Dante",
+  "“Por mim se vai à dor eterna” — A Porta do Inferno",
+  "“O caminho certo estava perdido” — Dante",
+] as const;
 /* Quanto tempo um corpo sobrevive NESTA lista antes de ser podado daqui.
    A cena (SkiaScene) já some com ele visualmente por volta de 1,8s de vida
    (atraso + fade); esta janela só existe para o array não crescer sem fim
@@ -37,6 +72,8 @@ export interface GameViewModel {
   readonly panel: GamePanel;
   readonly inventoryPage: number;
   readonly eventMessage: string;
+  readonly deathVeil: number;
+  readonly deathMessage: string;
   readonly marchProgress: number;
   readonly camera: number;
   readonly corpses: readonly { readonly id: string; readonly combatantId: string; readonly indice: number; readonly epoch: number; readonly camera: number }[];
@@ -137,6 +174,9 @@ export function useGameViewModel(): GameViewModel {
      250ms; sem esta trava, dois avanços podiam correr ao mesmo tempo e o
      segundo batia na guarda de "já existe uma run em andamento". */
   const trocandoRef = useRef(false);
+  /* Instante da queda e a citação sorteada. Sorteia UMA vez, na morte: sortear
+     por quadro trocaria a frase no meio da leitura. */
+  const [morte, setMorte] = useState<{ readonly epoch: number; readonly frase: string } | null>(null);
   const [eventMessage, setEventMessage] = useState("Carregando save local…");
   const sessionRef = useRef<GameSession | null>(null);
 
@@ -215,6 +255,11 @@ export function useGameViewModel(): GameViewModel {
            um único render depois de a onda cair, a cena concluiria que a
            marcha seguinte já tinha acabado e desenharia a horda nova direto na
            posição de combate: quatro inimigos piscando na tela e sumindo. */
+        if (events.some(({ type }) => type === "run_defeat")) {
+          const i = Math.floor(Math.abs(Math.sin(sceneClockRef.current) * 1e6)) % CITACOES_DA_MORTE.length;
+          setMorte({ epoch: sceneClockRef.current, frase: CITACOES_DA_MORTE[i]! });
+        }
+
         if (events.some(({ type }) => type === "wave_victory")) {
           marchaRef.current = { progresso: 0, relogio: sceneClockRef.current };
         }
@@ -420,6 +465,24 @@ export function useGameViewModel(): GameViewModel {
     /* Interpolado entre os ticks. `distanceToWave` só muda 4 vezes por segundo,
        e ler direto dele fazia a horda andar em degraus de 250ms. A âncora vem
        do motor — então nada de drift acumulado — e o resto é o relógio da cena. */
+    /* Véu da morte: 0 é cena visível, 1 é breu total. Sobe na queda, fica
+       cheio no breu — que é quando o recuo acontece — e desce no retorno. */
+    deathVeil: (() => {
+      if (!morte) return 0;
+      const idade = sceneTime - morte.epoch;
+      if (idade < 0) return 0;
+      if (idade < MORTE_QUEDA) return idade / MORTE_QUEDA;
+      if (idade < MORTE_QUEDA + MORTE_BREU) return 1;
+      const saindo = idade - MORTE_QUEDA - MORTE_BREU;
+      return saindo < MORTE_RETORNO ? 1 - saindo / MORTE_RETORNO : 0;
+    })(),
+    deathMessage: (() => {
+      if (!morte) return "";
+      const idade = sceneTime - morte.epoch;
+      // a frase só aparece com o breu já cobrindo, e sai antes de a cena voltar
+      return idade >= MORTE_QUEDA * 0.75 && idade < MORTE_QUEDA + MORTE_BREU ? morte.frase : "";
+    })(),
+
     marchProgress: run && run.status !== "combat"
       ? Math.min(1, marchaRef.current.progresso
           + (sceneTime - marchaRef.current.relogio) / (WORLD_0_CONTENT.runRules.walkingMs / 1000))

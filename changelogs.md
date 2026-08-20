@@ -23,6 +23,14 @@ PR #60 · 2026-08-20 · @juniozguedes
   A onda 2 e a 3 subiram junto porque manter 4 depois de uma primeira onda de 8
   faria a noite DECRESCER em dificuldade.
 
+### Added
+- **tela de morte portada do protótipo**: queda, breu e retorno, com uma das
+  vinte citações do Inferno. As PRs 0.06 e 0.08–0.11 do Thiago tocaram apenas
+  `prototype/scene.html` e nunca chegaram ao app — verificado arquivo por
+  arquivo nas PRs #44 a #50. O breu não é só estética: é o corte que esconde o
+  reposicionamento quando o motor recua a party para uma fase mais rasa.
+- `public/morte.html`, fixture que semeia um save fadado à morte.
+
 ### Removed
 - `docs/todo/` e `docs/done/`, e a etapa do fluxo que mandava escrever um plano
   antes e movê-lo depois. Quarenta desses tinham se acumulado e ninguém os lia:
@@ -30,6 +38,13 @@ PR #60 · 2026-08-20 · @juniozguedes
   registra o que foi entregue e o `memory.md` o porquê e o que não repetir. Dois
   registros da mesma coisa significam que um está velho, e o velho era sempre o
   plano. O conteúdo continua no histórico do git.
+
+### Changed
+- a checagem de versão do `AGENTS.md` passa a ler o número direto da `main` e a
+  ser refeita **imediatamente antes do push** — o intervalo entre escolher o
+  número e abrir a PR é onde o merge alheio cai. A regra já existia; o que
+  faltava era ancorá-la na origem e no momento certo. Esta própria PR nasceu
+  0.17 e virou 0.21 por causa disso.
 
 ### Notas
 A fronteira do build de referência continua na noite 4 — a noite 1 mais densa
@@ -317,6 +332,14 @@ PR #48 · 2026-08-13 · @thipintop
 
 ## 0.08 — Remove a ilustração da tela de morte
 PR #47 · 2026-08-13 · @thipintop
+
+### Added
+- **tela de morte portada do protótipo**: queda, breu e retorno, com uma das
+  vinte citações do Inferno. As PRs 0.06 e 0.08–0.11 do Thiago tocaram apenas
+  `prototype/scene.html` e nunca chegaram ao app — verificado arquivo por
+  arquivo nas PRs #44 a #50. O breu não é só estética: é o corte que esconde o
+  reposicionamento quando o motor recua a party para uma fase mais rasa.
+- `public/morte.html`, fixture que semeia um save fadado à morte.
 
 ### Removed
 - A ilustração da tela de morte (#45) saiu, junto do crânio procedural que

@@ -35,6 +35,7 @@ export function GameScreen() {
         <Text style={styles.event}>{vm.eventMessage}</Text>
       </View>
 
+      <View style={styles.palco}>
       <SceneRenderer
         time={vm.sceneTime}
         animations={vm.combatAnimations}
@@ -49,6 +50,14 @@ export function GameScreen() {
           ? enemies.map(({ snapshot, hp }) => ({ id: snapshot.id, name: snapshot.name, hp, maxHp: snapshot.stats.maxHp }))
           : vm.upcomingEnemies}
       />
+        {/* Véu da morte. Cobre só o palco: o HUD segue legível, e é o breu que
+            esconde o recuo da party para uma fase mais rasa. */}
+        {vm.deathVeil > 0 && (
+          <View pointerEvents="none" style={[styles.veuDaMorte, { opacity: vm.deathVeil }]}>
+            {vm.deathMessage !== "" && <Text style={styles.falaDaMorte}>{vm.deathMessage}</Text>}
+          </View>
+        )}
+      </View>
 
       <View style={styles.partyBar}>
         <View style={styles.partyHeader}><Text style={styles.sectionTitle}>PARTY</Text><Text style={styles.muted}>{vm.state?.party.characterIds.length ?? 1} / 4 ocupados</Text></View>
@@ -312,6 +321,9 @@ function HudButton({ label, onPress, ativo }: { label: string; onPress: () => vo
 }
 
 const styles = StyleSheet.create({
+  palco: { position: "relative" },
+  veuDaMorte: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "#000000", alignItems: "center", justifyContent: "center", paddingHorizontal: 28, zIndex: 10 },
+  falaDaMorte: { color: "#a89273", fontSize: 13, letterSpacing: 0.6, textAlign: "center", lineHeight: 21 },
   screen: { flex: 1, backgroundColor: "#0a0705" }, content: { padding: 18, paddingBottom: 48, gap: 12, maxWidth: 1060, width: "100%", alignSelf: "center" },
   header: { flexDirection: "row", justifyContent: "space-between", alignItems: "baseline" }, title: { color: "#d9c9a8", fontSize: 17, fontWeight: "700", letterSpacing: 3 }, subtitle: { color: "#6b5a44", fontSize: 11, marginTop: 3 }, status: { color: "#ff9a3c", fontSize: 11, letterSpacing: 2 },
   hud: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 12, backgroundColor: "#17110d", borderColor: "#2e241b", borderWidth: 1, padding: 9 }, metric: { flexGrow: 1, flexBasis: 118, minWidth: 118, paddingHorizontal: 14, paddingVertical: 10, gap: 3, backgroundColor: "#17110d", borderRightColor: "#241b14", borderRightWidth: 1 }, label: { color: "#6b5a44", fontSize: 9, letterSpacing: 1 }, value: { color: "#d9c9a8", fontSize: 15, fontVariant: ["tabular-nums"] }, event: { color: "#b9a891", fontSize: 10, flex: 1, minWidth: 120 }, hudIcons: { flexDirection: "row", gap: 5 }, hudButton: { backgroundColor: "#241b14", borderColor: "#4a3a2a", borderWidth: 1, paddingHorizontal: 9, paddingVertical: 6 }, hudButtonText: { color: "#a89273", fontSize: 9, letterSpacing: 1 }, hudButtonAtivo: { borderColor: "#e0913f", backgroundColor: "#2c1d10" }, hudButtonTextAtivo: { color: "#e0913f" },
