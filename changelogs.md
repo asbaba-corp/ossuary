@@ -16,7 +16,7 @@ PR #NN · AAAA-MM-DD · @autor
 ```
 
 ## 0.17 — Noite 1 com peso, e fim dos documentos de plano
-PR #56 · 2026-08-20 · @juniozguedes
+PR #60 · 2026-08-20 · @juniozguedes
 
 ### Changed
 - a noite 1 deixa de ser passeio: as ondas vão de 3/4/5 ignavos para **8/10/12**.
