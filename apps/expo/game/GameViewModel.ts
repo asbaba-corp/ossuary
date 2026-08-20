@@ -54,7 +54,23 @@ const CITACOES_DA_MORTE = [
    que a cena ainda está desenhando. */
 const VIDA_DO_CORPO_NA_LISTA = 3;
 
-export type GamePanel = "inventory" | "stats" | "bestiary" | "systems" | null;
+export type GamePanel = "inventory" | "stats" | "bestiary" | "systems" | "potions" | null;
+export type TipoDePocao = "hp" | "mp";
+
+/** Catálogo de poções, o mesmo do protótipo. A básica custa 50. */
+export const POCOES = {
+  hp: [
+    { id: "hp1", nome: "Poção Menor", custo: 50, cura: 45 },
+    { id: "hp2", nome: "Poção Média", custo: 120, cura: 130 },
+    { id: "hp3", nome: "Poção Maior", custo: 260, cura: 320 },
+  ],
+  mp: [
+    { id: "mp1", nome: "Elixir Menor", custo: 50, cura: 40 },
+    { id: "mp2", nome: "Elixir Médio", custo: 120, cura: 110 },
+  ],
+} as const;
+
+export interface AjusteDePocao { readonly on: boolean; readonly id: string; readonly at: number }
 export type SceneAnimation = "attack" | "hurt" | "dead";
 export type SceneAnimationState = Readonly<Record<string, { readonly animation: SceneAnimation; readonly epoch: number }>>;
 
@@ -83,6 +99,10 @@ export interface GameViewModel {
   readonly waveTrack: readonly ("cleared" | "current" | "pending")[];
   readonly nightTrack: readonly { readonly id: string; readonly numero: number; readonly estado: "cleared" | "current" | "unlocked" | "locked" }[];
   readonly selectNight: (phaseId: string) => void;
+  readonly pocoes: Record<TipoDePocao, AjusteDePocao>;
+  readonly togglePocao: (tipo: TipoDePocao) => void;
+  readonly escolherPocao: (tipo: TipoDePocao, id: string) => void;
+  readonly potionsAvailable: number;
   readonly loopNight: boolean;
   readonly toggleLoop: () => void;
   readonly gold: number;
@@ -163,6 +183,16 @@ export function useGameViewModel(): GameViewModel {
   const restosRef = useRef<readonly { id: string; combatantId: string; indice: number; epoch: number; camera: number }[]>([]);
   const [restos, setRestos] = useState<readonly { id: string; combatantId: string; indice: number; epoch: number; camera: number }[]>([]);
   const [panel, setPanel] = useState<GamePanel>(null);
+  /* Preferência de poção: liga/desliga, qual frasco e em que fração de vida
+     beber. Vive aqui e não no core porque o motor AINDA NÃO BEBE — as ondas
+     têm `consumableRuleId: null`, e o §5.3 manda o consumo seguir o dano
+     recebido, não a contagem de ondas. A tela configura; ligar ao combate é
+     trabalho do core, e até lá isto é declaração de intenção do jogador.
+     Mana nasce desligada: sem magia implementada, nada a gasta. */
+  const [pocoes, setPocoes] = useState<Record<TipoDePocao, AjusteDePocao>>({
+    hp: { on: true, id: "hp1", at: 0.45 },
+    mp: { on: false, id: "mp1", at: 0.35 },
+  });
   const [inventoryPage, setInventoryPage] = useState(0);
   /* Repetir a noite é escolha do jogador, e precisa ser lida de dentro do
      laço de tick — que fecha sobre o valor do render em que foi criado. Por
@@ -540,6 +570,19 @@ export function useGameViewModel(): GameViewModel {
           setEventMessage("Não foi possível trocar de noite. Veja o console.");
         });
     },
+
+    pocoes,
+    togglePocao: (tipo: TipoDePocao) =>
+      setPocoes((atual) => ({ ...atual, [tipo]: { ...atual[tipo], on: !atual[tipo].on } })),
+    escolherPocao: (tipo: TipoDePocao, id: string) =>
+      setPocoes((atual) => ({ ...atual, [tipo]: { ...atual[tipo], id } })),
+
+    /* Quantas cabem no ouro, pela poção ESCOLHIDA — não por um 50 fixo. Trocar
+       para a Maior tem de mudar este número, senão o painel mente. */
+    potionsAvailable: (() => {
+      const escolhida = POCOES.hp.find(({ id }) => id === pocoes.hp.id) ?? POCOES.hp[0];
+      return Math.floor((state?.economy.account.gold ?? 0) / escolhida.custo);
+    })(),
 
     loopNight,
     toggleLoop: () => { loopRef.current = !loopRef.current; setLoopNight(loopRef.current); },

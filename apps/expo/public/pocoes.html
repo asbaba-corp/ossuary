@@ -1,0 +1,28 @@
+<!doctype html>
+<!-- Abre a tela de poções pelo atalho do analyzer. Espera o HUD existir antes
+     de clicar: clicar por temporizador pega a sessão ainda nula. -->
+<meta charset="utf-8"><title>poções…</title>
+<style>html,body{margin:0;height:100%}iframe{width:1150px;height:820px;border:0}</style>
+<script>
+fetch("/save-noites.json").then((r) => r.text()).then((raw) => {
+  localStorage.setItem("ossuary:game-state:v1", raw);
+  const f = document.createElement("iframe"); f.src = "/"; document.body.appendChild(f);
+  let n = 0;
+  const t = setInterval(() => {
+    const d = f.contentDocument; n += 1;
+    const pronto = d && /\d+ \/ 10/.test(d.body.innerText || "");
+    const alvo = pronto && d.querySelector('[aria-label="Abrir poções"]');
+    if (!alvo) { if (n > 60) clearInterval(t); return; }
+    clearInterval(t);
+    alvo.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+    setTimeout(() => {
+      const txt = d.body.innerText || "";
+      const achou = (s) => txt.includes(s) ? "sim" : "NAO";
+      fetch("http://127.0.0.1:9333/r?" + encodeURIComponent(
+        `painel=${achou("POÇÕES")} vida=${achou("VIDA")} mana=${achou("MANA")} `
+        + `menor=${achou("Poção Menor")} maior=${achou("Poção Maior")} elixir=${achou("Elixir Menor")} `
+        + `ligada=${achou("LIGADA")} aviso=${achou("ainda não bebe")}`), { mode: "no-cors" });
+    }, 2000);
+  }, 500);
+});
+</script>

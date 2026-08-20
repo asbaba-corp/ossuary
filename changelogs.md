@@ -15,6 +15,30 @@ PR #NN · AAAA-MM-DD · @autor
 - ...
 ```
 
+## 0.22 — Tela de poções, com atalho no analyzer
+PR #61 · 2026-08-20 · @juniozguedes
+
+### Added
+- **tela de poções**: duas colunas, vida e mana, com liga/desliga por tipo, o
+  frasco escolhido e o limiar em que se bebe. Custo em vermelho quando o ouro
+  não cobre — o §5.3 manda a poção só ser bebida se o ouro cobrir, nunca
+  negativa. Catálogo e valores são os mesmos do protótipo; mana nasce
+  desligada porque sem magia nada gasta mana.
+- **atalho**: frasco clicável ao lado de POTIONS AVAILABLE, no Session
+  Analyzer. O botão "◍ Poções" que já existia dentro do inventário estava
+  inerte e agora abre a mesma tela.
+
+### Changed
+- POTIONS AVAILABLE deixa de dividir o ouro por um 50 fixo e passa a usar o
+  custo da poção ESCOLHIDA. Trocar para a Maior muda o número; antes o painel
+  mentia.
+
+### Notas
+A tela guarda a escolha, mas **o motor ainda não bebe**: as ondas do Mundo 0
+têm `consumableRuleId` nulo, e o §5.3 manda o consumo seguir o dano recebido e
+não a contagem de ondas. Isso está dito na própria tela, para ninguém achar que
+está ligado. Ligar ao combate é trabalho do core.
+
 ## 0.21 — Noite 1 com peso, e fim dos documentos de plano
 PR #60 · 2026-08-20 · @juniozguedes
 
