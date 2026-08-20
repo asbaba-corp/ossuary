@@ -1,0 +1,11 @@
+<!doctype html>
+<!-- Semeia um save fadado à morte: noite 4 em combate, herói de nível 1 sem
+     atributo distribuído. É o único jeito de ver a queda, o breu e a citação
+     numa captura — esperar morrer jogando levaria minutos. -->
+<meta charset="utf-8"><title>semeando morte…</title>
+<script>
+fetch("/save-morte.json").then((r) => r.text()).then((raw) => {
+  localStorage.setItem("ossuary:game-state:v1", raw);
+  location.replace("/");
+});
+</script>

@@ -93,17 +93,25 @@ If a secret was already committed, **removing it in the next commit is not enoug
 
 For every new prompt/feature:
 
-1. Write the plan to `docs/todo/<slug>.md` before implementing.
-2. Implement.
-3. **Review every doc and fold in what changed** (see below).
-4. Move the plan to `docs/done/<slug>.md`.
+1. Implement.
+2. **Review every doc and fold in what changed** (see below).
+3. Record the version in `changelogs.md`, and whatever is worth not
+   rediscovering in `memory.md`.
+
+> **Planning docs are gone.** Until 0.17 every feature wrote a plan to
+> `docs/todo/<slug>.md` and moved it to `docs/done/<slug>.md` when finished.
+> Forty of those accumulated and nobody read them: the plan described the
+> intention *before* the work, while `changelogs.md` records what shipped and
+> `memory.md` records why and what not to repeat. Two records of the same thing
+> means one of them is stale, and the stale one was always the plan. Do not
+> bring the folders back — put the decision in `memory.md` instead.
 
 ### After any change, sweep the docs
 
 **A change is not finished while a doc still describes the old behavior.** After every change — feature, fix, or tweak — walk the docs and update whatever the change touched. Docs drifting out of sync is worse than no docs: the next person trusts them and is wrong.
 
 ```bash
-rtk ls docs/design/*.md docs/done/*.md *.md
+rtk ls docs/design/*.md *.md
 ```
 
 What to check each time:
@@ -113,7 +121,6 @@ What to check each time:
 | `docs/design/core-design.md` | New systems, decided open questions, changed rules and formulas |
 | `world_*.md` | Anything affecting that world's bestiary, phases or drops |
 | `plano-tecnico-idle-ios.md` | Stack, architecture, sync, PVP, monetization decisions |
-| `docs/done/<slug>.md` | What was actually delivered, and how it differed from the plan |
 | `AGENTS.md` | New commands, new conventions, new constraints |
 | `changelogs.md` | The version entry for this PR (see *Changelog*) |
 | `memory.md` | Anything worth not rediscovering (see *Memory*) |
@@ -164,6 +171,17 @@ rtk proxy gh pr view <última> --json body --jq .body | head -20
 ```
 
 Increment the last digit: `0.07` → `0.08`. Check `changelogs.md` too — if a number is already taken, someone merged while you were working, so take the next free one.
+
+**Read the number from `main`, not from memory, and read it again right before you push.** The gap between picking a number and opening the PR is exactly where someone else's merge lands. This has already produced one conflict:
+
+```bash
+rtk git fetch -q origin main
+rtk proxy git show origin/main:changelogs.md | grep -m1 -E '^## [0-9]'
+```
+
+The `[0-9]` matters: the file opens with a `## X.YY` template heading, and a bare `^## ` matches that instead of the real version.
+
+Whatever that prints is the last version *actually on `main`*. Yours is the next one. Running this costs a second; resolving the conflict afterwards costs a rebase and a renumber of every heading you already wrote.
 
 ### 2. Write it in the PR body
 
