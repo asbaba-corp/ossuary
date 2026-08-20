@@ -126,7 +126,7 @@ interface FaseDesenho {
 const DESENHO: readonly FaseDesenho[] = [
   {
     papel: "Apresentação", dropTableId: "w0-drop-inicial", xpPorOnda: 18, ouroPorOnda: 34,
-    ondas: [{ ignavo: 3 }, { ignavo: 4 }, { ignavo: 5 }],
+    ondas: [{ ignavo: 8 }, { ignavo: 10 }, { ignavo: 12 }],
   },
   {
     papel: "Apresentação", dropTableId: "w0-drop-inicial", xpPorOnda: 50, ouroPorOnda: 34,

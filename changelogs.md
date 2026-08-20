@@ -15,6 +15,26 @@ PR #NN · AAAA-MM-DD · @autor
 - ...
 ```
 
+## 0.17 — Noite 1 com peso, e fim dos documentos de plano
+PR #56 · 2026-08-20 · @juniozguedes
+
+### Changed
+- a noite 1 deixa de ser passeio: as ondas vão de 3/4/5 ignavos para **8/10/12**.
+  A onda 2 e a 3 subiram junto porque manter 4 depois de uma primeira onda de 8
+  faria a noite DECRESCER em dificuldade.
+
+### Removed
+- `docs/todo/` e `docs/done/`, e a etapa do fluxo que mandava escrever um plano
+  antes e movê-lo depois. Quarenta desses tinham se acumulado e ninguém os lia:
+  o plano descreve a intenção ANTES do trabalho, enquanto o `changelogs.md`
+  registra o que foi entregue e o `memory.md` o porquê e o que não repetir. Dois
+  registros da mesma coisa significam que um está velho, e o velho era sempre o
+  plano. O conteúdo continua no histórico do git.
+
+### Notas
+A fronteira do build de referência continua na noite 4 — a noite 1 mais densa
+não a moveu. Calibre segue sendo do time.
+
 ## 0.16 — Herói passa a usar o pack 2D SL Knight
 PR #55 · 2026-08-15 · @juniozguedes
 
