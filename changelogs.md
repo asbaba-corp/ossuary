@@ -15,7 +15,7 @@ PR #NN · AAAA-MM-DD · @autor
 - ...
 ```
 
-## 0.17 — Noite 1 com peso, e fim dos documentos de plano
+## 0.21 — Noite 1 com peso, e fim dos documentos de plano
 PR #60 · 2026-08-20 · @juniozguedes
 
 ### Changed
@@ -34,6 +34,96 @@ PR #60 · 2026-08-20 · @juniozguedes
 ### Notas
 A fronteira do build de referência continua na noite 4 — a noite 1 mais densa
 não a moveu. Calibre segue sendo do time.
+
+Numerada 0.21 e não 0.17: a `main` recebeu 0.18, 0.19 e 0.20 enquanto esta
+branch estava aberta, que é exatamente o caso que o AGENTS.md manda checar
+antes de fechar a versão.
+
+## 0.20 — Corpo ganha desempate próprio, sem depender só do epoch travado
+PR #59 · 2026-08-18 · @thipintop
+
+### Fixed
+- O id de cada corpo (`restos`) já levava o epoch da morte para não colidir
+  com mortes antigas do mesmo slot de combatente. Mas antes do primeiro
+  `requestAnimationFrame` o epoch fica travado em 0 (só anda no loop de
+  rAF), enquanto o tick do motor roda num `setInterval` à parte e pode
+  resolver várias ondas inteiras nessa janela — o mesmo slot morrendo de
+  novo com o epoch ainda em 0 colidia na chave e o React acusava
+  "Encountered two children with the same key" logo no início da run. Um
+  contador crescente, no mesmo padrão já usado pelo número de dano
+  (`feedbackSeqRef`, PR #58), resolve.
+
+## 0.19 — Chão ganha profundidade; colunas plantadas no chão
+PR #57 · 2026-08-18 · @thipintop
+
+### Changed
+- Parede e chão se tocavam numa linha reta só, como se a cena não tivesse
+  ângulo nenhum. Agora o chão é uma superfície: `GROUND_BACK`, junto da
+  parede, mais alta na tela porque é mais longe do jogador; `GROUND`
+  continua a beirada da frente, onde herói e mobs pisam. Um degradê cobre
+  a superfície inteira, sem costura visível entre onde os pés pisam e o
+  fundo.
+- Chão ganha um pouco de sujeira rústica por cima do degradê, sem virar
+  textura pesada. Duas tentativas anteriores erraram para lados opostos:
+  réguas horizontais lisas liam como tábua de madeira; uma grade regular
+  de lajes (`PEDRAS`, num grid de slots fixos) ficou regular demais e leu
+  como azulejo. A versão final é só umas poucas manchas de desgaste
+  (`MANCHAS`) e rachaduras finas (`RACHADURAS`), espalhadas sem padrão e
+  bem discretas — o chão continua limpo, com uns respingos de imperfeição
+  em vez de uma textura desenhada por inteiro. Continua rolando com a
+  câmera em velocidade cheia — é onde o herói pisa, não pano de fundo em
+  parallax.
+- Coluna vira adereço de fundo puro: a base para em `GROUND_BACK`, onde a
+  parede encontra o chão — do tamanho do fundo, não do chão. Herói e mob
+  caminham na faixa abaixo dela, mais perto do jogador. Uma primeira
+  tentativa tinha plantado a base *dentro* do chão (abaixo de `GROUND`), o
+  que colocava a coluna na mesma linha do personagem em vez de atrás dele.
+
+### Notas
+Nada na lógica de combate, posicionamento ou animação muda — `GROUND`
+continua a referência de todo o resto do jogo. Só o desenho por trás dos
+personagens ganhou profundidade.
+
+---
+
+## 0.18 — Número de dano ganha desempate próprio, sem depender do relógio da cena
+PR #58 · 2026-08-18 · @thipintop
+
+### Fixed
+- Feedback de dano usava o relógio da cena (`sceneClockRef`) como parte da
+  chave React. Esse relógio só anda dentro do loop de rAF, mas o tick do
+  motor roda num `setInterval` à parte — no início de uma run, várias
+  iterações desse setInterval processavam ataques contra o mesmo alvo antes
+  do primeiro quadro de rAF, todas com o relógio travado em 0, gerando o
+  mesmo id e disparando "Encountered two children with the same key" logo no
+  começo de toda run nova. O id agora carrega um contador incremental por
+  push que desempata quando o relógio ainda não andou.
+
+---
+
+## 0.17 — Corpos e números de dano deixam de acumular
+PR #56 · 2026-08-18 · @thipintop
+
+### Fixed
+- Corpo de inimigo só saía de cena rolando com a câmera — sem marcha
+  (combate, Loop numa mesma noite) ele nunca ia embora, e os corpos se
+  empilhavam até pesar o quadro. Agora ele fica visível um instante e
+  desvanece sozinho (~1,8s), por idade, do mesmo jeito que os números de dano
+  já faziam.
+- O id de combatente se repete entre ondas quando a mesma noite é refeita
+  (Loop) — é o slot, não o bicho. Duas mortes do mesmo slot colidiam na chave
+  da lista de corpos (`Encountered two children with the same key`). A chave
+  agora carrega o instante da morte; o id do combatente continua guardado à
+  parte para o clarão de acerto encontrar o corpo certo.
+- A lista de corpos retinha cada um por 60s antes de podar, dez vezes mais
+  que qualquer corpo chega a ficar visível. Cai para uma folga de 3s.
+
+### Notas
+Os números de dano flutuantes já expiravam sozinhos por idade — o relato de
+"acumulados" era o mesmo travamento dos corpos deixando o fade parecer
+congelado, não um vazamento à parte.
+
+---
 
 ## 0.16 — Herói passa a usar o pack 2D SL Knight
 PR #55 · 2026-08-15 · @juniozguedes

@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { useMemo } from "react";
-import { Canvas, Circle, ColorMatrix, FilterMode, Group, Image as SkiaImage, MipmapMode, Oval, Paint, RadialGradient, Rect, Skia, rect, useImage, vec } from "@shopify/react-native-skia";
+import { Canvas, Circle, ColorMatrix, FilterMode, Group, Image as SkiaImage, LinearGradient, MipmapMode, Oval, Paint, RadialGradient, Rect, Skia, rect, useImage, vec } from "@shopify/react-native-skia";
 import type { SkCanvas, SkPaint } from "@shopify/react-native-skia";
 import { StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import type { SceneAnimation, SceneAnimationState } from "./GameViewModel";
@@ -16,8 +16,23 @@ const H = 384;
 const CEILING_Y = 34;
 const CEILING_H = 38;
 const WALL_TOP = CEILING_Y + CEILING_H;
+/* Antes a parede encontrava o chão numa única linha reta (`GROUND`), como
+   se a cena fosse vista de lado, sem ângulo — o "corredor de papelão". Agora
+   o chão tem uma SUPERFÍCIE, não uma linha: `GROUND_BACK` é onde ela nasce,
+   junto da parede, mais alta na tela porque é mais longe do jogador;
+   `GROUND` continua sendo a beirada da frente, onde herói e mobs pisam —
+   nada na lógica de combate ou posicionamento muda, só o desenho por trás
+   deles ganha profundidade. */
+const GROUND_BACK = 266;
 const GROUND = 300;
 const FLOOR_H = 44;
+/* A coluna é adereço do FUNDO (segundo plano): do teto até onde a parede
+   encontra o chão, e nada além disso — ela não pisa no chão que herói e
+   mob pisam, ela é parte do pano de trás. Herói e mob caminham na frente e
+   ABAIXO dela, na faixa de chão entre `GROUND_BACK` e `GROUND`. Uma coluna
+   que descesse até `GROUND` ficaria na mesma linha do personagem em vez de
+   atrás dele. */
+const COLUNA_BASE_Y = GROUND_BACK;
 const FRAME = 128;                       // lado do quadro nas folhas de sprite
 
 /* O pack do herói tem quadro 128x64, não 128x128: a escala precisa ser maior
@@ -82,6 +97,12 @@ const FPS: Record<Animation, number> = { idle: 6, walk: 11, attack: 13, hurt: 14
 const CICLA: Record<Animation, boolean> = { idle: true, walk: true, attack: false, hurt: false, dead: false };
 
 const DURACAO_SINAL: Record<SceneAnimation, number> = { attack: 0.42, hurt: 0.3, dead: 0.5 };
+/* O corpo ficava só por conta do scroll para sumir — sem marcha (combate,
+   Loop numa mesma noite) ele nunca saía de cena, e as ondas foram ficando
+   maiores (fileiras, #54), então os corpos empilhavam e pesavam o quadro.
+   Agora ele para visível um instante (dá tempo do jogador registrar a
+   queda) e desvanece sozinho, sem depender de a câmera andar. */
+const ATRASO_CORPO = 1.4;                // segundos parado antes de começar a sumir
 const FADE_CORPO = 0.4;                  // desvanecer depois da animação de morte
 const VIDA_NUMERO = 0.7;                 // quanto um número flutuante dura
 const VIDA_CLARAO = 0.32;                // quanto o pisca de acerto dura
@@ -253,7 +274,7 @@ const PAREDE = (() => {
   const passo = () => (semente = (semente * 1103515245 + 12345) % 2147483648) / 2147483648;
 
   const camada = (passoY: number, passoX: number, rBase: number, recuo: number, chanceNuca: number) => {
-    for (let linha = 0; WALL_TOP + linha * passoY < GROUND + 26; linha++) {
+    for (let linha = 0; WALL_TOP + linha * passoY < GROUND_BACK + 26; linha++) {
       const y = WALL_TOP + 10 + linha * passoY;
       const desloca = (linha % 2) * (passoX / 2);
       for (let x = -24; x < W + 380; x += passoX) {
@@ -274,10 +295,59 @@ const PAREDE = (() => {
 })();
 
 const PAREDE_L = W + 400;
-const PAREDE_A = GROUND - WALL_TOP;
+const PAREDE_A = GROUND_BACK - WALL_TOP;
 
 const COLUNAS = [90, 520, 950, 1380];
 const CICLO_COLUNA = 1720;
+
+/** Chão rústico, quase limpo: nada de grade regular por cima do degradê.
+    A primeira tentativa (lajes num grid de slots fixos) lia como azulejo —
+    regular demais para "rústico". A segunda vira só umas poucas manchas de
+    desgaste e rachaduras finas, espalhadas sem padrão, bem discretas
+    (opacidade baixa) — a maior parte do chão continua o degradê liso, só
+    com uns respingos de imperfeição por cima. */
+const CHAO_TILE_L = 560;
+const ALTURA_CHAO = GROUND + FLOOR_H - GROUND_BACK;
+
+type Mancha = { cx: number; cy: number; rx: number; ry: number; tom: string; opacidade: number };
+const MANCHAS: Mancha[] = (() => {
+  let semente = 71;
+  const passo = () => (semente = (semente * 1103515245 + 12345) % 2147483648) / 2147483648;
+  const tons = ["#100d0b", "#332b1c", "#1c1712"];
+  const itens: Mancha[] = [];
+  for (let i = 0; i < 8; i++) {
+    itens.push({
+      cx: passo() * CHAO_TILE_L,
+      cy: GROUND_BACK + passo() * ALTURA_CHAO,
+      rx: 14 + passo() * 22,
+      ry: 4 + passo() * 7,
+      tom: tons[Math.floor(passo() * tons.length)] ?? tons[0]!,
+      opacidade: 0.1 + passo() * 0.12,
+    });
+  }
+  return itens;
+})();
+
+type Rachadura = { segmentos: { x: number; y: number; w: number }[]; opacidade: number };
+const RACHADURAS: Rachadura[] = (() => {
+  let semente = 133;
+  const passo = () => (semente = (semente * 1103515245 + 12345) % 2147483648) / 2147483648;
+  const itens: Rachadura[] = [];
+  for (let i = 0; i < 6; i++) {
+    let x = passo() * CHAO_TILE_L;
+    let y = GROUND_BACK + passo() * ALTURA_CHAO;
+    const segmentos: { x: number; y: number; w: number }[] = [];
+    const partes = 2 + Math.floor(passo() * 3);
+    for (let s = 0; s < partes; s++) {
+      const w = 5 + passo() * 8;
+      segmentos.push({ x, y, w });
+      x += w * (passo() < 0.5 ? 1 : 0.4);
+      y += (passo() - 0.5) * 3;
+    }
+    itens.push({ segmentos, opacidade: 0.16 + passo() * 0.12 });
+  }
+  return itens;
+})();
 
 /* ------------------------------------------------------------------ cena */
 
@@ -286,7 +356,7 @@ type Feedback = { readonly id: string; readonly alvo: string; readonly epoch: nu
 
 export function SkiaScene({ time, status, enemies, animations, hits, partyId, feedback, marcha = 1, camera = 0, corpses = [] }: {
   time: number; status: string; enemies: readonly Enemy[]; marcha?: number; camera?: number;
-  corpses?: readonly { readonly id: string; readonly indice: number; readonly epoch: number; readonly camera: number }[];
+  corpses?: readonly { readonly id: string; readonly combatantId: string; readonly indice: number; readonly epoch: number; readonly camera: number }[];
   animations: SceneAnimationState; hits?: Readonly<Record<string, number>>;
   partyId?: string; feedback: readonly Feedback[];
 }) {
@@ -425,7 +495,7 @@ export function SkiaScene({ time, status, enemies, animations, hits, partyId, fe
           </Group>
 
           {/* a parede vive na penumbra; a luz vem dos castiçais */}
-          <Rect x={0} y={WALL_TOP} width={W} height={GROUND - WALL_TOP} color="#0a0806" opacity={0.80} />
+          <Rect x={0} y={WALL_TOP} width={W} height={GROUND_BACK - WALL_TOP} color="#0a0806" opacity={0.80} />
           {/* poça de luz com degradê: disco chapado lia como mancha marrom */}
           {COLUNAS.map((wx) => {
             const cx = wx - ((camera * 0.55) % CICLO_COLUNA) + 9;
@@ -441,30 +511,73 @@ export function SkiaScene({ time, status, enemies, animations, hits, partyId, fe
             );
           })}
 
-          {/* colunas e castiçais */}
+          {/* chão: base contínua (argamassa/junta) de GROUND_BACK até o fim
+              da beirada da frente, com o mesmo degradê de antes — mais claro
+              junto da parede, onde a luz dos castiçais bate. */}
+          <Rect x={0} y={GROUND_BACK} width={W} height={GROUND + FLOOR_H - GROUND_BACK}>
+            <LinearGradient
+              start={vec(0, GROUND_BACK)}
+              end={vec(0, GROUND + FLOOR_H)}
+              colors={["#241e19", "#1c1713", "#141110"]}
+              positions={[0, 0.55, 1]}
+            />
+          </Rect>
+          {/* linha bem sutil no horizonte — onde a parede encontra o chão */}
+          <Rect x={0} y={GROUND_BACK} width={W} height={1} color="#3a2f1f" opacity={0.4} />
+
+          {/* imperfeições por cima da base: uma grade regular de lajes lia
+              como azulejo — regular demais para rústico. Só umas poucas
+              manchas de desgaste e rachaduras finas, espalhadas sem
+              padrão e discretas — o chão continua limpo, com uns respingos
+              de sujeira em vez de uma textura desenhada por cima inteira.
+              Rola com a câmera em velocidade cheia: é onde o herói pisa,
+              não pano de fundo em parallax. */}
+          {(() => {
+            const deslocamento = camera % CHAO_TILE_L;
+            return [-1, 0, 1, 2].map((copia) => (
+              <Group key={`chao-copia-${copia}`} transform={[{ translateX: copia * CHAO_TILE_L - deslocamento }]}>
+                {MANCHAS.map((m, i) => (
+                  <Oval key={`m${i}`} x={m.cx - m.rx / 2} y={m.cy - m.ry / 2} width={m.rx} height={m.ry}
+                    color={m.tom} opacity={m.opacidade} />
+                ))}
+                {RACHADURAS.map((r, ri) => (
+                  <Group key={`r${ri}`} opacity={r.opacidade}>
+                    {r.segmentos.map((s, si) => (
+                      <Rect key={si} x={s.x} y={s.y} width={s.w} height={1} color="#0a0806" />
+                    ))}
+                  </Group>
+                ))}
+              </Group>
+            ));
+          })()}
+
+          <Rect x={0} y={GROUND + FLOOR_H} width={W} height={H - GROUND - FLOOR_H} color="#0a0b0d" />
+
+          {/* colunas: segundo plano — adereço do cenário, não interage com
+              herói nem mob. A base para em GROUND_BACK, onde a parede
+              encontra o chão — a coluna é do tamanho do fundo, não do
+              chão. Herói e mob caminham na faixa abaixo dela. */}
           {COLUNAS.map((wx) => {
             const x = wx - ((camera * 0.55) % CICLO_COLUNA);
             return (
               <Group key={`col-${wx}`}>
-                <Rect x={x} y={CEILING_Y + 6} width={18} height={GROUND - CEILING_Y - 6} color="#3f362a" />
-                <Rect x={x + 3} y={CEILING_Y + 6} width={5} height={GROUND - CEILING_Y - 6} color="#6d5a3c" />
+                <Rect x={x} y={CEILING_Y + 6} width={18} height={COLUNA_BASE_Y - CEILING_Y - 6} color="#3f362a" />
+                <Rect x={x + 3} y={CEILING_Y + 6} width={5} height={COLUNA_BASE_Y - CEILING_Y - 6} color="#6d5a3c" />
                 <Rect x={x - 6} y={CEILING_Y + 1} width={30} height={9} color="#7d6746" />
-                <Rect x={x - 6} y={GROUND - 14} width={30} height={14} color="#6d5a3c" />
+                <Oval x={x - 10} y={COLUNA_BASE_Y - 4} width={38} height={9} color="#000000" opacity={0.35} />
+                <Rect x={x - 6} y={COLUNA_BASE_Y - 14} width={30} height={14} color="#6d5a3c" />
                 <Circle cx={x + 9} cy={150} r={4} color="#ffe0a8" />
               </Group>
             );
           })}
 
-          {/* chão */}
-          <Rect x={0} y={GROUND} width={W} height={FLOOR_H} color="#1b1715" />
-          <Rect x={0} y={GROUND} width={W} height={2} color="#0a0806" />
-          <Rect x={0} y={GROUND + FLOOR_H} width={W} height={H - GROUND - FLOOR_H} color="#0a0b0d" />
-
           {/* inimigos: encaram a party, então vão espelhados */}
           {corpses.map((corpo) => {
-            /* Fica onde caiu e o mundo o deixa para trás. A animação de morte
-               roda uma vez e o último quadro PERMANECE: o corpo não desvanece,
-               some por sair de cena. */
+            const idade = time - corpo.epoch;
+            /* Some pela idade, não só por sair de cena — combate e farm numa
+               mesma noite não fazem a câmera andar, e sem isto o corpo ficava
+               para sempre. */
+            if (idade > ATRASO_CORPO + FADE_CORPO) return null;
             /* Do SLOT, não de `posicaoMob`: esta última soma o recuo da horda
                que está entrando, e com isso os corpos eram empurrados para a
                frente junto com ela — o jogador via cadáveres adiante, de
@@ -472,11 +585,12 @@ export function SkiaScene({ time, status, enemies, animations, hits, partyId, fe
                mundo é que passa por ele. */
             const x = slotMob(corpo.indice) - (camera - corpo.camera);
             if (x < LIMITE_DO_CORPO || x > W + 420) return null;
+            const opacidade = idade <= ATRASO_CORPO ? 1 : Math.max(0, 1 - (idade - ATRASO_CORPO) / FADE_CORPO);
             return (
-              <Group key={`corpo:${corpo.id}`}>
+              <Group key={`corpo:${corpo.id}`} opacity={opacidade}>
                 <Oval x={x - 24} y={GROUND - 5} width={48} height={6} color="#000000" opacity={0.32} />
                 <Quadro image={mob.dead} animation="dead" t={time - corpo.epoch} cx={x} footY={GROUND}
-                  scale={MOB_SCALE} flip clarao={claraoDe(corpo.id)} />
+                  scale={MOB_SCALE} flip clarao={claraoDe(corpo.combatantId)} />
               </Group>
             );
           })}

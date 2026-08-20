@@ -243,3 +243,70 @@ o filtro padrão do Skia, que **interpola** ao ampliar.
 `sampling={{ filter: FilterMode.Nearest, mipmap: MipmapMode.None }}`. Sem
 mipmap porque não há redução. Vale para todo sprite do jogo, não só o herói.
 
+### Corpo sem prazo de validade pesa o quadro
+**Sintoma:** jogando por um tempo (ou com Loop farmando a mesma noite), os
+corpos se acumulavam em cena e o jogo ficava visivelmente pesado; o jogador
+relatou também números de dano "acumulados" — mas isso era sintoma do mesmo
+travamento, não um leak à parte: `combatFeedback` já expira sozinho por idade
+no render (`VIDA_NUMERO`), a lentidão só fazia o fade parecer congelado.
+**Causa:** o corpo só saía da cena por `x < LIMITE_DO_CORPO` (scroll para fora
+da tela). Sem marcha — combate, farm numa mesma noite via Loop — a câmera não
+anda, e o corpo não tinha por onde sumir. Havia até uma constante `FADE_CORPO`
+já declarada, mas nunca lida em lugar nenhum — meia implementação que ninguém
+terminou de ligar. A lista de origem (`restosRef`) também guardava tudo por
+60s, dez vezes mais que qualquer corpo precisa ficar visível.
+**Lição:** todo elemento efêmero de cena precisa de saída **por idade**, não só
+por geometria — a mesma regra que já valia para `combatFeedback`
+(`VIDA_NUMERO`) não tinha sido aplicada ao corpo. Uma constante declarada e
+nunca usada é sinal de fix pela metade; vale grep por declarações órfãs ao
+revisar uma área.
+
+### Id de combatente se repete entre ondas — chave de lista não pode reusá-lo
+**Sintoma:** "Encountered two children with the same key" no console, em
+sequência de `corpo:w0-ignavo-f1:…`, só aparecendo com Loop ligado.
+**Causa:** `w0-ignavo-f1` é o **slot** da onda, não o bicho — cada vez que a
+noite é refeita (Loop), o motor reusa o mesmo id para o próximo ocupante
+daquele slot. A lista de corpos usava esse id como chave React direto; duas
+mortes do mesmo slot dentro da janela de retenção colidiam.
+**Lição:** chave de lista precisa ser única por **evento**, não por entidade
+reaproveitável — `${combatantId}:${epoch}` resolve, mas o lookup do clarão de
+acerto (`combatHits`) continua precisando do id "puro" do combatente, então o
+registro guarda os dois campos separados. Achado enquanto investigava o corpo
+acima; verificar sempre com uma aba de console **limpa** — a ferramenta de
+console deste ambiente mantém histórico entre navegações, e reexibir erros
+antigos como se fossem novos quase levou a uma falsa negativa.
+
+### `${combatantId}:${epoch}` ainda colide quando o epoch fica travado em 0
+**Sintoma:** "Encountered two children with the same key" para `corpo:…:0` em
+sessão normal, **sem Loop** — contradizendo a entrada acima ("só aparecendo
+com Loop ligado"), que descrevia a causa raiz mas não esgotava os gatilhos.
+**Causa:** `sceneClockRef` (o `epoch`) só anda dentro do loop de rAF; o tick
+do motor roda num `setInterval` de 250ms à parte. Logo depois do mount, antes
+do primeiro quadro pintar, o `setInterval` pode disparar várias vezes em
+sequência rápida — e como cada noite desta fase (`vestibule-home`, conteúdo
+trivial) termina em poucos ticks, várias ondas inteiras se resolvem com o
+epoch ainda em 0. O mesmo slot de combatente morre de novo dentro dessa
+janela, e `${combatantId}:${epoch}` colide de novo mesmo já levando o epoch.
+Esse é o mesmo mecanismo do PR #58 (número de dano com `d:${epoch}:${alvo}`),
+que ganhou um contador (`feedbackSeqRef`) — o corpo (`restos`) não tinha
+ganhado o equivalente.
+**Lição:** qualquer chave derivada de `sceneClockRef` precisa de um contador
+monotônico como desempate, não só o epoch — o epoch por si só só garante
+unicidade **depois** do primeiro rAF. Ao investigar colisão de chave que
+envolve `epoch`, reproduzir tanto com quanto sem Loop; o Loop não é
+pré-requisito, só um jeito mais fácil de repetir o mesmo slot.
+
+### A parede rasterizada depende de `GROUND` por fora do componente
+**Sintoma:** nenhum ainda — anotado para não ser "simplificado".
+**Causa:** a parede de caveiras (`PAREDE`, gerada uma vez no módulo, fora do
+componente) e sua superfície rasterizada (`PAREDE_A = GROUND - WALL_TOP`)
+usam `GROUND` para saber onde parar de desenhar. Mexer na geometria do chão
+sem lembrar dessas duas linhas deixa a parede desenhada curta ou passando por
+cima do chão novo — o bug não aparece no typecheck, só no visual.
+**Lição:** ao introduzir `GROUND_BACK` (chão com profundidade, #57), a
+parede passou a parar em `GROUND_BACK`, não mais em `GROUND` — ela some onde
+a SUPERFÍCIE do chão começa, não onde os pés pisam. Qualquer constante de
+geometria vertical usada por conteúdo pré-rasterizado merece um comentário
+apontando pra isso, porque o acoplamento não aparece na leitura do bloco que
+desenha por quadro.
+
