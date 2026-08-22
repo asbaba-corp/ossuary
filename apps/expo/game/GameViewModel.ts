@@ -174,9 +174,24 @@ export function useGameViewModel(): GameViewModel {
      250ms; sem esta trava, dois avanços podiam correr ao mesmo tempo e o
      segundo batia na guarda de "já existe uma run em andamento". */
   const trocandoRef = useRef(false);
+  /* Em que noite a run estava no começo do tick: o recuo reescreve o `phaseId`
+     dentro do próprio tick, então depois dele já não dá para saber quem matou. */
+  const corridaAtualId = useRef<string | null>(null);
   /* Instante da queda e a citação sorteada. Sorteia UMA vez, na morte: sortear
      por quadro trocaria a frase no meio da leitura. */
   const [morte, setMorte] = useState<{ readonly epoch: number; readonly frase: string } | null>(null);
+  /* Noites que já derrubaram a party desde a última escolha do jogador.
+
+     Sem isto o jogo entra em laço de morte e o sintoma é justamente "não sai
+     da noite 1": limpa a 1, o app abre a 2, o herói morre, o motor RECUA para
+     a 1 — e repara que o recuo deixa a run em `walking`, não `completed` —,
+     a 1 é limpa de novo e o app abre a 2 outra vez. De fora parece que a
+     noite nunca avança; por dentro ela avança e é devolvida a cada volta,
+     queimando ouro.
+
+     Entrar numa noite que acabou de matar é decisão do jogador, não do
+     avanço automático. Clicar na lua limpa a marca. */
+  const noitesQueMataram = useRef<ReadonlySet<string>>(new Set());
   const [eventMessage, setEventMessage] = useState("Carregando save local…");
   const sessionRef = useRef<GameSession | null>(null);
 
@@ -227,7 +242,9 @@ export function useGameViewModel(): GameViewModel {
         const proxima = loopRef.current
           // em loop o jogador fica na mesma noite, moendo as mesmas ondas
           ? (corridaAtual?.phaseId ?? session.state.world.selectedFarmPhaseId)
-          : fase?.nextPhaseId && session.state.world.unlockedPhaseIds.includes(fase.nextPhaseId)
+          : fase?.nextPhaseId
+            && session.state.world.unlockedPhaseIds.includes(fase.nextPhaseId)
+            && !noitesQueMataram.current.has(fase.nextPhaseId)
             ? fase.nextPhaseId
             // sem próxima (ou ainda trancada), repete a atual: idle não para
             : session.state.world.selectedFarmPhaseId;
@@ -238,6 +255,7 @@ export function useGameViewModel(): GameViewModel {
           .finally(() => { trocandoRef.current = false; });
         return;
       }
+      corridaAtualId.current = corridaAtual.phaseId;
       void session.tick(250 * speed).then((events) => {
         const corrida = session.state.run;
         // registra onde cada vivo está ANTES de precisar disso num enterro
@@ -256,6 +274,12 @@ export function useGameViewModel(): GameViewModel {
            marcha seguinte já tinha acabado e desenharia a horda nova direto na
            posição de combate: quatro inimigos piscando na tela e sumindo. */
         if (events.some(({ type }) => type === "run_defeat")) {
+          const caiuEm = corridaAtualId.current;
+          if (caiuEm) {
+            noitesQueMataram.current = new Set([...noitesQueMataram.current, caiuEm]);
+            const n = WORLD_0_CONTENT.phases.findIndex(({ id }) => id === caiuEm) + 1;
+            setEventMessage(`A noite ${n} derrubou a party. Recuando — escolha a lua para tentar de novo.`);
+          }
           const i = Math.floor(Math.abs(Math.sin(sceneClockRef.current) * 1e6)) % CITACOES_DA_MORTE.length;
           setMorte({ epoch: sceneClockRef.current, frase: CITACOES_DA_MORTE[i]! });
         }
@@ -522,6 +546,8 @@ export function useGameViewModel(): GameViewModel {
     selectNight: (phaseId: string) => {
       const session = sessionRef.current;
       if (!session || !session.state.world.unlockedPhaseIds.includes(phaseId)) return;
+      // escolher é retomar: a noite deixa de estar marcada como a que matou
+      noitesQueMataram.current = new Set([...noitesQueMataram.current].filter((id) => id !== phaseId));
       /* Abandona antes de começar: com uma run em andamento o `start_run`
          lança, e antes disso o clique não fazia nada além de uma linha no
          console — o jogador via o ícone não responder. */

@@ -15,6 +15,29 @@ PR #NN · AAAA-MM-DD · @autor
 - ...
 ```
 
+## 0.23 — Fim do laço de morte entre noites
+PR #62 · 2026-08-22 · @juniozguedes
+
+### Fixed
+- "termino a noite 1 e não vai para a noite 2": ia, sim. Limpava a 1, abria a
+  2, o herói morria lá e o motor recuava para a 1 — e o recuo deixa a run em
+  `walking`, **não** em `completed`. O ciclo recomeçava e, de fora, parecia que
+  a noite nunca avançava. Por dentro ela avançava e era devolvida a cada volta,
+  queimando ouro.
+- o avanço automático deixa de entrar numa noite que acabou de derrubar a
+  party. Retomar é decisão do jogador: clicar na lua limpa a marca.
+- a derrota passa a aparecer no HUD, com o número da noite que matou. Antes o
+  recuo era silencioso.
+
+### Added
+- três testes do mecanismo de recuo, que não tinha nenhum: a run segue viva, a
+  noite 1 não tem fase abaixo, e recuar de uma noite mais funda devolve à
+  anterior. 104 testes.
+
+### Notas
+O motor está certo: num idle a marcha não pode parar porque a party apanhou. O
+que faltava era o cliente saber disso.
+
 ## 0.21 — Noite 1 com peso, e fim dos documentos de plano
 PR #60 · 2026-08-20 · @juniozguedes
 

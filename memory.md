@@ -310,3 +310,19 @@ geometria vertical usada por conteúdo pré-rasterizado merece um comentário
 apontando pra isso, porque o acoplamento não aparece na leitura do bloco que
 desenha por quadro.
 
+### Recuo deixa a run VIVA, e isso escondeu um laço de morte
+**Sintoma:** "termino a noite 1 e não vai para a noite 2, mesmo com o loop
+desligado".
+**Causa:** o jogo ia, sim. Limpava a 1, abria a 2, o herói morria lá, o motor
+recuava para a 1 — e o recuo deixa a run em `walking`, **não** em `completed` —
+e o ciclo recomeçava. De fora parecia que a noite nunca avançava; por dentro
+ela avançava e era devolvida a cada volta, queimando ouro.
+**Lição:** duas coisas. O cliente que só reage a `completed` não enxerga
+derrota, então precisa reagir a `run_defeat` também. E entrar de novo numa
+noite que acabou de matar é decisão do jogador, não do avanço automático —
+senão o laço se refaz sozinho.
+
+O que me tirou do lugar foi o script de simulação quebrar com "já existe uma
+run em andamento": o erro era o próprio diagnóstico. Reproduzir a sequência
+fora da interface mostrou em segundos o que reler o código não mostrou.
+
