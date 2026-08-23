@@ -102,7 +102,8 @@ export interface GameViewModel {
   readonly pocoes: Record<TipoDePocao, AjusteDePocao>;
   readonly togglePocao: (tipo: TipoDePocao) => void;
   readonly escolherPocao: (tipo: TipoDePocao, id: string) => void;
-  readonly potionsAvailable: number;
+  readonly potionsAvailable: { readonly hp: number; readonly mp: number };
+  readonly potionsUsed: { readonly hp: number; readonly mp: number };
   readonly loopNight: boolean;
   readonly toggleLoop: () => void;
   readonly gold: number;
@@ -189,6 +190,8 @@ export function useGameViewModel(): GameViewModel {
      recebido, não a contagem de ondas. A tela configura; ligar ao combate é
      trabalho do core, e até lá isto é declaração de intenção do jogador.
      Mana nasce desligada: sem magia implementada, nada a gasta. */
+  /* Contagem de poções bebidas na run. Zera ao começar uma run nova. */
+  const [pocoesBebidas, setPocoesBebidas] = useState<Record<TipoDePocao, number>>({ hp: 0, mp: 0 });
   const [pocoes, setPocoes] = useState<Record<TipoDePocao, AjusteDePocao>>({
     hp: { on: true, id: "hp1", at: 0.45 },
     mp: { on: false, id: "mp1", at: 0.35 },
@@ -263,7 +266,7 @@ export function useGameViewModel(): GameViewModel {
             : session.state.world.selectedFarmPhaseId;
         void session.action({ type: "select_farm_phase", phaseId: proxima })
           .then(() => session.action({ type: "start_run", phaseId: proxima }))
-          .then(() => { setState(session.state); marchaRef.current = { progresso: 0, relogio: sceneClockRef.current }; })
+          .then(() => { setState(session.state); setPocoesBebidas({ hp: 0, mp: 0 }); marchaRef.current = { progresso: 0, relogio: sceneClockRef.current }; })
           .catch((erro: unknown) => console.error("Falha ao abrir a próxima noite:", erro))
           .finally(() => { trocandoRef.current = false; });
         return;
@@ -560,6 +563,7 @@ export function useGameViewModel(): GameViewModel {
         .then(() => session.action({ type: "start_run", phaseId }))
         .then(() => {
           setState(session.state);
+          setPocoesBebidas({ hp: 0, mp: 0 });
           marchaRef.current = { progresso: 0, relogio: sceneClockRef.current };
           restosRef.current = [];
           setRestos([]);
@@ -577,12 +581,21 @@ export function useGameViewModel(): GameViewModel {
     escolherPocao: (tipo: TipoDePocao, id: string) =>
       setPocoes((atual) => ({ ...atual, [tipo]: { ...atual[tipo], id } })),
 
-    /* Quantas cabem no ouro, pela poção ESCOLHIDA — não por um 50 fixo. Trocar
-       para a Maior tem de mudar este número, senão o painel mente. */
-    potionsAvailable: (() => {
-      const escolhida = POCOES.hp.find(({ id }) => id === pocoes.hp.id) ?? POCOES.hp[0];
-      return Math.floor((state?.economy.account.gold ?? 0) / escolhida.custo);
-    })(),
+    /* Quantas cabem no ouro, por tipo e pela poção ESCOLHIDA de cada um — não
+       por um 50 fixo. Trocar para a Maior tem de mudar o número, senão mente.
+       Os dois são independentes de propósito: cada um responde "quantas DESTA
+       eu compraria com o ouro que tenho", não um rateio entre os dois. */
+    potionsAvailable: {
+      hp: Math.floor((state?.economy.account.gold ?? 0) / (POCOES.hp.find(({ id }) => id === pocoes.hp.id) ?? POCOES.hp[0]).custo),
+      mp: Math.floor((state?.economy.account.gold ?? 0) / (POCOES.mp.find(({ id }) => id === pocoes.mp.id) ?? POCOES.mp[0]).custo),
+    },
+
+    /* Bebidas nesta run.
+       Fica em ZERO enquanto o motor não beber: as ondas do Mundo 0 têm
+       `consumableRuleId` nulo. O contador existe ligado ao lugar certo para
+       que, quando o core passar a consumir, o número apareça sozinho — e o
+       painel diz "0" honestamente em vez de esconder a coluna. */
+    potionsUsed: { hp: pocoesBebidas.hp, mp: pocoesBebidas.mp },
 
     loopNight,
     toggleLoop: () => { loopRef.current = !loopRef.current; setLoopNight(loopRef.current); },

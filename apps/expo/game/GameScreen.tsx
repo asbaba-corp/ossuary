@@ -74,8 +74,9 @@ export function GameScreen() {
         <Metric label="BALANCE" value={String(vm.runIncome - vm.runExpenses)} tone={vm.runIncome - vm.runExpenses >= 0 ? "pos" : "neg"} />
         <Metric label="WASTE" value={String(vm.runExpenses)} tone="neg" />
         <Metric label="LOOT" value={`+${vm.state?.run?.metrics?.loot ?? vm.runIncome}`} tone="pos" />
-        <Metric label="POTIONS AVAILABLE" value={String(vm.potionsAvailable)}
-          icon={<Pressable onPress={() => vm.openPanel("potions")} accessibilityLabel="Abrir poções"><FrascoDePocao /></Pressable>} />
+        <ParDeFrascos label="POTIONS AVAILABLE" hp={vm.potionsAvailable.hp} mp={vm.potionsAvailable.mp}
+          aoTocar={() => vm.openPanel("potions")} />
+        <ParDeFrascos label="POTIONS USED" hp={vm.potionsUsed.hp} mp={vm.potionsUsed.mp} />
         <Metric label="POEIRA" value={String(vm.runDust)} />
         <Metric label="DAMNATIONS" value={String(vm.runRetreats)} />
       </View>
@@ -309,12 +310,36 @@ function TrilhaDeOndas({ estados, rotulo }: { estados: readonly ("cleared" | "cu
 
 /** Frasco de poção: bojo, gargalo e rolha. Views, não emoji — mesma razão dos
     ícones de NIGHT e GOLD. */
-function FrascoDePocao() {
+function FrascoDePocao({ tipo = "hp" }: { tipo?: "hp" | "mp" }) {
   return (
     <View style={styles.frasco}>
       <View style={styles.frascoRolha} />
       <View style={styles.frascoGargalo} />
-      <View style={styles.frascoBojo} />
+      <View style={[styles.frascoBojo, { backgroundColor: tipo === "hp" ? "#b4534b" : "#4a6f9c" }]} />
+    </View>
+  );
+}
+
+/** Par de frascos com número, para as duas células de poção do analyzer.
+    Um rótulo com dois valores diz mais em menos espaço do que duas células. */
+function ParDeFrascos({ label, hp, mp, aoTocar }: {
+  label: string; hp: number; mp: number; aoTocar?: () => void;
+}) {
+  const conteudo = (
+    <View style={styles.metricLinha}>
+      <FrascoDePocao tipo="hp" />
+      <Text style={styles.value}>{hp}</Text>
+      <View style={styles.frascoVao} />
+      <FrascoDePocao tipo="mp" />
+      <Text style={styles.value}>{mp}</Text>
+    </View>
+  );
+  return (
+    <View style={styles.metric}>
+      <Text style={styles.label}>{label}</Text>
+      {aoTocar
+        ? <Pressable onPress={aoTocar} accessibilityLabel="Abrir poções">{conteudo}</Pressable>
+        : conteudo}
     </View>
   );
 }
@@ -391,6 +416,7 @@ const styles = StyleSheet.create({
   valuePos: { color: "#7fa86b" }, valueNeg: { color: "#b4534b" },
   metricLinha: { flexDirection: "row", alignItems: "center", gap: 6 },
   frasco: { width: 14, height: 16 },
+  frascoVao: { width: 5 },
   frascoRolha: { position: "absolute", left: 5, top: 0, width: 4, height: 3, backgroundColor: "#6b5a44" },
   frascoGargalo: { position: "absolute", left: 5.5, top: 3, width: 3, height: 3, backgroundColor: "#8a7860" },
   frascoBojo: { position: "absolute", left: 1, top: 5, width: 12, height: 11, borderRadius: 5, backgroundColor: "#b4534b" },
