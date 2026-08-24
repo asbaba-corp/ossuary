@@ -336,3 +336,13 @@ O que me tirou do lugar foi o script de simulação quebrar com "já existe uma
 run em andamento": o erro era o próprio diagnóstico. Reproduzir a sequência
 fora da interface mostrou em segundos o que reler o código não mostrou.
 
+### `gh pr merge` usa o título que a PR tinha, não o que você acabou de editar
+**Sintoma:** a `main` tem dois commits rotulados `0.23`, embora o
+`changelogs.md` esteja correto e sem duplicata.
+**Causa:** ao renumerar uma PR depois de um conflito, editei o título com
+`gh pr edit` e mergeei em seguida; o squash pegou o título antigo em cache.
+**Lição:** ao renumerar, passar o título explicitamente no merge
+(`gh pr merge --subject "..."`) em vez de confiar no que foi editado antes. O
+changelog é a fonte da verdade, mas o histórico fica feio e confunde quem
+procurar a versão pelo log.
+
