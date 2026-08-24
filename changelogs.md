@@ -15,8 +15,8 @@ PR #NN · AAAA-MM-DD · @autor
 - ...
 ```
 
-## 0.23 — Fim do laço de morte entre noites
-PR #62 · 2026-08-22 · @juniozguedes
+## 0.25 — Fim do laço de morte entre noites
+PR #62 · 2026-08-24 · @juniozguedes
 
 ### Fixed
 - "termino a noite 1 e não vai para a noite 2": ia, sim. Limpava a 1, abria a
@@ -27,7 +27,7 @@ PR #62 · 2026-08-22 · @juniozguedes
 - o avanço automático deixa de entrar numa noite que acabou de derrubar a
   party. Retomar é decisão do jogador: clicar na lua limpa a marca.
 - a derrota passa a aparecer no HUD, com o número da noite que matou. Antes o
-  recuo era silencioso.
+  recuo era silencioso, e era isso que tornava o laço invisível.
 
 ### Added
 - três testes do mecanismo de recuo, que não tinha nenhum: a run segue viva, a
@@ -35,8 +35,67 @@ PR #62 · 2026-08-22 · @juniozguedes
   anterior. 104 testes.
 
 ### Notas
-O motor está certo: num idle a marcha não pode parar porque a party apanhou. O
-que faltava era o cliente saber disso.
+O motor está certo e não foi tocado: num idle a marcha não pode parar porque a
+party apanhou. O que faltava era o cliente saber disso.
+
+## 0.24 — Barra de vida nos mobs e placa de vida/mana no herói
+PR #64 · 2026-08-24 · @juniozguedes
+
+### Added
+- **placa do herói**: nome, barra de vida e barra de mana logo acima da cabeça.
+  É a vida dele que o jogador precisa ler sem tirar o olho da cena — antes só
+  existia no cartão da party, lá embaixo.
+- barra de vida dos mobs com contorno escuro, para destacar do fundo.
+
+### Notas
+Nome só no herói. Nos mobs viraria parede de texto: são até dezoito amontoados,
+e dezoito nomes escondem a luta em vez de informar. A barra deles continua
+aparecendo só em quem já foi ferido, pela mesma razão — vinte barras cheias não
+distinguem nada, e assim a barra é sinal.
+
+## 0.23 — Poções por tipo no analyzer, com ícones
+PR #63 · 2026-08-24 · @juniozguedes
+
+### Added
+- **POTIONS USED**: quantas poções a run já bebeu, vida e mana em separado,
+  cada uma com o seu frasco.
+
+### Changed
+- **POTIONS AVAILABLE** deixa de ser um número só e passa a mostrar vida e
+  mana lado a lado, cada uma com o frasco da sua cor — vermelho para vida, azul
+  para mana. Cada número responde "quantas DESTA eu compraria com o ouro que
+  tenho", pelo custo da poção escolhida no painel; os dois não se somam.
+- o frasco vira componente com cor por tipo; o atalho para a tela de poções
+  continua no par de POTIONS AVAILABLE.
+
+### Notas
+POTIONS USED fica em zero enquanto o motor não beber: as ondas do Mundo 0 têm
+`consumableRuleId` nulo. O contador já está ligado no lugar certo e zera a cada
+noite nova, então o número aparece sozinho quando o core passar a consumir.
+
+## 0.22 — Tela de poções, com atalho no analyzer
+PR #61 · 2026-08-20 · @juniozguedes
+
+### Added
+- **tela de poções**: duas colunas, vida e mana, com liga/desliga por tipo, o
+  frasco escolhido e o limiar em que se bebe. Custo em vermelho quando o ouro
+  não cobre — o §5.3 manda a poção só ser bebida se o ouro cobrir, nunca
+  negativa. Catálogo e valores são os mesmos do protótipo; mana nasce
+  desligada porque sem magia nada gasta mana.
+- **atalho**: frasco clicável ao lado de POTIONS AVAILABLE, no Session
+  Analyzer. O botão "◍ Poções" que já existia dentro do inventário estava
+  inerte e agora abre a mesma tela.
+
+### Changed
+- POTIONS AVAILABLE deixa de dividir o ouro por um 50 fixo e passa a usar o
+  custo da poção ESCOLHIDA. Trocar para a Maior muda o número; antes o painel
+  mentia.
+
+### Notas
+A tela guarda a escolha, mas **o motor ainda não bebe**: as ondas do Mundo 0
+têm `consumableRuleId` nulo, e o §5.3 manda o consumo seguir o dano recebido e
+não a contagem de ondas. Isso está dito na própria tela, para ninguém achar que
+está ligado. Ligar ao combate é trabalho do core.
 
 ## 0.21 — Noite 1 com peso, e fim dos documentos de plano
 PR #60 · 2026-08-20 · @juniozguedes
