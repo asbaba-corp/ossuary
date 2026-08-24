@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View, type DimensionValue } from "react-native";
-import { useGameViewModel, type GamePanel, type SceneAnimationState } from "./GameViewModel";
+import { POCOES, useGameViewModel, type GamePanel, type SceneAnimationState } from "./GameViewModel";
 import { SceneRenderer } from "./SceneRenderer";
 import { Sprite } from "./Sprite";
 import { WORLD_0_CONTENT, xpToNextLevel } from "@ossuary/core";
@@ -74,7 +74,8 @@ export function GameScreen() {
         <Metric label="BALANCE" value={String(vm.runIncome - vm.runExpenses)} tone={vm.runIncome - vm.runExpenses >= 0 ? "pos" : "neg"} />
         <Metric label="WASTE" value={String(vm.runExpenses)} tone="neg" />
         <Metric label="LOOT" value={`+${vm.state?.run?.metrics?.loot ?? vm.runIncome}`} tone="pos" />
-        <Metric label="POTIONS AVAILABLE" value={String(Math.floor(vm.gold / 50))} />
+        <Metric label="POTIONS AVAILABLE" value={String(vm.potionsAvailable)}
+          icon={<Pressable onPress={() => vm.openPanel("potions")} accessibilityLabel="Abrir poções"><FrascoDePocao /></Pressable>} />
         <Metric label="POEIRA" value={String(vm.runDust)} />
         <Metric label="DAMNATIONS" value={String(vm.runRetreats)} />
       </View>
@@ -85,7 +86,7 @@ export function GameScreen() {
         <GameButton label="Reiniciar" onPress={vm.reset} />
       </View>
 
-      {vm.panel && <Panel panel={vm.panel} state={vm.state} inventoryPage={vm.inventoryPage} onInventoryPage={vm.setInventoryPage} onClose={vm.closePanel} />}
+      {vm.panel && <Panel panel={vm.panel} state={vm.state} inventoryPage={vm.inventoryPage} onInventoryPage={vm.setInventoryPage} onClose={vm.closePanel} vm={vm} onPotions={() => vm.openPanel("potions")} />}
     </ScrollView>
   );
 }
@@ -129,13 +130,57 @@ function ResourceRow({ label, value, max, color }: { label: string; value: numbe
   return <View style={styles.resourceRow}><Text style={styles.resourceLabel}>{label}</Text><Bar value={value} max={max} color={color} /><Text style={styles.resourceValue}>{Math.ceil(value)} / {Math.ceil(max)}</Text></View>;
 }
 
-function Panel({ panel, state, inventoryPage, onInventoryPage, onClose }: { panel: Exclude<GamePanel, null>; state: ReturnType<typeof useGameViewModel>["state"]; inventoryPage: number; onInventoryPage: (page: number) => void; onClose: () => void }) {
+function Panel({ panel, state, inventoryPage, onInventoryPage, onClose, vm, onPotions }: { panel: Exclude<GamePanel, null>; state: ReturnType<typeof useGameViewModel>["state"]; inventoryPage: number; onInventoryPage: (page: number) => void; onClose: () => void; vm: ReturnType<typeof useGameViewModel>; onPotions: () => void }) {
   const primary = state?.roster.characters[0]?.progress.attributes;
   const combatStats = state?.run?.combat?.combatants.find(({ snapshot }) => snapshot.side === "party")?.snapshot.stats;
   const derived = [{ label: "Vigor (HP)", value: combatStats?.maxHp ?? 0 }, { label: "Dano", value: combatStats?.damage ?? 0 }, { label: "Defesa", value: combatStats?.defense ?? 0 }, { label: "Penetração", value: combatStats?.penetration ?? 0 }, { label: "Cadência", value: combatStats?.attacksPerSecond ?? 0 }, { label: "Crítico", value: combatStats?.criticalChancePercent ?? 0 }];
-  return <Modal visible transparent animationType="fade" onRequestClose={onClose}><View style={styles.scrim}><View style={[styles.modal, panel === "stats" && styles.modalNarrow]}><View style={styles.modalHeader}><Text style={styles.modalTitle}>{panel === "inventory" ? "INVENTÁRIO" : panel === "stats" ? "ATRIBUTOS" : panel === "bestiary" ? "BESTIÁRIO · MUNDO 0, VESTÍBULO" : "SISTEMAS"}</Text><Pressable style={styles.closeButton} onPress={onClose}><Text style={styles.close}>×</Text></Pressable></View><View style={styles.modalBody}>
-    {panel === "inventory" && <View><View style={styles.inventoryToolbar}><Pressable style={styles.toolButton}><Text style={styles.toolButtonText}>◍ Poções</Text></Pressable><View style={styles.grow} /><Text style={styles.label}>OCUPADOS</Text><Text style={styles.value}>{state?.inventory.items.length ?? 0} / {state?.inventory.capacity ?? 128}</Text><View style={styles.pager}><Pressable disabled={inventoryPage === 0} onPress={() => onInventoryPage(inventoryPage - 1)}><Text style={[styles.pagerButton, inventoryPage === 0 && styles.pagerDisabled]}>‹</Text></Pressable><Text style={styles.value}>{inventoryPage + 1} / 3</Text><Pressable disabled={inventoryPage === 2} onPress={() => onInventoryPage(inventoryPage + 1)}><Text style={[styles.pagerButton, inventoryPage === 2 && styles.pagerDisabled]}>›</Text></Pressable></View></View><View style={styles.inventoryGrid}>{Array.from({ length: 48 }, (_, index) => { const stack = state?.inventory.items[inventoryPage * 48 + index]; return <View key={index} style={[styles.inventoryCell, stack && styles.inventoryCellFilled]}><Text style={styles.inventoryGlyph}>{stack ? stack.item.kind === "equipment" ? "◆" : "◉" : "·"}</Text></View>; })}</View></View>}
+  return <Modal visible transparent animationType="fade" onRequestClose={onClose}><View style={styles.scrim}><View style={[styles.modal, panel === "stats" && styles.modalNarrow]}><View style={styles.modalHeader}><Text style={styles.modalTitle}>{panel === "inventory" ? "INVENTÁRIO" : panel === "stats" ? "ATRIBUTOS" : panel === "bestiary" ? "BESTIÁRIO · MUNDO 0, VESTÍBULO" : panel === "potions" ? "POÇÕES" : "SISTEMAS"}</Text><Pressable style={styles.closeButton} onPress={onClose}><Text style={styles.close}>×</Text></Pressable></View><View style={styles.modalBody}>
+    {panel === "inventory" && <View><View style={styles.inventoryToolbar}><Pressable style={styles.toolButton} onPress={() => onPotions()}><Text style={styles.toolButtonText}>◍ Poções</Text></Pressable><View style={styles.grow} /><Text style={styles.label}>OCUPADOS</Text><Text style={styles.value}>{state?.inventory.items.length ?? 0} / {state?.inventory.capacity ?? 128}</Text><View style={styles.pager}><Pressable disabled={inventoryPage === 0} onPress={() => onInventoryPage(inventoryPage - 1)}><Text style={[styles.pagerButton, inventoryPage === 0 && styles.pagerDisabled]}>‹</Text></Pressable><Text style={styles.value}>{inventoryPage + 1} / 3</Text><Pressable disabled={inventoryPage === 2} onPress={() => onInventoryPage(inventoryPage + 1)}><Text style={[styles.pagerButton, inventoryPage === 2 && styles.pagerDisabled]}>›</Text></Pressable></View></View><View style={styles.inventoryGrid}>{Array.from({ length: 48 }, (_, index) => { const stack = state?.inventory.items[inventoryPage * 48 + index]; return <View key={index} style={[styles.inventoryCell, stack && styles.inventoryCellFilled]}><Text style={styles.inventoryGlyph}>{stack ? stack.item.kind === "equipment" ? "◆" : "◉" : "·"}</Text></View>; })}</View></View>}
     {panel === "stats" && <View style={styles.statsColumns}><View style={styles.statsColumn}><Text style={styles.helper}>PRIMÁRIOS</Text>{attributeLabels.map(([key, label]) => <View key={key} style={styles.attrRow}><Text style={styles.attrLabel}><Text style={styles.attrKey}>{key.toUpperCase()}</Text> {label}</Text><Text style={styles.statValue}>{primary?.[key] ?? 0}</Text><Text style={styles.plus}>+</Text></View>)}</View><View style={styles.statsColumn}><Text style={styles.helper}>DERIVADOS</Text>{derived.map(({ label, value }) => <View key={label} style={styles.derivedRow}><Text style={styles.derivedLabel}>{label}</Text><Text style={styles.statValue}>{Number(value).toFixed(label === "Cadência" || label === "Crítico" ? 1 : 0)}{label === "Cadência" ? " /s" : label === "Crítico" ? "%" : ""}</Text></View>)}</View></View>}
+    {panel === "potions" && (
+      <View>
+        <View style={styles.pocaoColunas}>
+          {(["hp", "mp"] as const).map((tipo) => {
+            const ajuste = vm.pocoes[tipo];
+            const lista = POCOES[tipo];
+            return (
+              <View key={tipo} style={styles.pocaoColuna}>
+                <View style={styles.pocaoCabecalho}>
+                  <Text style={styles.sectionTitle}>{tipo === "hp" ? "VIDA" : "MANA"}</Text>
+                  <View style={styles.grow} />
+                  <Pressable onPress={() => vm.togglePocao(tipo)} style={[styles.toolButton, ajuste.on && styles.hudButtonAtivo]}>
+                    <Text style={[styles.toolButtonText, ajuste.on && styles.hudButtonTextAtivo]}>{ajuste.on ? "LIGADA" : "DESLIGADA"}</Text>
+                  </Pressable>
+                </View>
+                <Text style={styles.muted}>Bebe abaixo de {Math.round(ajuste.at * 100)}%</Text>
+                {lista.map((pocao) => {
+                  const caro = (state?.economy.account.gold ?? 0) < pocao.custo;
+                  return (
+                    <Pressable
+                      key={pocao.id}
+                      onPress={() => vm.escolherPocao(tipo, pocao.id)}
+                      accessibilityLabel={pocao.nome}
+                      style={[styles.pocaoLinha, ajuste.id === pocao.id && styles.pocaoLinhaEscolhida]}
+                    >
+                      <Text style={styles.pocaoNome}>{pocao.nome}</Text>
+                      <Text style={styles.pocaoCura}>+{pocao.cura}</Text>
+                      {/* custo em vermelho quando o ouro não cobre: o §5.3 diz
+                          que a poção só é bebida se o ouro cobrir, nunca negativa */}
+                      <Text style={[styles.pocaoCusto, caro && styles.pocaoCustoCaro]}>{pocao.custo}</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            );
+          })}
+        </View>
+        <Text style={styles.pocaoAviso}>
+          O motor ainda não bebe sozinho: as ondas do Mundo 0 têm `consumableRuleId` nulo, e o consumo
+          deve seguir o dano recebido, não a contagem de ondas. Esta tela guarda a escolha até lá.
+        </Text>
+      </View>
+    )}
+
     {panel === "bestiary" && <View style={styles.bestiaryGrid}>{WORLD_0_CONTENT.enemies.map((enemy) => <View key={enemy.id} style={[styles.beastCard, enemy.id === "caronte" && styles.beastBoss]}><Text style={styles.beastGlyph}>{enemy.id === "caronte" ? "♛" : "☠"}</Text><View style={styles.beastInfo}><Text style={styles.beastName}>{enemy.name}</Text><Text style={styles.beastRole}>{enemy.id === "caronte" ? "GUARDIÃO" : "CRIATURA"}</Text><Text style={styles.muted}>DANO {enemy.stats.damage} · DROP —</Text><Text style={styles.muted}>HP {enemy.stats.maxHp} · CADÊNCIA {enemy.stats.attacksPerSecond}/s</Text></View></View>)}</View>}
     {panel === "systems" && <View>
       <Text style={styles.helper}>Mecânicas ativas na run real</Text>
@@ -262,6 +307,18 @@ function TrilhaDeOndas({ estados, rotulo }: { estados: readonly ("cleared" | "cu
   );
 }
 
+/** Frasco de poção: bojo, gargalo e rolha. Views, não emoji — mesma razão dos
+    ícones de NIGHT e GOLD. */
+function FrascoDePocao() {
+  return (
+    <View style={styles.frasco}>
+      <View style={styles.frascoRolha} />
+      <View style={styles.frascoGargalo} />
+      <View style={styles.frascoBojo} />
+    </View>
+  );
+}
+
 function Metric({ label, value, tone, icon }: { label: string; value: string; tone?: "pos" | "neg"; icon?: React.ReactNode }) {
   const cor = tone === "pos" ? styles.valuePos : tone === "neg" ? styles.valueNeg : undefined;
   return (
@@ -333,6 +390,20 @@ const styles = StyleSheet.create({
   analyzerHeader: { backgroundColor: "#1b140e", borderColor: "#241b14", borderWidth: 1, borderBottomWidth: 0, paddingHorizontal: 14, paddingVertical: 9 },
   valuePos: { color: "#7fa86b" }, valueNeg: { color: "#b4534b" },
   metricLinha: { flexDirection: "row", alignItems: "center", gap: 6 },
+  frasco: { width: 14, height: 16 },
+  frascoRolha: { position: "absolute", left: 5, top: 0, width: 4, height: 3, backgroundColor: "#6b5a44" },
+  frascoGargalo: { position: "absolute", left: 5.5, top: 3, width: 3, height: 3, backgroundColor: "#8a7860" },
+  frascoBojo: { position: "absolute", left: 1, top: 5, width: 12, height: 11, borderRadius: 5, backgroundColor: "#b4534b" },
+  pocaoLinha: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 10, paddingVertical: 7, borderColor: "#2c2118", borderWidth: 1, backgroundColor: "#1d1610" },
+  pocaoLinhaEscolhida: { borderColor: "#e0913f", backgroundColor: "#251a12" },
+  pocaoNome: { color: "#a89273", fontSize: 11, flex: 1 },
+  pocaoCura: { color: "#7fa86b", fontSize: 11, fontVariant: ["tabular-nums"] },
+  pocaoCusto: { color: "#c9a44a", fontSize: 11, fontVariant: ["tabular-nums"], minWidth: 34, textAlign: "right" },
+  pocaoCustoCaro: { color: "#b4534b" },
+  pocaoColuna: { flex: 1, minWidth: 200, gap: 5 },
+  pocaoColunas: { flexDirection: "row", gap: 14, flexWrap: "wrap" },
+  pocaoCabecalho: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 2 },
+  pocaoAviso: { color: "#6b5a44", fontSize: 10, lineHeight: 15, marginTop: 12 },
   /* As dez luas numa fileira só. A célula padrão do HUD tem base 118px e as
      empurrava para uma segunda linha, o que estraga a leitura de "onde estou
      nas dez noites". */
