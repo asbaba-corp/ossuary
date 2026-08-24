@@ -272,6 +272,11 @@ const idFase = (n: number) => `w0-fase-${n}`;
 const idOnda = (fase: number, onda: number) => `w0-fase-${fase}-onda-${onda}`;
 const idInimigo = (especie: Especie, fase: number) => `w0-${especie}-f${fase}`;
 
+/** Ouro que cada espécie larga na noite 1, antes da escala por noite. */
+const OURO_BASE: Readonly<Record<Especie, number>> = {
+  ignavo: 3, moscardo: 2, gorja: 7, encalhado: 9, marcado: 24, caronte: 90,
+};
+
 function montarInimigos(): readonly EnemyDefinition[] {
   const usados = new Map<string, EnemyDefinition>();
   DESENHO.forEach((fase, indice) => {
@@ -281,7 +286,15 @@ function montarInimigos(): readonly EnemyDefinition[] {
         const id = idInimigo(especie, numero);
         if (usados.has(id)) continue;
         const { nome, stats } = BESTIARIO[especie](numero);
-        usados.set(id, { id, name: `${nome} · fase ${numero}`, stats });
+        /* Faixa de ouro por bicho, escalando com a noite. A largura da faixa
+           (±30% em torno da base) é o que dá a sensação de caça: dois ignavos
+           da mesma noite não valem o mesmo. Elite e guardião valem muito mais
+           porque são o pico da noite, não mais um da multidão. */
+        const base = OURO_BASE[especie] * (1 + (numero - 1) * 0.35);
+        usados.set(id, {
+          id, name: `${nome} · fase ${numero}`, stats,
+          goldRange: [Math.max(1, Math.round(base * 0.7)), Math.max(2, Math.round(base * 1.3))] as const,
+        });
       }
     }
   });

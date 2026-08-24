@@ -7,6 +7,11 @@ export interface EnemyDefinition {
   readonly id: string;
   readonly name: string;
   readonly stats: CombatantStats;
+  /** Ouro que este bicho larga ao cair, como faixa `[mínimo, máximo]`.
+      Faixa e não valor fixo: dois ignavos não valem exatamente o mesmo, e é a
+      variação que faz a caça parecer caça em vez de planilha. O sorteio é
+      determinístico pela seed da run, então o mesmo save rende o mesmo ouro. */
+  readonly goldRange?: readonly [number, number];
 }
 
 export interface WaveDefinition {

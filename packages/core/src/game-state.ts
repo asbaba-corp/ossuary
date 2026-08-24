@@ -1,5 +1,5 @@
 import { addItem, createInventory, removeItem, type Inventory } from "./inventory.js";
-import { applyEconomyTransaction, createEconomyState, GOLD_RESOURCE, type EconomyState } from "./economy.js";
+import { applyEconomyTransaction, createEconomyState, GOLD_RESOURCE, type EconomyState, getAccountBalance } from "./economy.js";
 import { createOssuaryState, getOssuaryBonuses, type OssuaryState } from "./ossuary.js";
 import { autoEquipEmptySlots } from "./auto-equip.js";
 import { createRoster, createParty, gainPartyExperience, type Party, type RosterState } from "./party.js";
@@ -13,11 +13,21 @@ import { assertGameContent, findPhase, findWave, type GameContentContext } from 
 export interface WorldProgressState { readonly unlockedPhaseIds: readonly string[]; readonly clearedPhaseIds: readonly string[]; readonly selectedFarmPhaseId: string; }
 export interface RunCheckpoint { readonly checkpointId: string; readonly sequence: number; readonly lastResolvedWaveIndex: number; readonly appliedRewardIds: readonly string[]; }
 export interface RunMetrics { readonly kills: number; readonly loot: number; readonly dust: number; readonly retreats: number; }
-export interface RunState { readonly phaseId: string; readonly seed: number | string; readonly status: "walking" | "combat" | "completed" | "retreating"; readonly waveIndex: number; readonly distanceToWave: number; readonly combat: CombatState | null; readonly checkpoint: RunCheckpoint; readonly metrics?: RunMetrics; }
+export interface RunState { readonly phaseId: string; readonly seed: number | string; readonly status: "walking" | "combat" | "completed" | "retreating"; readonly waveIndex: number; readonly distanceToWave: number; readonly combat: CombatState | null; readonly checkpoint: RunCheckpoint; readonly metrics?: RunMetrics; readonly vitals?: Readonly<Record<string, { readonly hp: number; readonly mana: number }>>; }
 export interface GameStateMetadata { readonly lastUpdatedAtMs: number; readonly pendingSync: boolean; readonly seq: number; readonly deviceId: string; }
-export interface GameState { readonly schemaVersion: number; readonly contentVersion: string; readonly roster: RosterState; readonly party: Party; readonly inventory: Inventory; readonly economy: EconomyState; readonly ossuary: OssuaryState; readonly world: WorldProgressState; readonly run: RunState | null; readonly metadata: GameStateMetadata; }
-export type GameAction = { readonly type: "start_run"; readonly phaseId?: string; readonly seed?: number | string } | { readonly type: "select_farm_phase"; readonly phaseId: string } | { readonly type: "retreat" } | { readonly type: "abandon_run" };
-export type GameEvent = { readonly type: "run_started" | "wave_started" | "wave_victory" | "phase_unlocked" | "run_defeat" | "run_retreat" | "checkpoint_saved"; readonly phaseId?: string; readonly waveIndex?: number; readonly rewardId?: string } | { readonly type: "combat"; readonly event: CombatEvent };
+export interface PotionSetting { readonly on: boolean; readonly cost: number; readonly heal: number; readonly at: number }
+export interface PotionSettings { readonly hp: PotionSetting; readonly mp: PotionSetting }
+
+/** Preferência de fábrica: bebe vida a 45%, mana desligada — sem magia
+    implementada, nada gasta mana. */
+export const DEFAULT_POTION_SETTINGS: PotionSettings = {
+  hp: { on: true, cost: 50, heal: 45, at: 0.45 },
+  mp: { on: false, cost: 50, heal: 40, at: 0.35 },
+};
+
+export interface GameState { readonly schemaVersion: number; readonly contentVersion: string; readonly roster: RosterState; readonly party: Party; readonly inventory: Inventory; readonly economy: EconomyState; readonly ossuary: OssuaryState; readonly world: WorldProgressState; readonly run: RunState | null; readonly potions?: PotionSettings; readonly metadata: GameStateMetadata; }
+export type GameAction = { readonly type: "set_potions"; readonly settings: PotionSettings } | { readonly type: "start_run"; readonly phaseId?: string; readonly seed?: number | string } | { readonly type: "select_farm_phase"; readonly phaseId: string } | { readonly type: "retreat" } | { readonly type: "abandon_run" };
+export type GameEvent = { readonly type: "potion_used"; readonly combatantId: string; readonly kind: "hp" | "mp"; readonly amount: number; readonly cost: number } | { readonly type: "run_started" | "wave_started" | "wave_victory" | "phase_unlocked" | "run_defeat" | "run_retreat" | "checkpoint_saved"; readonly phaseId?: string; readonly waveIndex?: number; readonly rewardId?: string } | { readonly type: "combat"; readonly event: CombatEvent };
 export interface GameTransition { readonly state: GameState; readonly events: readonly GameEvent[]; }
 
 export function createInitialGameState(content: GameContentContext, deviceId = "local"): GameState {
@@ -39,6 +49,9 @@ export function applyGameAction(state: GameState, action: GameAction, content: G
   if (action.type === "select_farm_phase") {
     if (!state.world.unlockedPhaseIds.includes(action.phaseId)) throw new RangeError(`fase bloqueada: ${action.phaseId}`);
     return { state: { ...state, world: { ...state.world, selectedFarmPhaseId: action.phaseId } }, events: [] };
+  }
+  if (action.type === "set_potions") {
+    return { state: { ...state, potions: action.settings, metadata: { ...state.metadata, pendingSync: true } }, events: [] };
   }
   if (action.type === "retreat") return retreat(state, content, "manual");
 
@@ -78,7 +91,35 @@ export function tickGameState(state: GameState, deltaMs: number, content: GameCo
       if (distance > 0) { next = { ...next, run: { ...run, distanceToWave: distance } }; continue; }
       const wave = findWaveForRun(next, content);
       const combatants = createCombatantsForWave(next, content, wave.enemyIds, run.seed, run.waveIndex);
-      next = { ...next, run: { ...run, status: "combat", distanceToWave: 0, combat: createCombatState(combatants, `${String(run.seed)}:${run.waveIndex}`) } };
+      let combate = createCombatState(combatants, `${String(run.seed)}:${run.waveIndex}`);
+
+      /* A VIDA DA PARTY ATRAVESSA A ONDA.
+         Cada `createCombatState` nasce com todo mundo no máximo, e isso curava
+         a party de graça a cada onda: entrar na onda 2 devolvia a vida
+         inteira. Com cura grátis a cada onda nada sustenta pressão dentro de
+         uma noite e poção nunca precisa ser bebida.
+
+         A noite continua sendo o descanso: `start_run` cria a run do zero e
+         não passa por aqui, então abrir uma noite restaura. O que persiste é
+         de onda para onda, dentro da mesma noite. Inimigo não herda nada —
+         cada onda traz bichos novos. */
+      if (run.vitals) {
+        const guardado = run.vitals;
+        combate = {
+          ...combate,
+          combatants: combate.combatants.map((combatente) => {
+            if (combatente.snapshot.side !== "party") return combatente;
+            const anterior = guardado[combatente.snapshot.id];
+            if (!anterior) return combatente;
+            return {
+              ...combatente,
+              hp: Math.max(1, Math.min(combatente.snapshot.stats.maxHp, anterior.hp)),
+              mana: Math.max(0, Math.min(combatente.maxMana, anterior.mana)),
+            };
+          }),
+        };
+      }
+      next = { ...next, run: { ...run, status: "combat", distanceToWave: 0, combat: combate } };
       events.push({ type: "wave_started", phaseId: run.phaseId, waveIndex: run.waveIndex });
       continue;
     }
@@ -88,8 +129,62 @@ export function tickGameState(state: GameState, deltaMs: number, content: GameCo
       remaining -= step;
       const result = advanceCombatTick(run.combat, content.combatRules, { spells: content.spells });
       events.push(...result.events.map((event) => ({ type: "combat" as const, event })));
-      const defeatedEnemies = result.events.filter((event) => event.type === "combatant_defeated" && run.combat?.combatants.find(({ snapshot }) => snapshot.id === event.combatantId)?.snapshot.side === "enemy").length;
-      next = { ...next, run: { ...run, combat: result.state, metrics: { kills: (run.metrics?.kills ?? 0) + defeatedEnemies, loot: run.metrics?.loot ?? 0, dust: run.metrics?.dust ?? 0, retreats: run.metrics?.retreats ?? 0 } } };
+      const caidos = result.events.filter((event): event is Extract<CombatEvent, { type: "combatant_defeated" }> =>
+        event.type === "combatant_defeated"
+        && run.combat?.combatants.find(({ snapshot }) => snapshot.id === event.combatantId)?.snapshot.side === "enemy");
+      const defeatedEnemies = caidos.length;
+
+      /* OURO POR BICHO, e não só por onda.
+         Antes o ouro só entrava na vitória da onda: matar dez bichos e morrer
+         no décimo primeiro não rendia nada, e o contador ficava parado durante
+         a luta inteira. Agora cada queda paga na hora, dentro da faixa do
+         bicho — a faixa é o que faz a caça parecer caça, e o sorteio é
+         determinístico pela seed, então o mesmo save rende o mesmo ouro. */
+      let ouroDosCaidos = 0;
+      for (const caido of caidos) {
+        /* O id do combatente é `${enemyId}:${onda}:${índice}`; os dois últimos
+           segmentos são posição, o resto é a espécie. */
+        const partes = caido.combatantId.split(":");
+        const especie = partes.slice(0, -2).join(":");
+        const faixa = content.enemies.find(({ id }) => id === especie)?.goldRange;
+        if (!faixa) continue;
+        const [minimo, maximo] = faixa;
+        const sorte = deterministicUnit(run.seed, `ouro:${caido.combatantId}:${run.waveIndex}`);
+        ouroDosCaidos += Math.round(minimo + sorte * (maximo - minimo));
+      }
+      let economiaAgora = next.economy;
+      if (ouroDosCaidos > 0) {
+        economiaAgora = applyEconomyTransaction(economiaAgora, { scope: "account", resourceId: GOLD_RESOURCE, direction: "credit", amount: ouroDosCaidos, reason: "abate" }).state;
+        economiaAgora = applyEconomyTransaction(economiaAgora, { scope: "run", resourceId: GOLD_RESOURCE, direction: "credit", amount: ouroDosCaidos, reason: "abate" }).state;
+      }
+
+      next = { ...next, economy: economiaAgora, run: { ...run, combat: result.state, metrics: { kills: (run.metrics?.kills ?? 0) + defeatedEnemies, loot: (run.metrics?.loot ?? 0) + ouroDosCaidos, dust: run.metrics?.dust ?? 0, retreats: run.metrics?.retreats ?? 0 } } };
+      /* A PARTY BEBE.
+         Aqui, e não no cliente, porque quem sabe a vida real é o motor e é ele
+         que roda offline. A regra do §5.3: só bebe se o ouro cobrir — nunca
+         deixa o saldo negativo — e só abaixo do limiar que o jogador escolheu.
+
+         Um gole por tick por personagem, de propósito: beber em rajada até
+         encher apagaria a tensão e esvaziaria a bolsa num quadro. */
+      const ajustes = next.potions ?? DEFAULT_POTION_SETTINGS;
+      if (ajustes.hp.on && next.run?.combat) {
+        let combateAtual = next.run.combat;
+        let economiaPocao = next.economy;
+        let bebidas = 0;
+        for (const combatente of combateAtual.combatants) {
+          if (combatente.snapshot.side !== "party") continue;
+          const maximo = combatente.snapshot.stats.maxHp;
+          if (combatente.hp <= 0 || combatente.hp > maximo * ajustes.hp.at) continue;
+          if (getAccountBalance(economiaPocao, GOLD_RESOURCE) < ajustes.hp.cost) continue;
+          economiaPocao = applyEconomyTransaction(economiaPocao, { scope: "account", resourceId: GOLD_RESOURCE, direction: "debit", amount: ajustes.hp.cost, reason: "pocao-vida" }).state;
+          economiaPocao = applyEconomyTransaction(economiaPocao, { scope: "run", resourceId: GOLD_RESOURCE, direction: "debit", amount: ajustes.hp.cost, reason: "pocao-vida" }).state;
+          combateAtual = { ...combateAtual, combatants: combateAtual.combatants.map((c) => c.snapshot.id === combatente.snapshot.id ? { ...c, hp: Math.min(maximo, c.hp + ajustes.hp.heal) } : c) };
+          bebidas += 1;
+          events.push({ type: "potion_used", combatantId: combatente.snapshot.id, kind: "hp", amount: ajustes.hp.heal, cost: ajustes.hp.cost });
+        }
+        if (bebidas > 0) next = { ...next, economy: economiaPocao, run: { ...next.run, combat: combateAtual } };
+      }
+
       if (result.state.outcome === "victory") next = resolveVictory(next, content, events);
       else if (result.state.outcome === "defeat") { const retreatResult = retreat(next, content, "defeat"); next = retreatResult.state; events.push(...retreatResult.events); }
     }
@@ -152,15 +247,29 @@ function resolveVictory(state: GameState, content: GameContentContext, events: G
   events.push(...eventsToAdd);
   const checkpoint = makeCheckpoint(run.checkpoint.sequence + 1, run.waveIndex, [...run.checkpoint.appliedRewardIds, rewardId]);
   const metrics = { kills: run.metrics?.kills ?? 0, loot: (run.metrics?.loot ?? 0) + wave.goldReward, dust: run.metrics?.dust ?? 0, retreats: run.metrics?.retreats ?? 0 };
+
+  /* Vitais que a party leva para a onda seguinte. Lidos do combate que acabou
+     de ser vencido, antes de ele ser descartado. */
+  const vitals: Record<string, { readonly hp: number; readonly mana: number }> = {};
+  for (const combatente of run.combat?.combatants ?? []) {
+    if (combatente.snapshot.side === "party") {
+      vitals[combatente.snapshot.id] = { hp: combatente.hp, mana: combatente.mana };
+    }
+  }
   if (last) return { ...state, roster, inventory, economy, world: { ...state.world, clearedPhaseIds: cleared, unlockedPhaseIds: unlocked }, run: { ...run, status: "completed", combat: null, checkpoint, metrics }, metadata: { ...state.metadata, pendingSync: true } };
-  return { ...state, roster, inventory, economy, world: { ...state.world, clearedPhaseIds: cleared, unlockedPhaseIds: unlocked }, run: { ...run, status: "walking", waveIndex: run.waveIndex + 1, distanceToWave: content.runRules.walkingMs, combat: null, checkpoint, metrics }, metadata: { ...state.metadata, pendingSync: true } };
+  return { ...state, roster, inventory, economy, world: { ...state.world, clearedPhaseIds: cleared, unlockedPhaseIds: unlocked }, run: { ...run, status: "walking", waveIndex: run.waveIndex + 1, distanceToWave: content.runRules.walkingMs, combat: null, checkpoint, metrics, vitals }, metadata: { ...state.metadata, pendingSync: true } };
 }
 
 function retreat(state: GameState, content: GameContentContext, reason: string): GameTransition {
   const run = state.run; if (!run) return { state, events: [] };
   const phase = findPhase(content, run.phaseId); const fallback = phase.retreatPhaseId ?? state.world.selectedFarmPhaseId;
   const target = state.world.unlockedPhaseIds.includes(fallback) ? fallback : state.world.selectedFarmPhaseId;
-  const next = { ...state, world: { ...state.world, selectedFarmPhaseId: target }, run: { ...run, phaseId: target, status: "retreating" as const, waveIndex: 0, distanceToWave: content.runRules.walkingMs, combat: null, checkpoint: makeCheckpoint(run.checkpoint.sequence + 1, -1, []), metrics: { kills: run.metrics?.kills ?? 0, loot: run.metrics?.loot ?? 0, dust: run.metrics?.dust ?? 0, retreats: (run.metrics?.retreats ?? 0) + 1 } }, metadata: { ...state.metadata, pendingSync: true } };
+  const next = { ...state, world: { ...state.world, selectedFarmPhaseId: target }, run: { ...run, phaseId: target, status: "retreating" as const, waveIndex: 0, distanceToWave: content.runRules.walkingMs, combat: null, checkpoint: makeCheckpoint(run.checkpoint.sequence + 1, -1, []), metrics: { kills: run.metrics?.kills ?? 0, loot: run.metrics?.loot ?? 0, dust: run.metrics?.dust ?? 0, retreats: (run.metrics?.retreats ?? 0) + 1 },
+    /* Recuar é recomeçar numa noite mais rasa, e noite nova é descanso: a
+       party volta inteira. Sem isto ela recuava com a vida que a matou e
+       morria de novo na primeira onda — um laço de morte, desta vez dentro do
+       motor. */
+    vitals: undefined }, metadata: { ...state.metadata, pendingSync: true } };
   return { state: { ...next, run: { ...next.run!, status: "walking" } }, events: [{ type: reason === "defeat" ? "run_defeat" : "run_retreat", phaseId: target }] };
 }
 

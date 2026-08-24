@@ -346,3 +346,23 @@ fora da interface mostrou em segundos o que reler o código não mostrou.
 changelog é a fonte da verdade, mas o histórico fica feio e confunde quem
 procurar a versão pelo log.
 
+### Cada onda recriava o combate e curava a party de graça
+**Sintoma:** "a vida do meu boneco aumenta do nada".
+**Causa:** `createCombatState` nasce com todos no `maxHp`, e é chamado a cada
+onda. O herói terminava a onda 1 com 32/50 e começava a 2 com 60/60.
+**Lição:** a vida da party atravessa a onda (guardada em `run.vitals`) e só
+restaura ao abrir uma noite ou ao recuar. E cuidado com o efeito colateral: o
+recuo mantinha `vitals`, então a party recuava com a vida que a matou e morria
+de novo — um laço de morte, desta vez dentro do motor.
+
+### Vida persistente e poção são a mesma feature
+**Sintoma:** ao tirar a cura grátis por onda, oito testes quebraram e a noite 1
+virou invencível — mesmo distribuindo atributos, a party morria na onda 3.
+**Causa:** sem cura nenhuma no jogo, tirar a cura implícita não deixa
+sustentação alguma. A poção existia como tela e preferência, mas o motor nunca
+bebia.
+**Lição:** as duas peças não podem ser entregues em separado. Com o consumo
+ligado no core (só abaixo do limiar, só se o ouro cobrir, um gole por tick), a
+noite 1 volta a fechar e a fronteira do build de referência saltou da noite 4
+para **as dez noites**. Se alguém for mexer numa, tem de olhar a outra.
+

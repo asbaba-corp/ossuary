@@ -148,6 +148,35 @@ Não desce da barca. Olhos como rodas de brasa, remo de madeira negra mais longo
 
 Isso faz de Caronte o primeiro sumidouro do jogo, ensinando na abertura a regra que sustenta toda a economia sem prestige: recurso existe para ser gasto. E cria um padrão reutilizável — cada mundo termina num guardião com um preço próprio.
 
+## Ouro por abate
+
+Cada bicho larga ouro ao cair, em **faixa** e não em valor fixo: dois ignavos da
+mesma noite não valem o mesmo, e é a variação que faz a caça parecer caça em vez
+de planilha. O sorteio é determinístico pela seed da run — o mesmo save rende o
+mesmo ouro.
+
+A base é da noite 1 e escala **+35% por noite**; a faixa é ±30% em torno dela.
+
+| Espécie | Base (noite 1) | Noite 1 | Noite 4 | Noite 10 |
+|---|---|---|---|---|
+| Moscardo | 2 | 1–3 | 3–5 | 6–11 |
+| Ignavo | 3 | 2–4 | 4–8 | 9–16 |
+| Gorja | 7 | 5–9 | 10–18 | 22–38 |
+| Encalhado | 9 | 6–12 | 13–23 | 28–49 |
+| Marcado (elite) | 24 | 17–31 | 34–61 | 74–130 |
+| Caronte (guardião) | 90 | 63–117 | 126–229 | 261–486 |
+
+Elite e guardião valem muito mais porque são o pico da noite, não mais um da
+multidão.
+
+**O ouro do abate é somado ao `goldReward` da onda**, que continua existindo como
+recompensa por fechar a onda. Hoje o da onda pesa mais que o dos bichos — a onda
+1 paga 34, um ignavo paga 2 a 4. Se a intenção for que a caça sustente a
+economia, é o `ouroPorOnda` que deve baixar; isso é calibre, e calibre é do time.
+
+Loot de equipamento continua vindo da tabela de drop da fase, na vitória da
+onda. Não há drop por bicho ainda.
+
 ## O gancho do Ossuary
 
 O primeiro osso do jogo não vem de um monstro. Vem de Caronte, quando ele aceita o pagamento: um fragmento da barca, ou o primeiro Óbolo que você não gastou.
