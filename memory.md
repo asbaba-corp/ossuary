@@ -310,3 +310,13 @@ geometria vertical usada por conteúdo pré-rasterizado merece um comentário
 apontando pra isso, porque o acoplamento não aparece na leitura do bloco que
 desenha por quadro.
 
+### Posicionar sobre o sprite pede a altura do QUADRO, não a do frame
+**Sintoma:** a placa de vida do herói flutuava no meio da parede, longe da
+cabeça.
+**Causa:** o cálculo usava `FRAME` (128), mas o quadro do herói é 128x64 e o
+cavaleiro ocupa a metade de baixo dele. O topo real da cabeça está a
+`HEROI_QH * escala * 0,52` do chão, menos da metade do que a conta dizia.
+**Lição:** ao ancorar algo sobre um sprite, medir pela altura do quadro DAQUELE
+pack e pela fração que a figura de fato ocupa. Vale para placa, número de dano
+e qualquer coisa que nasça "acima da cabeça".
+

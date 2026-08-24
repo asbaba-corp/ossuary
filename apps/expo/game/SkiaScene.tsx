@@ -63,6 +63,7 @@ const INICIO_DA_ENTRADA = 0.5;
 /* Corpo sai da lista quando já passou bem da borda esquerda. */
 const LIMITE_DO_CORPO = -160;
 
+
 /** Perfil de cada inimigo: ritmo de caminhada e lugar na horda.
 
     Ignavo é gente, e gente não anda toda no mesmo passo nem em fila indiana.
@@ -354,11 +355,13 @@ const RACHADURAS: Rachadura[] = (() => {
 type Enemy = { readonly id: string; readonly name: string; readonly hp: number; readonly maxHp: number };
 type Feedback = { readonly id: string; readonly alvo: string; readonly epoch: number; readonly text: string; readonly color: string; readonly dx?: number; readonly dy?: number };
 
-export function SkiaScene({ time, status, enemies, animations, hits, partyId, feedback, marcha = 1, camera = 0, corpses = [] }: {
+export function SkiaScene({ time, status, enemies, animations, hits, partyId, partyName, partyVitals, feedback, marcha = 1, camera = 0, corpses = [] }: {
   time: number; status: string; enemies: readonly Enemy[]; marcha?: number; camera?: number;
   corpses?: readonly { readonly id: string; readonly combatantId: string; readonly indice: number; readonly epoch: number; readonly camera: number }[];
   animations: SceneAnimationState; hits?: Readonly<Record<string, number>>;
-  partyId?: string; feedback: readonly Feedback[];
+  partyId?: string; partyName?: string;
+  partyVitals?: { readonly hp: number; readonly maxHp: number; readonly mana: number; readonly maxMana: number };
+  feedback: readonly Feedback[];
 }) {
   /** Intensidade do pisca de acerto, 1 no instante do golpe e 0 ao fim.
 
@@ -623,10 +626,15 @@ export function SkiaScene({ time, status, enemies, animations, hits, partyId, fe
                       dezoito barras cheias viravam um emaranhado vermelho que
                       escondia os bichos e não dizia nada — todas iguais. Assim
                       a barra vira sinal: quem tem, está sangrando. */}
+                  {/* Só o ferido mostra barra. Com dezoito amontoados, vinte
+                      barras cheias viram um emaranhado vermelho que esconde os
+                      bichos e não distingue nada — todas iguais. Assim a barra
+                      é sinal, e casa com o nome, que segue a mesma regra. */}
                   {inimigo.hp < inimigo.maxHp && (
                     <Group>
-                      <Rect x={x - 22} y={topo} width={44} height={4} color="#1b1410" />
-                      <Rect x={x - 22} y={topo} width={44 * Math.max(0, Math.min(1, inimigo.hp / Math.max(1, inimigo.maxHp)))} height={4} color="#7a2222" />
+                      <Rect x={x - 23} y={topo} width={46} height={5} color="#0a0705" />
+                      <Rect x={x - 22} y={topo + 0.5} width={44} height={4} color="#1b1410" />
+                      <Rect x={x - 22} y={topo + 0.5} width={44 * Math.max(0, Math.min(1, inimigo.hp / Math.max(1, inimigo.maxHp)))} height={4} color="#7a2222" />
                     </Group>
                   )}
                 </Group>
@@ -639,6 +647,38 @@ export function SkiaScene({ time, status, enemies, animations, hits, partyId, fe
             qw={HEROI_QW} qh={HEROI_QH} limite={animHeroi === "attack" ? 8 : undefined} clarao={claraoDe(partyId)} />
         </Group>
       </Canvas>
+
+      {/* Nome só no herói. Nos mobs viraria parede de texto: são até dezoito
+          amontoados, e dezoito nomes escondem a luta em vez de informar. A
+          identidade deles se lê pelo sprite e pelo bestiário; o que importa em
+          cima da cabeça é a barra, e essa fica no canvas com o resto da cena. */}
+      <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+        {/* O herói é um só: nome e as duas barras cabem sem poluir, e é a vida
+            dele que o jogador precisa ler sem tirar o olho da cena. */}
+        {partyVitals && (
+          <View style={[styles.placaHeroi, {
+            /* Medido, não deduzido: o quadro do herói é 128x64 e o cavaleiro
+               ocupa a metade de baixo, então o topo da cabeça fica a
+               `64 * 0,5 * escala` do chão — não à altura do quadro inteiro,
+               que punha a placa flutuando no meio da parede. */
+            left: heroiX * escala - 46, top: (GROUND - HEROI_QH * HERO_SCALE * 0.52 - 24) * escala,
+          }]}>
+            <Text style={styles.nomeHeroi} numberOfLines={1}>{partyName ?? "Sem-Nome"}</Text>
+            <View style={styles.trilhoHeroi}>
+              <View style={[styles.encheHeroi, {
+                width: `${Math.max(0, Math.min(1, partyVitals.hp / Math.max(1, partyVitals.maxHp))) * 100}%`,
+                backgroundColor: "#8a2525",
+              }]} />
+            </View>
+            <View style={styles.trilhoHeroi}>
+              <View style={[styles.encheHeroi, {
+                width: `${Math.max(0, Math.min(1, partyVitals.mana / Math.max(1, partyVitals.maxMana))) * 100}%`,
+                backgroundColor: "#3f5c86",
+              }]} />
+            </View>
+          </View>
+        )}
+      </View>
 
       {/* números flutuantes: nascem sobre quem levou o golpe, sobem e apagam */}
       <View pointerEvents="none" style={StyleSheet.absoluteFill}>
@@ -692,6 +732,10 @@ export function SkiaScene({ time, status, enemies, animations, hits, partyId, fe
 
 const styles = StyleSheet.create({
   host: { overflow: "hidden", backgroundColor: "#0a0b0d", borderColor: "#241b14", borderWidth: 1, position: "relative" },
+  placaHeroi: { position: "absolute", width: 92, alignItems: "center", gap: 2 },
+  nomeHeroi: { color: "#d9c9a8", fontSize: 9, letterSpacing: 0.5, textShadowColor: "#0a0705", textShadowRadius: 3 },
+  trilhoHeroi: { width: 62, height: 4, backgroundColor: "#1b1410", borderColor: "#0a0705", borderWidth: 0.5 },
+  encheHeroi: { height: "100%" },
   numero: { position: "absolute", width: 52, textAlign: "center", fontSize: 14, fontWeight: "700", textShadowColor: "#0a0705", textShadowRadius: 3 },
   rodape: { position: "absolute", left: 10, bottom: 8, color: "#6b5a44", fontSize: 9 },
 });

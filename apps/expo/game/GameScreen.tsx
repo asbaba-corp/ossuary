@@ -42,6 +42,8 @@ export function GameScreen() {
         hits={vm.combatHits}
         feedback={vm.combatFeedback}
         partyId={vm.partyCombatants[0]?.id}
+        partyName={vm.partyCombatants[0]?.name}
+        partyVitals={vm.partyCombatants[0]}
         status={vm.state?.run?.status ?? "walking"}
         marcha={vm.marchProgress}
         camera={vm.camera}

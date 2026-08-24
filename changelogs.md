@@ -15,6 +15,21 @@ PR #NN · AAAA-MM-DD · @autor
 - ...
 ```
 
+## 0.25 — Barra de vida nos mobs e placa de vida/mana no herói
+PR #64 · 2026-08-24 · @juniozguedes
+
+### Added
+- **placa do herói**: nome, barra de vida e barra de mana logo acima da cabeça.
+  É a vida dele que o jogador precisa ler sem tirar o olho da cena — antes só
+  existia no cartão da party, lá embaixo.
+- barra de vida dos mobs com contorno escuro, para destacar do fundo.
+
+### Notas
+Nome só no herói. Nos mobs viraria parede de texto: são até dezoito amontoados,
+e dezoito nomes escondem a luta em vez de informar. A barra deles continua
+aparecendo só em quem já foi ferido, pela mesma razão — vinte barras cheias não
+distinguem nada, e assim a barra é sinal.
+
 ## 0.24 — Poções por tipo no analyzer, com ícones
 PR #63 · 2026-08-23 · @juniozguedes
 
