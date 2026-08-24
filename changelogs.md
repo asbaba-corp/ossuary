@@ -15,6 +15,26 @@ PR #NN · AAAA-MM-DD · @autor
 - ...
 ```
 
+## 0.23 — Poções por tipo no analyzer, com ícones
+PR #63 · 2026-08-24 · @juniozguedes
+
+### Added
+- **POTIONS USED**: quantas poções a run já bebeu, vida e mana em separado,
+  cada uma com o seu frasco.
+
+### Changed
+- **POTIONS AVAILABLE** deixa de ser um número só e passa a mostrar vida e
+  mana lado a lado, cada uma com o frasco da sua cor — vermelho para vida, azul
+  para mana. Cada número responde "quantas DESTA eu compraria com o ouro que
+  tenho", pelo custo da poção escolhida no painel; os dois não se somam.
+- o frasco vira componente com cor por tipo; o atalho para a tela de poções
+  continua no par de POTIONS AVAILABLE.
+
+### Notas
+POTIONS USED fica em zero enquanto o motor não beber: as ondas do Mundo 0 têm
+`consumableRuleId` nulo. O contador já está ligado no lugar certo e zera a cada
+noite nova, então o número aparece sozinho quando o core passar a consumir.
+
 ## 0.22 — Tela de poções, com atalho no analyzer
 PR #61 · 2026-08-20 · @juniozguedes
 
