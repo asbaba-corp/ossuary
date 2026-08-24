@@ -15,7 +15,7 @@ PR #NN · AAAA-MM-DD · @autor
 - ...
 ```
 
-## 0.25 — Barra de vida nos mobs e placa de vida/mana no herói
+## 0.24 — Barra de vida nos mobs e placa de vida/mana no herói
 PR #64 · 2026-08-24 · @juniozguedes
 
 ### Added
@@ -30,8 +30,8 @@ e dezoito nomes escondem a luta em vez de informar. A barra deles continua
 aparecendo só em quem já foi ferido, pela mesma razão — vinte barras cheias não
 distinguem nada, e assim a barra é sinal.
 
-## 0.24 — Poções por tipo no analyzer, com ícones
-PR #63 · 2026-08-23 · @juniozguedes
+## 0.23 — Poções por tipo no analyzer, com ícones
+PR #63 · 2026-08-24 · @juniozguedes
 
 ### Added
 - **POTIONS USED**: quantas poções a run já bebeu, vida e mana em separado,
@@ -41,15 +41,14 @@ PR #63 · 2026-08-23 · @juniozguedes
 - **POTIONS AVAILABLE** deixa de ser um número só e passa a mostrar vida e
   mana lado a lado, cada uma com o frasco da sua cor — vermelho para vida, azul
   para mana. Cada número responde "quantas DESTA eu compraria com o ouro que
-  tenho", pelo custo da poção escolhida no painel; não é rateio entre os dois.
-- o frasco vira componente com cor por tipo, e o atalho para a tela de poções
+  tenho", pelo custo da poção escolhida no painel; os dois não se somam.
+- o frasco vira componente com cor por tipo; o atalho para a tela de poções
   continua no par de POTIONS AVAILABLE.
 
 ### Notas
 POTIONS USED fica em zero enquanto o motor não beber: as ondas do Mundo 0 têm
-`consumableRuleId` nulo. O contador já está ligado no lugar certo, então o
-número aparece sozinho quando o core passar a consumir. Preferi mostrar "0"
-honesto a esconder a coluna.
+`consumableRuleId` nulo. O contador já está ligado no lugar certo e zera a cada
+noite nova, então o número aparece sozinho quando o core passar a consumir.
 
 ## 0.22 — Tela de poções, com atalho no analyzer
 PR #61 · 2026-08-20 · @juniozguedes
