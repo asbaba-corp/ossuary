@@ -15,6 +15,30 @@ PR #NN · AAAA-MM-DD · @autor
 - ...
 ```
 
+## 0.27 — Olhos de brasa, cuspida de sangue e barras que sinalizam
+PR #67 · 2026-08-24 · @juniozguedes
+
+### Added
+- **olhos vermelhos nos inimigos**. O sprite do zumbi é silhueta escura sem
+  rosto legível; dois pontos de brasa dão intenção a ele e fazem a horda
+  parecer olhar para o herói. Apagam na morte e durante o clarão do golpe, que
+  já lava tudo de branco.
+- **cuspida de sangue** quando o bicho ataca: três gotas que cruzam a distância
+  até o herói e caem um pouco no caminho. Antes o golpe do inimigo só existia
+  como número no HUD.
+
+### Changed
+- a placa de vida do herói sobe para **acima** da cabeça. O `top` posiciona o
+  topo da placa, e ela tem uns 30px próprios — ancorar na cabeça fazia o corpo
+  dela cair sobre o rosto.
+- **a barra do inimigo aparece só enquanto ele apanha** e some 2,2s depois do
+  último golpe. Mostrar em todo ferido deixava barra acesa pela horda inteira
+  o resto da onda.
+
+### Notas
+A condição da barra olha quem **levou** golpe, não quem era o alvo. Quando
+houver AOE, todos os atingidos acendem sozinhos, sem mudar nada na cena.
+
 ## 0.26 — A party bebe: vida atravessa a onda, ouro cai por abate
 PR #66 · 2026-08-24 · @juniozguedes
 
