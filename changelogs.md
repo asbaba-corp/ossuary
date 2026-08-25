@@ -19,10 +19,11 @@ PR #NN · AAAA-MM-DD · @autor
 PR #67 · 2026-08-24 · @juniozguedes
 
 ### Added
-- **olhos vermelhos nos inimigos**. O sprite do zumbi é silhueta escura sem
-  rosto legível; dois pontos de brasa dão intenção a ele e fazem a horda
-  parecer olhar para o herói. Apagam na morte e durante o clarão do golpe, que
-  já lava tudo de branco.
+- **olho de brasa nos inimigos**. O sprite do zumbi é silhueta escura sem rosto
+  legível; um ponto vermelho dá intenção a ele e faz a horda parecer olhar para
+  o herói. Um só, e deslocado para o lado que encara, porque o bicho é
+  desenhado de perfil — dois pontos simétricos liam como bolas flutuantes na
+  frente da cara. Apagam na morte e durante o clarão do golpe.
 - **cuspida de sangue** quando o bicho ataca: três gotas que cruzam a distância
   até o herói e caem um pouco no caminho. Antes o golpe do inimigo só existia
   como número no HUD.

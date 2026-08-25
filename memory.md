@@ -366,3 +366,14 @@ ligado no core (só abaixo do limiar, só se o ouro cobrir, um gole por tick), a
 noite 1 volta a fechar e a fronteira do build de referência saltou da noite 4
 para **as dez noites**. Se alguém for mexer numa, tem de olhar a outra.
 
+### Sprite de perfil não leva dois olhos simétricos
+**Sintoma:** os olhos vermelhos dos ignavos liam como "bolas flutuantes", não
+como rosto.
+**Causa:** duas. Desenhei dois pontos simétricos, e o zumbi é desenhado de
+PERFIL encarando o herói — dois olhos lado a lado não são um rosto de perfil.
+E o halo largo que pus para o ponto não sumir contra a parede quente era
+justamente o que engordava a bola.
+**Lição:** abrir a folha antes de posicionar qualquer coisa sobre o sprite. No
+quadro de 128 o zumbi ocupa só a faixa de baixo, está de perfil, e o que cabe é
+UM olho deslocado para o lado que encara, com halo mínimo.
+
