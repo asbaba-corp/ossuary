@@ -628,28 +628,6 @@ export function SkiaScene({ time, status, enemies, animations, hits, partyId, pa
                   <Oval x={x - 22} y={chao - 6} width={44} height={7} color="#000000" opacity={0.4} />
                   <Quadro image={mob[anim]} animation={anim} t={quadro} cx={x} footY={chao} scale={MOB_SCALE} flip clarao={claraoDe(inimigo.id)} />
 
-                  {/* Um olho, não dois. O zumbi é desenhado de PERFIL, olhando
-                      para o herói — dois pontos simétricos não são um rosto de
-                      perfil, são duas bolas na frente da cara. E o halo largo
-                      que eu tinha posto para o ponto não sumir contra a parede
-                      era justamente o que fazia a bola.
-
-                      A posição saiu de abrir a folha: no quadro de 128 o bicho
-                      ocupa a faixa de baixo, e a cabeça fica a pouco menos da
-                      metade da altura, deslocada para o lado que encara. */}
-                  {(() => {
-                    const brilho = 1 - claraoDe(inimigo.id);
-                    if (brilho <= 0.05) return null;
-                    const olhoY = chao - FRAME * MOB_SCALE * 0.5;
-                    const olhoX = x - 6;   // lado da face; o sprite encara o herói
-                    return (
-                      <Group opacity={brilho}>
-                        <Oval x={olhoX - 1} y={olhoY - 0.5} width={4.5} height={3.5} color="#6e1b0e" opacity={0.5} />
-                        <Oval x={olhoX} y={olhoY} width={2.8} height={2.2} color="#e04a26" />
-                      </Group>
-                    );
-                  })()}
-
                   {/* Cuspida de sangue: o golpe do bicho precisava de alguma
                       coisa saindo dele em direção ao herói, senão o dano no
                       HUD era o único sinal de que ele atacou. Três gotas que
