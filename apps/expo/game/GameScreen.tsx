@@ -155,7 +155,28 @@ function Panel({ panel, state, inventoryPage, onInventoryPage, onClose, vm, onPo
                     <Text style={[styles.toolButtonText, ajuste.on && styles.hudButtonTextAtivo]}>{ajuste.on ? "LIGADA" : "DESLIGADA"}</Text>
                   </Pressable>
                 </View>
-                <Text style={styles.muted}>Bebe abaixo de {Math.round(ajuste.at * 100)}%</Text>
+                {/* Limiar: em que fração de vida a poção é bebida. Passos de
+                    5% em vez de campo livre — a decisão aqui é grossa ("bebo
+                    cedo" contra "bebo no talo"), e passo evita teclado. */}
+                <View style={styles.limiarLinha}>
+                  <Text style={styles.muted}>Bebe abaixo de</Text>
+                  <Pressable onPress={() => vm.ajustarLimiar(tipo, -0.05)} style={styles.limiarBotao}
+                    accessibilityLabel={`Diminuir limiar de ${tipo}`}>
+                    <Text style={styles.limiarBotaoTexto}>−</Text>
+                  </Pressable>
+                  <Text style={styles.limiarValor}>{Math.round(ajuste.at * 100)}%</Text>
+                  <Pressable onPress={() => vm.ajustarLimiar(tipo, 0.05)} style={styles.limiarBotao}
+                    accessibilityLabel={`Aumentar limiar de ${tipo}`}>
+                    <Text style={styles.limiarBotaoTexto}>+</Text>
+                  </Pressable>
+                </View>
+                {/* barra de referência: onde o limiar cai na vida cheia */}
+                <View style={styles.limiarTrilho}>
+                  <View style={[styles.limiarEnche, {
+                    width: `${ajuste.at * 100}%`,
+                    backgroundColor: tipo === "hp" ? "#8a2525" : "#3f5c86",
+                  }]} />
+                </View>
                 {lista.map((pocao) => {
                   const caro = (state?.economy.account.gold ?? 0) < pocao.custo;
                   return (
@@ -178,8 +199,8 @@ function Panel({ panel, state, inventoryPage, onInventoryPage, onClose, vm, onPo
           })}
         </View>
         <Text style={styles.pocaoAviso}>
-          O motor ainda não bebe sozinho: as ondas do Mundo 0 têm `consumableRuleId` nulo, e o consumo
-          deve seguir o dano recebido, não a contagem de ondas. Esta tela guarda a escolha até lá.
+          A party bebe sozinha durante o combate, um gole por vez, e só se o ouro cobrir — o custo
+          nunca deixa o saldo negativo. Poção de mana fica desligada até haver magia que gaste mana.
         </Text>
       </View>
     )}
@@ -429,6 +450,12 @@ const styles = StyleSheet.create({
   pocaoCusto: { color: "#c9a44a", fontSize: 11, fontVariant: ["tabular-nums"], minWidth: 34, textAlign: "right" },
   pocaoCustoCaro: { color: "#b4534b" },
   pocaoColuna: { flex: 1, minWidth: 200, gap: 5 },
+  limiarLinha: { flexDirection: "row", alignItems: "center", gap: 7 },
+  limiarBotao: { width: 22, height: 22, alignItems: "center", justifyContent: "center", backgroundColor: "#241b14", borderColor: "#4a3a2a", borderWidth: 1 },
+  limiarBotaoTexto: { color: "#d9c9a8", fontSize: 13, lineHeight: 15 },
+  limiarValor: { color: "#d9c9a8", fontSize: 12, minWidth: 34, textAlign: "center", fontVariant: ["tabular-nums"] },
+  limiarTrilho: { height: 5, backgroundColor: "#1b1410", borderColor: "#2c2118", borderWidth: 1, marginBottom: 3 },
+  limiarEnche: { height: "100%" },
   pocaoColunas: { flexDirection: "row", gap: 14, flexWrap: "wrap" },
   pocaoCabecalho: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 2 },
   pocaoAviso: { color: "#6b5a44", fontSize: 10, lineHeight: 15, marginTop: 12 },

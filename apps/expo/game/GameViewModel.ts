@@ -20,7 +20,7 @@ const FREIO_COMECA = 0.72;
    herói cai, o motor recua a party para uma fase mais rasa, e é durante o breu
    que essa troca acontece sem o jogador ver a cena saltar. */
 const MORTE_QUEDA = 0.95;   // colapso, e tempo de ler a queda antes do breu cobrir
-const MORTE_BREU = 0.85;    // breu total com a citação — tempo de leitura
+const MORTE_BREU = 1.85;    // breu total com a citação — tempo de leitura
 const MORTE_RETORNO = 0.55; // cena e herói reaparecem juntos
 
 /** Vinte citações do Inferno de Dante Alighieri (Divina Comédia, ~1320),
@@ -102,6 +102,7 @@ export interface GameViewModel {
   readonly pocoes: Record<TipoDePocao, AjusteDePocao>;
   readonly togglePocao: (tipo: TipoDePocao) => void;
   readonly escolherPocao: (tipo: TipoDePocao, id: string) => void;
+  readonly ajustarLimiar: (tipo: TipoDePocao, passo: number) => void;
   readonly potionsAvailable: { readonly hp: number; readonly mp: number };
   readonly potionsUsed: { readonly hp: number; readonly mp: number };
   readonly loopNight: boolean;
@@ -192,6 +193,10 @@ export function useGameViewModel(): GameViewModel {
      Mana nasce desligada: sem magia implementada, nada a gasta. */
   /* Contagem de poções bebidas na run. Zera ao começar uma run nova. */
   const [pocoesBebidas, setPocoesBebidas] = useState<Record<TipoDePocao, number>>({ hp: 0, mp: 0 });
+  /* A escolha do jogador tem de chegar ao MOTOR, não ficar só na tela: quem
+     bebe é o core, e é ele que roda offline. Este efeito espelha a preferência
+     para o estado do jogo a cada mudança. */
+  const pocoesRef = useRef<Record<TipoDePocao, AjusteDePocao> | null>(null);
   const [pocoes, setPocoes] = useState<Record<TipoDePocao, AjusteDePocao>>({
     hp: { on: true, id: "hp1", at: 0.45 },
     mp: { on: false, id: "mp1", at: 0.35 },
@@ -258,6 +263,21 @@ export function useGameViewModel(): GameViewModel {
   }, []);
 
   useEffect(() => {
+    const session = sessionRef.current;
+    if (!ready || !session) return;
+    if (pocoesRef.current === pocoes) return;
+    pocoesRef.current = pocoes;
+    const doCatalogo = (tipo: TipoDePocao) => POCOES[tipo].find(({ id }) => id === pocoes[tipo].id) ?? POCOES[tipo][0];
+    void session.action({
+      type: "set_potions",
+      settings: {
+        hp: { on: pocoes.hp.on, at: pocoes.hp.at, cost: doCatalogo("hp").custo, heal: doCatalogo("hp").cura },
+        mp: { on: pocoes.mp.on, at: pocoes.mp.at, cost: doCatalogo("mp").custo, heal: doCatalogo("mp").cura },
+      },
+    }).catch((erro: unknown) => console.error("Falha ao salvar a preferência de poção:", erro));
+  }, [pocoes, ready]);
+
+  useEffect(() => {
     if (!ready || paused) return;
     const timer = setInterval(() => {
       const session = sessionRef.current;
@@ -306,6 +326,14 @@ export function useGameViewModel(): GameViewModel {
            um único render depois de a onda cair, a cena concluiria que a
            marcha seguinte já tinha acabado e desenharia a horda nova direto na
            posição de combate: quatro inimigos piscando na tela e sumindo. */
+        const goles = events.filter((evento): evento is Extract<GameEvent, { type: "potion_used" }> => evento.type === "potion_used");
+        if (goles.length > 0) {
+          setPocoesBebidas((atual) => ({
+            hp: atual.hp + goles.filter(({ kind }) => kind === "hp").length,
+            mp: atual.mp + goles.filter(({ kind }) => kind === "mp").length,
+          }));
+        }
+
         if (events.some(({ type }) => type === "run_defeat")) {
           const caiuEm = corridaAtualId.current;
           if (caiuEm) {
@@ -606,6 +634,17 @@ export function useGameViewModel(): GameViewModel {
       setPocoes((atual) => ({ ...atual, [tipo]: { ...atual[tipo], on: !atual[tipo].on } })),
     escolherPocao: (tipo: TipoDePocao, id: string) =>
       setPocoes((atual) => ({ ...atual, [tipo]: { ...atual[tipo], id } })),
+
+    /* Limiar em passos de 5%, entre 10% e 90%.
+       Passo em vez de campo livre porque o número aqui é uma decisão grosseira
+       — "bebo cedo" ou "bebo no talo" —, e porque control deslizante nativo
+       exigiria dependência que não temos. Os extremos ficam de fora: 0% nunca
+       beberia e 100% beberia sempre, e nenhum dos dois é dosagem. */
+    ajustarLimiar: (tipo: TipoDePocao, passo: number) =>
+      setPocoes((atual) => ({
+        ...atual,
+        [tipo]: { ...atual[tipo], at: Math.min(0.9, Math.max(0.1, Math.round((atual[tipo].at + passo) * 20) / 20)) },
+      })),
 
     /* Quantas cabem no ouro, por tipo e pela poção ESCOLHIDA de cada um — não
        por um 50 fixo. Trocar para a Maior tem de mudar o número, senão mente.

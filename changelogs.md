@@ -15,6 +15,36 @@ PR #NN · AAAA-MM-DD · @autor
 - ...
 ```
 
+## 0.26 — A party bebe: vida atravessa a onda, ouro cai por abate
+PR #66 · 2026-08-24 · @juniozguedes
+
+### Added
+- **o motor bebe poção**: abaixo do limiar escolhido, um gole por tick, e só se
+  o ouro cobrir — o custo nunca deixa o saldo negativo (§5.3). POTIONS USED
+  deixa de ser sempre zero.
+- **limiar ajustável** na tela de poções, em passos de 5% entre 10% e 90%, com
+  barra mostrando onde ele cai na vida cheia.
+- **ouro por abate**, em faixa por espécie e escalando por noite. Matar dez
+  bichos e cair no décimo primeiro agora rende; antes só a vitória da onda
+  pagava. Sorteio determinístico pela seed. Tabela no `world_0_vestibule.md`.
+- cinco testes de ouro por abate e três do recuo de vitais.
+
+### Changed
+- **a vida da party atravessa a onda** e só restaura ao abrir uma noite ou ao
+  recuar. Cada onda recriava o combate com todo mundo no máximo, o que curava a
+  party de graça — era a "vida que aumenta do nada".
+- a tela de morte ganha +1s de leitura no breu.
+
+### Notas
+As duas primeiras mudanças são uma só feature. Tirar a cura grátis sem ligar a
+poção deixou a noite 1 invencível — a party morria na onda 3 mesmo distribuindo
+atributos. Com as duas juntas, a fronteira do build de referência saltou da
+noite 4 para **as dez noites**.
+
+O ouro do abate soma ao `goldReward` da onda, que hoje pesa mais: a onda 1 paga
+34 e um ignavo paga 2 a 4. Se a caça deve sustentar a economia, é o
+`ouroPorOnda` que baixa — isso é calibre, e calibre é do time.
+
 ## 0.25 — Fim do laço de morte entre noites
 PR #62 · 2026-08-24 · @juniozguedes
 
