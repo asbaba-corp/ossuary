@@ -366,3 +366,19 @@ ligado no core (só abaixo do limiar, só se o ouro cobrir, um gole por tick), a
 noite 1 volta a fechar e a fronteira do build de referência saltou da noite 4
 para **as dez noites**. Se alguém for mexer numa, tem de olhar a outra.
 
+
+### Overlay estático não gruda em sprite animado — os olhos foram removidos
+**Sintoma:** olhos vermelhos nos ignavos liam como bolas flutuantes fora do
+rosto, e não acompanhavam o bicho.
+**Causa:** a raiz não era posição, era natureza. O olho era desenhado num ponto
+FIXO relativo ao pé do sprite, enquanto a cabeça do zumbi se move a cada quadro
+da animação de andar. Nenhum ajuste de coordenada conserta isso: acertar num
+quadro erra nos outros cinco. Antes disso ainda errei desenhando dois pontos
+simétricos num sprite que é de PERFIL, e engordando um halo para o ponto não
+sumir contra a parede.
+**Lição:** o que precisa acompanhar um sprite animado tem de estar NA folha, e
+não por cima dela. Se um pack não traz o detalhe, o caminho é editar a folha ou
+pedir arte — não sobrepor uma forma e caçar a coordenada. A cuspida de sangue
+sobrevive porque ela é um efeito que atravessa o espaço, não um traço do corpo:
+não precisa grudar em parte nenhuma.
+

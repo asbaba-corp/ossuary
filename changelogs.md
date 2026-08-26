@@ -15,6 +15,32 @@ PR #NN · AAAA-MM-DD · @autor
 - ...
 ```
 
+## 0.27 — Cuspida de sangue e barras que sinalizam
+PR #67 · 2026-08-25 · @juniozguedes
+
+### Added
+- **cuspida de sangue** quando o bicho ataca: três gotas que cruzam a distância
+  até o herói e caem um pouco no caminho. Antes o golpe do inimigo só existia
+  como número no HUD — ele batia sem nada sair dele.
+
+### Changed
+- a placa de vida do herói sobe para **acima** da cabeça, sem cobrir o rosto. A
+  altura sai de 82% do quadro: o cavaleiro não preenche os 128x64 inteiros, e
+  medir pelo quadro cheio jogava a placa longe.
+- **a barra do inimigo aparece só enquanto ele apanha** e some 2,2s depois do
+  último golpe. Mostrar em todo ferido deixava barra acesa pela horda inteira o
+  resto da onda; mostrar em todos era um emaranhado vermelho.
+
+### Notas
+Olhos vermelhos nos ignavos foram tentados e **removidos**: um overlay em
+posição fixa não acompanha a cabeça, que se move a cada quadro da animação.
+Acertar a coordenada num quadro erra nos outros cinco. Quando isso voltar, tem
+de vir na folha de sprites, não por cima dela. A cuspida sobrevive porque é um
+efeito que atravessa o espaço, não um traço do corpo.
+
+A condição da barra olha quem **levou** golpe, não quem era o alvo. Quando
+houver AOE, todos os atingidos acendem sozinhos, sem mudar nada na cena.
+
 ## 0.26 — A party bebe: vida atravessa a onda, ouro cai por abate
 PR #66 · 2026-08-24 · @juniozguedes
 

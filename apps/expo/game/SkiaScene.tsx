@@ -107,6 +107,11 @@ const ATRASO_CORPO = 1.4;                // segundos parado antes de começar a 
 const FADE_CORPO = 0.4;                  // desvanecer depois da animação de morte
 const VIDA_NUMERO = 0.7;                 // quanto um número flutuante dura
 const VIDA_CLARAO = 0.32;                // quanto o pisca de acerto dura
+/* Quanto a barra de um inimigo fica visível depois do último golpe. Longa o
+   bastante para acompanhar a vida descendo, curta o bastante para a horda
+   voltar a ser silhueta quando ninguém está apanhando. */
+const VIDA_BARRA_MOB = 2.2;
+const VIDA_CUSPE = 0.45;                 // quanto uma cuspida leva para cruzar
 
 /** Pinta tudo de branco mantendo o alfa: é o que faz o sprite piscar sem
     virar um retângulo. */
@@ -616,21 +621,52 @@ export function SkiaScene({ time, status, enemies, animations, hits, partyId, pa
               const quadro = vivo ? time - (sinal?.epoch ?? 0) : time + i * 0.17;
               const x = posicaoMob(i, inimigo.id);
               const chao = GROUND + perfil.profundidade + fileiraDe(i) * PROFUNDIDADE_DA_FILEIRA;
-              const topo = chao - FRAME * MOB_SCALE * 0.62;
+              const topo = chao - FRAME * MOB_SCALE * 0.66;
 
               return (
                 <Group key={inimigo.id}>
                   <Oval x={x - 22} y={chao - 6} width={44} height={7} color="#000000" opacity={0.4} />
                   <Quadro image={mob[anim]} animation={anim} t={quadro} cx={x} footY={chao} scale={MOB_SCALE} flip clarao={claraoDe(inimigo.id)} />
+
+                  {/* Cuspida de sangue: o golpe do bicho precisava de alguma
+                      coisa saindo dele em direção ao herói, senão o dano no
+                      HUD era o único sinal de que ele atacou. Três gotas que
+                      cruzam a distância e caem um pouco no caminho. */}
+                  {(() => {
+                    const sinalDoGolpe = animations[inimigo.id];
+                    if (sinalDoGolpe?.animation !== "attack") return null;
+                    const idade = time - sinalDoGolpe.epoch;
+                    if (idade < 0 || idade > VIDA_CUSPE) return null;
+                    const avanco = idade / VIDA_CUSPE;
+                    const bocaY = chao - FRAME * MOB_SCALE * 0.5;
+                    return (
+                      <Group opacity={1 - avanco}>
+                        {[0, 1, 2].map((n) => {
+                          const atraso = n * 0.16;
+                          const p = Math.max(0, Math.min(1, avanco - atraso));
+                          const gx = x + (heroiX - x) * p;
+                          const gy = bocaY + p * p * 22 + n * 3;
+                          return <Oval key={n} x={gx - 2} y={gy} width={4 - n * 0.6} height={3} color="#a3221b" />;
+                        })}
+                      </Group>
+                    );
+                  })()}
                   {/* Barra só em quem já foi ferido. Com a horda amontoada,
                       dezoito barras cheias viravam um emaranhado vermelho que
                       escondia os bichos e não dizia nada — todas iguais. Assim
                       a barra vira sinal: quem tem, está sangrando. */}
-                  {/* Só o ferido mostra barra. Com dezoito amontoados, vinte
-                      barras cheias viram um emaranhado vermelho que esconde os
-                      bichos e não distingue nada — todas iguais. Assim a barra
-                      é sinal, e casa com o nome, que segue a mesma regra. */}
-                  {inimigo.hp < inimigo.maxHp && (
+                  {/* Barra só em quem está APANHANDO agora, e some pouco depois
+                      do último golpe. Mostrar em todo ferido deixava barra
+                      acesa pela horda inteira o resto da onda; mostrar em todos
+                      era um emaranhado vermelho.
+
+                      A condição olha `hits`, que marca quem LEVOU golpe — não
+                      quem era o alvo. Quando houver AOE, todos os atingidos
+                      acendem sozinhos, sem mudar nada aqui. */}
+                  {(() => {
+                    const quando = hits?.[inimigo.id];
+                    return quando !== undefined && time - quando < VIDA_BARRA_MOB;
+                  })() && (
                     <Group>
                       <Rect x={x - 23} y={topo} width={46} height={5} color="#0a0705" />
                       <Rect x={x - 22} y={topo + 0.5} width={44} height={4} color="#1b1410" />
@@ -657,11 +693,11 @@ export function SkiaScene({ time, status, enemies, animations, hits, partyId, pa
             dele que o jogador precisa ler sem tirar o olho da cena. */}
         {partyVitals && (
           <View style={[styles.placaHeroi, {
-            /* Medido, não deduzido: o quadro do herói é 128x64 e o cavaleiro
-               ocupa a metade de baixo, então o topo da cabeça fica a
-               `64 * 0,5 * escala` do chão — não à altura do quadro inteiro,
-               que punha a placa flutuando no meio da parede. */
-            left: heroiX * escala - 46, top: (GROUND - HEROI_QH * HERO_SCALE * 0.52 - 24) * escala,
+            /* A placa fica ACIMA da cabeça, não sobre ela. O `top` posiciona o
+               TOPO da placa, e ela tem uns 30px de altura própria (nome + duas
+               barras): ancorar na cabeça fazia o corpo dela cair sobre o rosto.
+               Daí a altura cheia do quadro mais a folga da própria placa. */
+            left: heroiX * escala - 46, top: (GROUND - HEROI_QH * HERO_SCALE * 0.82 - 26) * escala,
           }]}>
             <Text style={styles.nomeHeroi} numberOfLines={1}>{partyName ?? "Sem-Nome"}</Text>
             <View style={styles.trilhoHeroi}>
