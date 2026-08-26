@@ -366,6 +366,7 @@ ligado no core (só abaixo do limiar, só se o ouro cobrir, um gole por tick), a
 noite 1 volta a fechar e a fronteira do build de referência saltou da noite 4
 para **as dez noites**. Se alguém for mexer numa, tem de olhar a outra.
 
+
 ### Overlay estático não gruda em sprite animado — os olhos foram removidos
 **Sintoma:** olhos vermelhos nos ignavos liam como bolas flutuantes fora do
 rosto, e não acompanhavam o bicho.
