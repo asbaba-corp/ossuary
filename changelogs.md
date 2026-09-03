@@ -16,7 +16,7 @@ PR #NN · AAAA-MM-DD · @autor
 ```
 
 ## 0.28 — Ouro por onda deixa de ofuscar o abate
-PR #NN · 2026-09-03 · @juniozguedes
+PR #68 · 2026-09-03 · @juniozguedes
 
 ### Changed
 - **o bônus de ouro por onda cai para ~20% do que a onda paga em abates.** Na
