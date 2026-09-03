@@ -15,6 +15,20 @@ PR #NN · AAAA-MM-DD · @autor
 - ...
 ```
 
+## 0.28 — Ouro por onda deixa de ofuscar o abate
+PR #NN · 2026-09-03 · @juniozguedes
+
+### Changed
+- **o bônus de ouro por onda cai para ~20% do que a onda paga em abates.** Na
+  noite 1 as ondas de 8/10/12 ignavos rendiam ~24/30/36 de ouro caçando, e cada
+  onda ainda pagava 34 fixos: matar mais bicho não mudava a bolsa, só chegar ao
+  fim da onda mudava. Agora a noite 1 paga 6 por onda, e a caça volta a ser a
+  fonte de ouro. As dez noites foram recalibradas pela mesma regra
+  (34/34/67/100/81/112/152/176/240/156 → 6/6/11/22/13/12/20/20/27/25).
+- a regra do bônus fica escrita junto do `DESENHO`: soma de `OURO_BASE` dos
+  bichos da onda × (1 + (noite - 1) × 0,35), média entre as ondas da noite, 20%
+  disso. Mexeu na composição, recalcula. `xpPorOnda` não muda.
+
 ## 0.27 — Cuspida de sangue e barras que sinalizam
 PR #67 · 2026-08-25 · @juniozguedes
 

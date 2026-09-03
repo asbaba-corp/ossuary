@@ -107,8 +107,16 @@ interface FaseDesenho {
  * igual ao calibre anterior, redistribuído entre as ondas novas. Sem cura, o
  * que mata é o dano somado da noite inteira, não o pico de uma onda: preservar
  * o total é o que impede a mudança de forma de virar mudança de dificuldade.
- * `xpPorOnda` e `ouroPorOnda` foram redivididos pela mesma razão — a noite
- * paga o mesmo que pagava antes.
+ * `xpPorOnda` foi redividido pela mesma razão — a noite paga o mesmo XP que
+ * pagava antes.
+ *
+ * OURO: `ouroPorOnda` NÃO segue essa lógica. O bônus de onda pagava mais que
+ * a soma dos abates da própria onda, e com isso o abate virava enfeite: matar
+ * mais bicho não mudava a bolsa, só sobreviver até o fim da onda mudava. O
+ * bônus agora é ~20% do ouro esperado de abate da onda média da noite — ele
+ * arredonda a bolsa e recompensa fechar a onda, mas a fonte de ouro é a caça.
+ * Ao mexer na composição de uma noite, recalcule: soma de OURO_BASE por bicho
+ * da onda × (1 + (noite - 1) * 0,35), média entre as ondas, 20% disso.
  *
  * CALIBRE ATUAL: sem cura de nenhum tipo.
  *
@@ -125,25 +133,25 @@ interface FaseDesenho {
  */
 const DESENHO: readonly FaseDesenho[] = [
   {
-    papel: "Apresentação", dropTableId: "w0-drop-inicial", xpPorOnda: 18, ouroPorOnda: 34,
+    papel: "Apresentação", dropTableId: "w0-drop-inicial", xpPorOnda: 18, ouroPorOnda: 6,
     ondas: [{ ignavo: 8 }, { ignavo: 10 }, { ignavo: 12 }],
   },
   {
-    papel: "Apresentação", dropTableId: "w0-drop-inicial", xpPorOnda: 50, ouroPorOnda: 34,
+    papel: "Apresentação", dropTableId: "w0-drop-inicial", xpPorOnda: 50, ouroPorOnda: 6,
     ondas: [{ ignavo: 6 }, { ignavo: 7 }, { ignavo: 9 }],
   },
   {
     // a foice cai aqui, garantida: é ela que abre a multidão das fases seguintes
-    papel: "Escalada", dropTableId: "w0-drop-foice", xpPorOnda: 88, ouroPorOnda: 67,
+    papel: "Escalada", dropTableId: "w0-drop-foice", xpPorOnda: 88, ouroPorOnda: 11,
     ondas: [{ ignavo: 7, moscardo: 5 }, { ignavo: 7, moscardo: 7 }, { ignavo: 5, moscardo: 9 }],
   },
   {
-    papel: "Escalada", dropTableId: "w0-drop-vestibulo", xpPorOnda: 132, ouroPorOnda: 100,
+    papel: "Escalada", dropTableId: "w0-drop-vestibulo", xpPorOnda: 132, ouroPorOnda: 22,
     ondas: [{ ignavo: 12, moscardo: 6 }, { ignavo: 13, moscardo: 7 }, { ignavo: 14, moscardo: 8 }],
   },
   {
     // miniboss: o Marcado fecha a noite, nunca abre
-    papel: "Miniboss", dropTableId: "w0-drop-vestibulo", xpPorOnda: 108, ouroPorOnda: 81,
+    papel: "Miniboss", dropTableId: "w0-drop-vestibulo", xpPorOnda: 108, ouroPorOnda: 13,
     ondas: [
       { ignavo: 5, moscardo: 3 }, { ignavo: 6, moscardo: 3 }, { ignavo: 6, moscardo: 4 },
       { ignavo: 5, moscardo: 3 }, { marcado: 1, ignavo: 4, moscardo: 3 },
@@ -151,7 +159,7 @@ const DESENHO: readonly FaseDesenho[] = [
   },
   {
     // a Gorja estreia sozinha: dreno somado trava o DPS e, sem cura, mata
-    papel: "Pressão", dropTableId: "w0-drop-vestibulo", xpPorOnda: 140, ouroPorOnda: 112,
+    papel: "Pressão", dropTableId: "w0-drop-vestibulo", xpPorOnda: 140, ouroPorOnda: 12,
     ondas: [
       { gorja: 1, ignavo: 6 }, { gorja: 1, moscardo: 7 }, { gorja: 1, ignavo: 6 },
       { gorja: 1, moscardo: 8 }, { gorja: 1, ignavo: 4 },
@@ -159,7 +167,7 @@ const DESENHO: readonly FaseDesenho[] = [
   },
   {
     // a ceifa cai aqui, garantida
-    papel: "Pressão", dropTableId: "w0-drop-ceifa", xpPorOnda: 175, ouroPorOnda: 152,
+    papel: "Pressão", dropTableId: "w0-drop-ceifa", xpPorOnda: 175, ouroPorOnda: 20,
     ondas: [
       { gorja: 2, ignavo: 6 }, { gorja: 2, moscardo: 6 }, { gorja: 1, ignavo: 7, moscardo: 4 },
       { gorja: 2, moscardo: 6, ignavo: 5 }, { gorja: 1, ignavo: 3, moscardo: 4 },
@@ -167,21 +175,21 @@ const DESENHO: readonly FaseDesenho[] = [
   },
   {
     // spawn garantido do elite: é o Óbolo que paga o Caronte
-    papel: "Elite", dropTableId: "w0-drop-fundo", xpPorOnda: 212, ouroPorOnda: 176,
+    papel: "Elite", dropTableId: "w0-drop-fundo", xpPorOnda: 212, ouroPorOnda: 20,
     ondas: [
       { ignavo: 8, moscardo: 6 }, { gorja: 2, moscardo: 5 }, { marcado: 1, ignavo: 5 },
       { ignavo: 3, moscardo: 4 }, { marcado: 1, gorja: 1 },
     ],
   },
   {
-    papel: "A parede", dropTableId: "w0-drop-fundo", xpPorOnda: 250, ouroPorOnda: 240,
+    papel: "A parede", dropTableId: "w0-drop-fundo", xpPorOnda: 250, ouroPorOnda: 27,
     ondas: [
       { encalhado: 2, ignavo: 6 }, { encalhado: 2, moscardo: 5 }, { encalhado: 3, gorja: 1 },
       { encalhado: 2, moscardo: 3 }, { encalhado: 3, ignavo: 9 },
     ],
   },
   {
-    papel: "Guardião", dropTableId: "w0-drop-fundo", xpPorOnda: 240, ouroPorOnda: 156,
+    papel: "Guardião", dropTableId: "w0-drop-fundo", xpPorOnda: 240, ouroPorOnda: 25,
     ondas: [
       { ignavo: 5, moscardo: 3 }, { ignavo: 3, moscardo: 3 }, { gorja: 1, encalhado: 1 },
       { encalhado: 1 }, { caronte: 1 },
