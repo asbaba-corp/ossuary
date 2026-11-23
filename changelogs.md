@@ -16,7 +16,7 @@ PR #NN · AAAA-MM-DD · @autor
 ```
 
 ## 0.29 — O Vestíbulo vira 3D
-PR #? · 2026-11-23 · @juniozguedes
+PR #69 · 2026-11-23 · @juniozguedes
 
 ### Changed
 - **a cena passa a ser 3D** (three.js). O corredor virou lugar: parede de
