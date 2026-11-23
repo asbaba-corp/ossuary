@@ -15,6 +15,32 @@ PR #NN · AAAA-MM-DD · @autor
 - ...
 ```
 
+## 0.29 — O Vestíbulo vira 3D
+PR #69 · 2026-11-23 · @juniozguedes
+
+### Changed
+- **a cena passa a ser 3D** (three.js). O corredor virou lugar: parede de
+  crânios e fêmures com volume, colunas com tochas que acendem a cena de
+  verdade, névoa cor de brasa, contraluz vermelho, chão de lajes com sangue
+  velho e brasas subindo.
+- **o herói é um cavaleiro de armadura escura**, elmo fechado com chifres de
+  osso, espada e escudo com crânio; respira parado, anda, golpeia e cambaleia
+  ao apanhar.
+- **os Ignavos são vultos nus e sem rosto**, curvados, com costelas à mostra e
+  um rasgo vermelho no lugar da boca. Cada espécie do Mundo 0 tem proporção e
+  pele próprias (Gorja inchado, Moscardo miúdo, Caronte enorme).
+- **morte com peso:** o bicho cai para trás, uma poça de sangue se abre sob
+  ele, e o corpo afunda no chão em vez de sumir.
+- o pisca de acerto passa a vermelho e curto; a cuspida de sangue cruza o
+  espaço em arco até o peito do herói.
+- tudo continua no mesmo lugar e na mesma hora da cena 2D: o layout da horda
+  saiu para um módulo compartilhado pelos dois renderers.
+
+### Added
+- se o 3D não subir no aparelho, a cena cai sozinha na versão 2D.
+- `?cena=2d` no web mostra a cena antiga, para comparação.
+- vídeo antes/depois em `prints/antes-depois-2d-3d.mp4`.
+
 ## 0.28 — Ouro por onda deixa de ofuscar o abate
 PR #68 · 2026-09-03 · @juniozguedes
 
