@@ -837,27 +837,43 @@ A arena é o endgame infinito (plano técnico §7). O core design precisa respei
 
 ## 9. Renderização
 
-A aplicação Expo é a experiência principal em `/`. A cena usa React Native
-Skia, enquanto HUD, party e painéis continuam como Views React Native; o loop
-de simulação continua exclusivamente no `packages/core`, e a tela transforma
-estado e eventos em apresentação. `/lab` é
+A aplicação Expo é a experiência principal em `/`. A cena é **3D**
+(three.js via `@react-three/fiber`), enquanto HUD, party e painéis continuam
+como Views React Native; o loop de simulação continua exclusivamente no
+`packages/core`, e a tela transforma estado e eventos em apresentação. `/lab` é
 uma rota técnica para validar domínios isolados e não representa o produto
 jogável.
 
-**react-native-skia**, decidido. Mesmo código de render em iOS, Android (v2) e web, preservando o monorepo TS unificado.
+**three.js + react-three-fiber, decidido na 0.29** (revoga a decisão anterior,
+abaixo). Mesmo código de render em iOS e Android (via `expo-gl`) e no web
+(WebGL), preservando o monorepo TS unificado.
 
 ```
 packages/core        lógica pura, zero render
-  └ apps/expo        Skia via iOS, Android e RN Web
+  └ apps/expo        three.js: expo-gl no iOS/Android, WebGL no web
+       └ game/sceneLayout.ts   onde cada bicho fica — compartilhado pelos renderers
 ```
 
-Sprites 2D, parallax de camadas, partículas — suficiente para um sidescroller idle e longe do teto do Skia.
+- **Personagens e cenário são procedurais** (primitivas fundidas, cor por
+  vértice), no método do Klongor (`gruntz/src/render/characters.ts`): nenhum
+  arquivo de modelo para carregar ou falhar. Cada construtor pode virar um
+  `.glb` depois sem mexer no resto da cena.
+- **Estética:** ossuário escuro e grotesco — parede de crânios, tochas com luz
+  de verdade, névoa cor de brasa, contraluz vermelho, sangue no chão, mortos-vivos
+  sem rosto com as feridas abertas.
+- **Orçamento:** malhas instanciadas no cenário, no máximo três luzes pontuais,
+  sem sombra projetada (discos sob os pés) e sem pós-processamento.
+- A cena Skia (`SkiaScene.tsx`) fica como **fallback** quando o GL não sobe e
+  como referência (`?cena=2d` no web).
+
+**Decisão anterior, revogada:** "react-native-skia, decidido" — sprites 2D,
+parallax de camadas e partículas. Revogada a pedido do dono do projeto, que quis
+sair do visual desenhado para algo concreto em 3D sem perder a estética.
 
 **Isto corrige uma premissa do plano técnico**, que descreve o projeto como "90% UI". Com sidescroller, existe uma camada de render em tempo real que aquele documento não previu. Consequências a absorver:
 
 - O loop de render é independente do tick de simulação. `core` não sabe que existe tela.
 - Com o app em background, não há render — só o cálculo fechado de progresso offline.
-- O plano técnico §2 precisa de uma revisão para registrar o Skia.
 
 ---
 

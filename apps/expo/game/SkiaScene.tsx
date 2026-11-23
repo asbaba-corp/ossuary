@@ -3,7 +3,8 @@ import { useMemo } from "react";
 import { Canvas, Circle, ColorMatrix, FilterMode, Group, Image as SkiaImage, LinearGradient, MipmapMode, Oval, Paint, RadialGradient, Rect, Skia, rect, useImage, vec } from "@shopify/react-native-skia";
 import type { SkCanvas, SkPaint } from "@shopify/react-native-skia";
 import { StyleSheet, Text, View, useWindowDimensions } from "react-native";
-import type { SceneAnimation, SceneAnimationState } from "./GameViewModel";
+import { ATRASO_CORPO, FADE_CORPO, HEROI_X, LIMITE_DO_CORPO, PROFUNDIDADE_DA_FILEIRA, VIDA_BARRA_MOB, VIDA_CLARAO, VIDA_CUSPE, VIDA_NUMERO, W, aproximacao, fileiraDe, perfilDoMob, posicaoMob as posicaoNaHorda, sinalVivo as sinalTocando, slotMob } from "./sceneLayout";
+import type { SceneProps } from "./sceneLayout";
 
 /* Cena do Vestíbulo, desenhada em Skia — mesma pintura no web e no nativo.
 
@@ -11,7 +12,6 @@ import type { SceneAnimation, SceneAnimationState } from "./GameViewModel";
    disponível. Coordenadas fixas mantêm a composição igual em qualquer tela,
    em vez de recalcular tudo por porcentagem.                                */
 
-const W = 960;
 const H = 384;
 const CEILING_Y = 34;
 const CEILING_H = 38;
@@ -43,50 +43,11 @@ const HEROI_QW = 128;
 const HEROI_QH = 64;
 const HERO_SCALE = 1.85;
 const MOB_SCALE = 1.05;
-const VAO_ENTRE_MOBS = 46;       // vão entre vizinhos da MESMA fileira
-const POR_FILEIRA = 4;           // quantos cabem lado a lado antes de empilhar atrás
-const RECUO_DA_FILEIRA = 26;     // cada fileira atrás fica um pouco mais longe
-const PROFUNDIDADE_DA_FILEIRA = 9;
-const PRIMEIRO_MOB_X = 334;      // encostado no herói de verdade, dentro do alcance do golpe
-const HEROI_X = 250;
 /* O cavaleiro é desenhado à esquerda do centro do seu quadro; sem isto o
    número de dano dele sobe deslocado para a direita. */
 const DESVIO_NUMERO_HEROI = -20;
-/* A horda entra de FORA do palco (960 de largura): o primeiro mob começa em
-   372+660=1032, além da borda direita. Com 300 ela nascia em 672, dentro do
-   quadro — a onda seguinte aparecia do nada no meio da cena. */
-const ENTRADA_DA_HORDA = 660;
-/* A horda só entra depois da metade da marcha. Antes dela o corredor corre
-   vazio, com os corpos da onda passada ficando para trás — é o trecho de
-   caminhada que dá o ar de cenário sem fim. */
-const INICIO_DA_ENTRADA = 0.5;
-/* Corpo sai da lista quando já passou bem da borda esquerda. */
-const LIMITE_DO_CORPO = -160;
 
 
-/** Perfil de cada inimigo: ritmo de caminhada e lugar na horda.
-
-    Ignavo é gente, e gente não anda toda no mesmo passo nem em fila indiana.
-    O perfil sai de um hash do id, então é sempre o mesmo para o mesmo bicho —
-    sortear a cada quadro faria a horda tremer.
-
-    `ritmo` 1 é o passo mais rápido, que era o de todos antes; abaixo disso o
-    bicho fica para trás durante a aproximação e chega junto no fim, porque é o
-    motor que decide quando a luta começa. `desvioX` e `profundidade` tiram a
-    horda da linha reta: eles se amontoam com alguma folga, uns meio passo à
-    frente dos outros. */
-function perfilDoMob(id: string) {
-  let h = 2166136261;
-  for (let i = 0; i < id.length; i += 1) { h ^= id.charCodeAt(i); h = Math.imul(h, 16777619); }
-  const a = ((h >>> 0) % 1000) / 1000;
-  const b = ((h >>> 11) % 1000) / 1000;
-  const c = ((h >>> 21) % 1000) / 1000;
-  return {
-    ritmo: 0.55 + a * 0.45,
-    desvioX: (b - 0.5) * 30,
-    profundidade: (c - 0.5) * 16,   // desloca o pé: dá amontoado com profundidade
-  };
-}
 
 /* ------------------------------------------------------------- animações */
 
@@ -97,21 +58,6 @@ type Animation = "idle" | "walk" | "attack" | "hurt" | "dead";
 const FPS: Record<Animation, number> = { idle: 6, walk: 11, attack: 13, hurt: 14, dead: 11 };
 const CICLA: Record<Animation, boolean> = { idle: true, walk: true, attack: false, hurt: false, dead: false };
 
-const DURACAO_SINAL: Record<SceneAnimation, number> = { attack: 0.42, hurt: 0.3, dead: 0.5 };
-/* O corpo ficava só por conta do scroll para sumir — sem marcha (combate,
-   Loop numa mesma noite) ele nunca saía de cena, e as ondas foram ficando
-   maiores (fileiras, #54), então os corpos empilhavam e pesavam o quadro.
-   Agora ele para visível um instante (dá tempo do jogador registrar a
-   queda) e desvanece sozinho, sem depender de a câmera andar. */
-const ATRASO_CORPO = 1.4;                // segundos parado antes de começar a sumir
-const FADE_CORPO = 0.4;                  // desvanecer depois da animação de morte
-const VIDA_NUMERO = 0.7;                 // quanto um número flutuante dura
-const VIDA_CLARAO = 0.32;                // quanto o pisca de acerto dura
-/* Quanto a barra de um inimigo fica visível depois do último golpe. Longa o
-   bastante para acompanhar a vida descendo, curta o bastante para a horda
-   voltar a ser silhueta quando ninguém está apanhando. */
-const VIDA_BARRA_MOB = 2.2;
-const VIDA_CUSPE = 0.45;                 // quanto uma cuspida leva para cruzar
 
 /** Pinta tudo de branco mantendo o alfa: é o que faz o sprite piscar sem
     virar um retângulo. */
@@ -357,17 +303,7 @@ const RACHADURAS: Rachadura[] = (() => {
 
 /* ------------------------------------------------------------------ cena */
 
-type Enemy = { readonly id: string; readonly name: string; readonly hp: number; readonly maxHp: number };
-type Feedback = { readonly id: string; readonly alvo: string; readonly epoch: number; readonly text: string; readonly color: string; readonly dx?: number; readonly dy?: number };
-
-export function SkiaScene({ time, status, enemies, animations, hits, partyId, partyName, partyVitals, feedback, marcha = 1, camera = 0, corpses = [] }: {
-  time: number; status: string; enemies: readonly Enemy[]; marcha?: number; camera?: number;
-  corpses?: readonly { readonly id: string; readonly combatantId: string; readonly indice: number; readonly epoch: number; readonly camera: number }[];
-  animations: SceneAnimationState; hits?: Readonly<Record<string, number>>;
-  partyId?: string; partyName?: string;
-  partyVitals?: { readonly hp: number; readonly maxHp: number; readonly mana: number; readonly maxMana: number };
-  feedback: readonly Feedback[];
-}) {
+export function SkiaScene({ time, status, enemies, animations, hits, partyId, partyName, partyVitals, feedback, marcha = 1, camera = 0, corpses = [] }: SceneProps) {
   /** Intensidade do pisca de acerto, 1 no instante do golpe e 0 ao fim.
 
       O golpe que MATA também pisca — antes ele era o único que não piscava.
@@ -444,10 +380,7 @@ export function SkiaScene({ time, status, enemies, animations, hits, partyId, pa
   /* Aproximação LINEAR. O ease-out `1-(1-t)²` parte com o dobro da velocidade
      média e freia em cima do herói: a horda disparava para dentro do quadro e
      depois arrastava. Um morto-vivo não acelera nem desacelera — anda. */
-  const bruto = Math.min(1, Math.max(0, marcha));
-  const suave = bruto <= INICIO_DA_ENTRADA
-    ? 0
-    : (bruto - INICIO_DA_ENTRADA) / (1 - INICIO_DA_ENTRADA);
+  const suave = aproximacao(marcha);
 
   /* O HERÓI NÃO SE MOVE NO PALCO — quem se move é o mundo.
      Ele tinha um avanço próprio que ia a zero ao fim da marcha; quando a onda
@@ -456,33 +389,13 @@ export function SkiaScene({ time, status, enemies, animations, hits, partyId, pa
      A sensação de caminhada já vem do fundo correndo e da horda entrando pela
      direita, que é como o protótipo faz: câmera presa no herói. */
 
-  const sinalVivo = (id?: string) => {
-    const s = id ? animations[id] : undefined;
-    return s && time - s.epoch < DURACAO_SINAL[s.animation] ? s : undefined;
-  };
+  const sinalVivo = (id?: string) => sinalTocando(animations, time, id);
 
   const sinalHeroi = sinalVivo(partyId);
   const animHeroi: Animation = sinalHeroi?.animation ?? (andando ? "walk" : "idle");
   const tHeroi = sinalHeroi ? time - sinalHeroi.epoch : time;
 
-  /** Onde um inimigo PARA para lutar. Sem o recuo de entrada. */
-  /* A horda ocupa fileiras, não uma fila.
-     Com dezoito bichos, `i * vão` esticava a onda por mais de uma tela e
-     virava desfile. Agora quatro brigam lado a lado e o resto se empilha
-     atrás, cada fileira um pouco mais recuada e mais funda — que é como uma
-     multidão de fato se comporta contra um alvo só. */
-  const fileiraDe = (i: number) => Math.floor(i / POR_FILEIRA);
-  const slotMob = (i: number) =>
-    PRIMEIRO_MOB_X + (i % POR_FILEIRA) * VAO_ENTRE_MOBS + fileiraDe(i) * RECUO_DA_FILEIRA;
-  /** Onde um inimigo VIVO está agora: o passo dele mais o desvio na horda.
-
-      `suave ** (1/ritmo)` deixa o mais lento para trás no meio do caminho e o
-      traz junto no fim — é o motor que decide quando a luta começa. */
-  const posicaoMob = (i: number, id?: string) => {
-    const perfil = id ? perfilDoMob(id) : { ritmo: 1, desvioX: 0, profundidade: 0 };
-    const andado = suave <= 0 ? 0 : suave ** (1 / perfil.ritmo);
-    return slotMob(i) + perfil.desvioX + (1 - andado) * ENTRADA_DA_HORDA;
-  };
+  const posicaoMob = (i: number, id?: string) => posicaoNaHorda(i, id, suave);
   const heroiX = HEROI_X;
 
   return (

@@ -382,3 +382,48 @@ pedir arte — não sobrepor uma forma e caçar a coordenada. A cuspida de sangu
 sobrevive porque ela é um efeito que atravessa o espaço, não um traço do corpo:
 não precisa grudar em parte nenhuma.
 
+## Cena 3D
+
+### r3f no web montava a entrada nativa: canvas preto, zero erro
+**Sintoma:** com a cena 3D, o canvas aparecia no tamanho certo, com contexto
+WebGL2, e ficava preto. Console limpo, sem erro de render, e o filho do
+`<Canvas>` nunca montava.
+**Causa:** o `@react-three/fiber` declara `"react-native"` no `package.json`, e o
+Metro do Expo segue esse campo **também no web**. Entrava a entrada nativa, que
+espera o `GLView` do expo-gl e nunca inicia a cena no navegador. O bundle tinha
+as duas entradas (`react-three-fiber-native` e `react-three-fiber.cjs`).
+**Lição:** `game/scene3d/Tela.web.tsx` importa o caminho explícito
+`@react-three/fiber/dist/react-three-fiber.esm.js`. Canvas **e** hooks
+(`useFrame`, `useThree`) saem do mesmo arquivo: misturar entradas cria dois
+contextos do r3f, e o hook reclama que está fora do Canvas. Para checar qual
+entrada entrou, procure `react-three-fiber-native` no texto do bundle.
+
+### Clarão branco num cenário escuro deixa a horda branca o tempo todo
+**Sintoma:** os Ignavos e o herói pareciam brancos e chapados.
+**Primeira hipótese, errada:** cor por vértice perdida no clone do material.
+As cores estavam certas.
+**Causa:** o pisca de acerto punha o emissivo em ~0,9 branco. Na noite 1 todo
+mundo apanha várias vezes por segundo, e com a luz baixa da cena o emissivo
+dominava o boneco inteiro.
+**Lição:** o clarão é vermelho, até 0,2, e cai ao quadrado. Antes de culpar o
+material, leia `emissive` em vários quadros, e não num instante só.
+
+### Metal sem mapa de ambiente vira buraco preto
+**Sintoma:** as poças de sangue apareciam como manchas pretas no chão.
+**Causa:** `metalness` > 0 sem `scene.environment`. O metal reflete o ambiente,
+e não há ambiente.
+**Lição:** nesta cena, superfície molhada é `roughness` baixa com `metalness` 0.
+Brilho de metal só no que de fato é metal (armadura, espada), e mesmo lá com
+pouco metal.
+
+### iOS não verificado neste Mac
+O simulador precisa do Xcode completo, e aqui só existem as Command Line Tools.
+A 0.29 foi verificada no web (Chromium com ANGLE/Metal). No iOS, o caminho de
+teste é o Expo Go no aparelho: o expo-gl vem incluído.
+
+### `expo install` com pnpm via corepack
+O `expo install` chama `pnpm` cru, e o pnpm 11 roda `pnpm install` de novo para
+conferir as dependências. Sem `pnpm` no PATH (só `corepack pnpm`), os dois
+falham com `spawnSync pnpm ENOENT`. Resolve com um `pnpm` de mentira no PATH,
+que só faz `exec corepack pnpm "$@"`.
+

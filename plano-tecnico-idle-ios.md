@@ -29,6 +29,10 @@
 **TypeScript + React Native + Expo** — um único codebase que alvo iOS, Android e Web (RN Web via Expo).
 A web roda no mesmo código React Native, sem projeto Vite separado.
 
+**Render da cena: three.js** via `@react-three/fiber` — `expo-gl` no iOS/Android,
+WebGL no web. Personagens e cenário procedurais (sem arquivos de modelo), no
+método do Klongor. Detalhes e a decisão anterior (Skia) em `docs/design/core-design.md` §9.
+
 ### Servidor
 **Node + TypeScript.** Não é preferência estética — é o que permite rodar *o mesmo pacote `core`* no servidor e no cliente. Com PVP e validação, essa paridade deixa de ser conveniência e vira requisito de corretude.
 
@@ -394,5 +398,6 @@ A pergunta 3 é a mais urgente: decide se você tem um sistema ou dois, e é car
 
 ## Changelog
 
+- **v0.3** — Cena passa a 3D (three.js + react-three-fiber), revogando o Skia; ver core-design §9.
 - **v0.2** — Respondidas as perguntas em aberto da v0.1. Adicionados: servidor Node/TS com validação de save, sincronização multi-dispositivo, arena PVP assíncrona com temporadas, arquitetura de conteúdo orientada a schema para o editor futuro, offline com teto. Removido prestige e adicionada a seção 6 sobre suas consequências econômicas. Compliance ampliado (exclusão de conta, LGPD, Guidelines 1.2 e 4.8). Roadmap de 9 para 12 fases.
 - **v0.1** — Documento inicial. Stack (TS + RN + Expo), núcleo compartilhado, monetização com IAP + rewarded ads.

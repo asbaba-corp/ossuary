@@ -15,9 +15,41 @@ Design docs are written in Portuguese; that is intentional. Keep them in Portugu
 
 - TypeScript everywhere. `packages/core` (pure TS) is shared by iOS, web and server.
 - iOS/Android/Web client: React Native + Expo (single codebase for all three platforms).
-- Rendering: react-native-skia (2D sidescroller, same render code on iOS and web).
+- Rendering: **3D** — three.js via `@react-three/fiber` (`expo-gl` on iOS/Android, WebGL on web). Since 0.29; the Skia 2D scene stays only as fallback.
 - Server: Node + TypeScript, Postgres (saves in `jsonb`).
 - Content is **data**, not code.
+
+## Visual direction — 3D, dark and grotesque
+
+The scene is 3D, not drawn: real geometry, real light, real depth. The tone
+stays the Vestibule's — an ossuary in hell: skull walls, torchlight, ember-red
+fog, red rim light, blood on the floor, faceless undead with open wounds.
+
+- **Procedural first.** Characters and set pieces are built from primitives
+  (merged per joint, vertex colours), Klongor's method. No model file means
+  nothing to fail at load. Each builder (`apps/expo/game/scene3d/`) may later
+  be swapped for a `.glb` without touching the rest of the scene.
+- **Same contract, any renderer.** A renderer receives `SceneProps` and places
+  everything through `game/sceneLayout.ts`. Layout maths lives there once —
+  two renderers with their own maths diverge on the first tweak.
+- **The VM's clock drives the scene**, never the renderer's: every epoch
+  (attack, hit, death, number) is in `sceneTime`.
+- **Mobile budget:** instanced meshes for anything repeated, at most three
+  point lights (a changing light count recompiles every shader), no cast
+  shadows (blob discs), no post-processing.
+- **Text stays in React Native** (names, bars, numbers), positioned by
+  projecting through the scene camera.
+- `SkiaScene.tsx` is the fallback when GL fails and the reference on web
+  (`?cena=2d`). Do not grow it; new visuals go to the 3D scene.
+
+## Sister projects are the base
+
+Before inventing a system, look at the owner's other projects — they solved
+much of this already. **Klongor** (`~/Documents/projects/pessoal/gruntz`) is the
+main one: Three.js rendering (procedural rig, materials, performance probes),
+and a server on Cloudflare Workers + D1 (accounts, OAuth, admin panel, CI
+deploy). Port what fits, say where it came from in a comment, and leave out
+what is specific to the other game (RTS lockstep, lobby).
 
 ## UI architecture
 
